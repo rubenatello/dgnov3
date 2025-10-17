@@ -9,7 +9,7 @@ interface TagInputProps {
 }
 
 export default function TagInput({ tags, onTagsChange }: TagInputProps) {
-  const { userData } = useAuth();
+  const { userData, isWriter } = useAuth();
   const [input, setInput] = useState('');
   const [suggestions, setSuggestions] = useState<Tag[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -42,29 +42,31 @@ export default function TagInput({ tags, onTagsChange }: TagInputProps) {
   const handleAddTag = async (tagName?: string) => {
     const nameToAdd = tagName || input.trim();
     
-    if (!nameToAdd || !userData) return;
-    
-    // Check if tag already exists in the list
-    if (tags.includes(nameToAdd)) {
+    if (!nameToAdd) return;
+
+    // Check if tag already exists in the list (case-insensitive)
+    if (tags.map(t => t.toLowerCase()).includes(nameToAdd.toLowerCase())) {
       setInput('');
       setShowSuggestions(false);
       return;
     }
 
+    // Optimistically add tag to UI so user sees immediate feedback
+    onTagsChange([...tags, nameToAdd]);
+    setInput('');
+    setShowSuggestions(false);
+    setSuggestions([]);
+    setSelectedIndex(-1);
+
+    // Fire-and-forget: create or get tag in Firestore if the user has permission
     try {
-      // Create or get the tag in Firestore
-      await createOrGetTag(nameToAdd, userData.id!);
-      
-      // Add to local tags array
-      onTagsChange([...tags, nameToAdd]);
-      
-      // Clear input
-      setInput('');
-      setShowSuggestions(false);
-      setSuggestions([]);
-      setSelectedIndex(-1);
+      if (userData && isWriter && isWriter()) {
+        await createOrGetTag(nameToAdd, userData.id!);
+      }
     } catch (error) {
-      console.error('Error adding tag:', error);
+      console.error('Error adding tag to backend:', error);
+      // Revert optimistic add on failure
+      onTagsChange(tags.filter(t => t !== nameToAdd));
     }
   };
 
@@ -73,12 +75,19 @@ export default function TagInput({ tags, onTagsChange }: TagInputProps) {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
+    if (e.key === 'Enter' || e.key === ',') {
       e.preventDefault();
       if (selectedIndex >= 0 && suggestions[selectedIndex]) {
         handleAddTag(suggestions[selectedIndex].name);
       } else if (input.trim()) {
         handleAddTag();
+      }
+    } else if (e.key === 'Backspace') {
+      // Remove last tag when input is empty
+      if (input.trim() === '' && tags.length > 0) {
+        e.preventDefault();
+        handleRemoveTag(tags[tags.length - 1]);
+        return;
       }
     } else if (e.key === 'ArrowDown') {
       e.preventDefault();
@@ -141,25 +150,29 @@ export default function TagInput({ tags, onTagsChange }: TagInputProps) {
         </button>
       </div>
 
-      {/* Selected tags */}
-      <div className="flex flex-wrap gap-2">
-        {tags.map(tag => (
-          <span
-            key={tag}
-            className="inline-flex items-center gap-2 px-3 py-1 bg-accent bg-opacity-10 text-accent rounded-full text-sm"
-          >
-            {tag}
-            <button
-              type="button"
-              onClick={() => handleRemoveTag(tag)}
-              className="hover:text-red-600 transition-colors"
-              aria-label={`Remove ${tag} tag`}
-            >
-              ×
-            </button>
-          </span>
-        ))}
-      </div>
+      {/* Active tags popup (appears under input) */}
+      {tags.length > 0 && (
+        <div className="mt-2 w-full bg-white border border-stone rounded p-3 shadow-sm">
+          <div className="flex flex-wrap gap-2">
+            {tags.map(tag => (
+              <span
+                key={tag}
+                className="inline-flex items-center gap-2 px-3 py-1 bg-accent bg-opacity-90 text-white rounded-full text-sm"
+              >
+                <span className="select-none">{tag}</span>
+                <button
+                  type="button"
+                  onClick={() => handleRemoveTag(tag)}
+                  className="ml-1 text-xs text-white hover:text-red-300 transition-colors"
+                  aria-label={`Remove ${tag} tag`}
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

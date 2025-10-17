@@ -24,8 +24,14 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         <div className="px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-12">
             <div className="flex items-center gap-4">
+              {/* Logo */}
+            <div className="flex-shrink-1">
+              <a href="/" className="flex items-center gap-4">
+                 <img src="/logo.png" alt="DGNO" className="h-12 invert" />
+              </a>
+            </div>
               <a href="/" className="text-lg font-heading font-bold hover:text-accent transition-colors">
-                DGNO
+             
               </a>
             </div>
             <div className="flex items-center gap-4">

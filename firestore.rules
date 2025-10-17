@@ -11,19 +11,24 @@ service cloud.firestore {
     }
     
     function hasRole(role) {
-      return isSignedIn() && request.auth.token.role == role;
+      return request.auth != null && (
+        // Preferred: check custom token claims (authoritative)
+        (request.auth.token.roles != null && request.auth.token.roles[role] == true)
+        // Fallback: check the users/{uid} document's rolesMap field
+        || (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.rolesMap[role] == true)
+      );
     }
-    
+
     function isWriter() {
-      return hasRole('writer') || hasRole('editor') || hasRole('admin');
+      return hasRole('writer') || hasRole('editor') || hasRole('admin') || hasRole('superuser');
     }
-    
+
     function isEditor() {
-      return hasRole('editor') || hasRole('admin');
+      return hasRole('editor') || hasRole('admin') || hasRole('superuser');
     }
-    
+
     function isAdmin() {
-      return hasRole('admin');
+      return hasRole('admin') || hasRole('superuser');
     }
 
     // Articles collection
@@ -34,12 +39,28 @@ service cloud.firestore {
       // Writers, editors, admins can read all articles
       allow read: if isWriter();
       
-      // Writers can create articles
-      allow create: if isWriter();
-      
-      // Writers can update their own articles, editors/admins can update any
-      allow update: if isWriter() && 
-        (request.auth.uid == resource.data.authorId || isEditor());
+      // Writers can create articles. Additionally allow any signed-in user to
+      // create a lightweight draft for themselves (status == 'draft'). This
+      // enables autosave/draft workflows for authors who don't yet have the
+      // 'writer' role.
+      allow create: if isWriter() || (
+        isSignedIn() &&
+        request.auth.uid == request.resource.data.authorId &&
+        request.resource.data.status == 'draft'
+      );
+
+      // Writers can update their own articles, editors/admins can update any.
+      // Additionally permit the article's author to update their own draft
+      // (resource.status == 'draft'), but only as long as they don't change
+      // status (non-writers may not publish).
+      allow update: if (
+        isWriter() && (request.auth.uid == resource.data.authorId || isEditor())
+      ) || (
+        isSignedIn() &&
+        request.auth.uid == resource.data.authorId &&
+        resource.data.status == 'draft' &&
+        request.resource.data.status == 'draft'
+      );
       
       // Only editors and admins can delete
       allow delete: if isEditor();

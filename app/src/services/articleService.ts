@@ -16,6 +16,22 @@ import { generateSlug } from '../utils/helpers';
 
 const ARTICLES_COLLECTION = 'articles';
 
+// Remove undefined values from an object before sending to Firestore
+// internal: sanitize object before sending to Firestore. We allow `any` here because
+// Firestore documents can contain mixed values (timestamps, strings, arrays).
+/* eslint-disable @typescript-eslint/no-explicit-any */
+function sanitizeForFirestore<T extends Record<string, any>>(obj: Partial<T>): Partial<T> {
+  const out: Partial<T> = {};
+  for (const key of Object.keys(obj)) {
+    const v = (obj as unknown as Record<string, any>)[key];
+    if (v !== undefined) {
+      out[key as keyof T] = v as T[keyof T];
+    }
+  }
+  return out;
+}
+/* eslint-enable @typescript-eslint/no-explicit-any */
+
 /**
  * Create a new article
  */
@@ -31,7 +47,8 @@ export async function createArticle(
     lastUpdatedAt: serverTimestamp(),
   };
 
-  const docRef = await addDoc(collection(db, ARTICLES_COLLECTION), article);
+  const clean = sanitizeForFirestore<Article>(article as Partial<Article>);
+  const docRef = await addDoc(collection(db, ARTICLES_COLLECTION), clean as Partial<Article>);
   return docRef.id;
 }
 
@@ -44,12 +61,13 @@ export async function updateArticle(
   userId: string
 ): Promise<void> {
   const docRef = doc(db, ARTICLES_COLLECTION, articleId);
-  
-  await updateDoc(docRef, {
-    ...updates,
-    lastUpdatedAt: serverTimestamp(),
-    lastUpdatedBy: userId,
+  const payload = sanitizeForFirestore<Article>({
+    ...(updates as Partial<Article>),
+    lastUpdatedAt: serverTimestamp() as unknown as Article['lastUpdatedAt'],
+    lastUpdatedBy: userId as unknown as Article['lastUpdatedBy'],
   });
+
+  await updateDoc(docRef, payload as Partial<Record<string, unknown>>);
 }
 
 /**
@@ -80,6 +98,21 @@ export async function getPublishedArticles(): Promise<Article[]> {
     id: doc.id,
     ...doc.data()
   } as Article));
+}
+
+/**
+ * Get a single article by slug
+ */
+export async function getArticleBySlug(slug: string): Promise<Article | null> {
+  const q = query(
+    collection(db, ARTICLES_COLLECTION),
+    where('slug', '==', slug),
+  );
+
+  const querySnapshot = await getDocs(q);
+  if (querySnapshot.empty) return null;
+  const docSnap = querySnapshot.docs[0];
+  return { id: docSnap.id, ...docSnap.data() } as Article;
 }
 
 /**
@@ -114,4 +147,23 @@ export async function getArticlesByStatus(status: ArticleStatus): Promise<Articl
     id: doc.id,
     ...doc.data()
   } as Article));
+}
+
+/**
+ * Create a lightweight draft article. Allows creating a draft without a title/slug.
+ * Returns the new draft ID.
+ */
+export async function createDraft(
+  draftData: Partial<Article>
+): Promise<string> {
+  const article = {
+    ...draftData,
+    status: draftData.status || 'draft',
+    createdAt: serverTimestamp(),
+    lastUpdatedAt: serverTimestamp(),
+  } as Partial<Article>;
+
+  const clean = sanitizeForFirestore<Article>(article);
+  const docRef = await addDoc(collection(db, ARTICLES_COLLECTION), clean as Partial<Article>);
+  return docRef.id;
 }

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Timestamp, doc, getDoc, addDoc, updateDoc, collection } from 'firebase/firestore';
+import { Timestamp, doc, getDoc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { useAuth } from '../../hooks/useAuth';
 import DashboardLayout from '../../components/DashboardLayout';
@@ -11,6 +11,10 @@ import { faSave, faArrowLeft } from '@fortawesome/free-solid-svg-icons';
 import type { Article, ArticleStatus } from '../../types/models';
 import { SECTIONS } from '../../types/models';
 import { updateTagUsageCounts, incrementTagUsage } from '../../services/tagService';
+import { createOrGetTag } from '../../services/tagService';
+import { getWritersAndEditors } from '../../services/userService';
+import type { StaffUser } from '../../services/userService';
+import { createDraft, updateArticle } from '../../services/articleService';
 import MediaPicker from '../../components/MediaPicker';
 
 export default function CreateEditArticlePage() {
@@ -33,14 +37,87 @@ export default function CreateEditArticlePage() {
   const [originalTags, setOriginalTags] = useState<string[]>([]); // Track original tags for usage count
   const [featuredImageId, setFeaturedImageId] = useState<string | undefined>(undefined);
   const [featuredImageUrl, setFeaturedImageUrl] = useState<string | undefined>(undefined);
+  const [staffUsers, setStaffUsers] = useState<StaffUser[]>([]);
+  const [authorId, setAuthorId] = useState<string | undefined>(undefined);
+  const [coAuthorId, setCoAuthorId] = useState<string | undefined>(undefined);
   const [showMediaPicker, setShowMediaPicker] = useState(false);
+  const [draftId, setDraftId] = useState<string | undefined>(undefined);
 
   // Load article if editing
   useEffect(() => {
     if (isEditing && id) {
       loadArticle(id);
     }
+    // load writers/editors for author selects
+    (async () => {
+      const s = await getWritersAndEditors();
+      setStaffUsers(s);
+    })();
   }, [id, isEditing]);
+
+  // Rehydrate draftId from localStorage if present (user may have an autosave draft from earlier)
+  useEffect(() => {
+    try {
+      const key = `unsavedArticleDraftId:${userData?.id || 'anon'}`;
+      const stored = localStorage.getItem(key);
+      if (stored && !isEditing) {
+        setDraftId(stored);
+      }
+    } catch {
+      // ignore
+    }
+  }, [userData, isEditing]);
+
+  // Create a draft on first meaningful change (tags, title, summary, content)
+  useEffect(() => {
+    let created = false;
+
+    const shouldCreate = !draftId && userData && (tags.length > 0 || title.trim() || summary.trim() || content);
+    if (shouldCreate) {
+      created = true;
+      (async () => {
+        try {
+          const id = await createDraft({ authorId: userData?.id || '', tags, title: title || undefined, summary: summary || undefined, content: content || '', featuredImageId, section });
+          setDraftId(id);
+          try { localStorage.setItem(`unsavedArticleDraftId:${userData?.id || 'anon'}`, id); } catch {
+            // ignore localStorage failures (private mode etc.)
+          }
+        } catch (err) {
+          console.error('Failed to create draft:', err);
+        }
+      })();
+    }
+
+    return () => {
+      if (created) created = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tags, userData, title, summary, content, featuredImageId, section]);
+
+  // Autosave effect: debounce updates to the draft
+  useEffect(() => {
+    if (!draftId) return;
+
+  let cancelled = false;
+
+    const timer = setTimeout(async () => {
+      if (cancelled) return;
+      try {
+        await updateArticle(draftId, { title, subtitle, summary, content, section, tags, featuredImageId, status: 'draft' }, userData?.id || '');
+        try { localStorage.setItem(`unsavedArticleDraftId:${userData?.id || 'anon'}`, draftId); } catch {
+          // ignore localStorage failures
+        }
+      } catch (err) {
+        console.error('Autosave failed:', err);
+      }
+    }, 1200);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftId, title, subtitle, summary, content, section, tags, featuredImageId]);
 
   async function loadArticle(articleId: string) {
     try {
@@ -57,6 +134,9 @@ export default function CreateEditArticlePage() {
         setOriginalTags(data.tags || []); // Track original for usage count updates
         setFeaturedImageId(data.featuredImageId || undefined);
         setFeaturedImageUrl(data.featuredImageUrl || undefined);
+        setDraftId(articleId);
+        setAuthorId(data.authorId || undefined);
+  setCoAuthorId((data as unknown as Partial<Record<string, unknown>>).coAuthorId as string | undefined || undefined);
       } else {
         setError('Article not found');
       }
@@ -87,7 +167,7 @@ export default function CreateEditArticlePage() {
       const slug = generateSlug(title);
       const now = Timestamp.fromDate(new Date());
 
-  const articleData: Omit<Article, 'id'> = {
+      const articleData: Omit<Article, 'id'> = {
         title,
         slug,
         subtitle,
@@ -95,7 +175,8 @@ export default function CreateEditArticlePage() {
         content,
         section,
         tags,
-        authorId: userData?.id || '',
+        authorId: authorId || userData?.id || '',
+        coAuthorId: coAuthorId || undefined,
         status: saveStatus,
         lastUpdatedAt: now,
         lastUpdatedBy: userData?.id || '',
@@ -104,14 +185,40 @@ export default function CreateEditArticlePage() {
         featuredImageId,
       };
 
-      if (isEditing && id) {
+      // Include author/coauthor display names for easier rendering on the public article
+      const authorObj = staffUsers.find(u => u.id === (authorId || userData?.id));
+      if (authorObj) {
+        (articleData as Partial<Record<string, unknown>>).authorName = authorObj.displayName;
+      }
+      if (coAuthorId) {
+        const coObj = staffUsers.find(u => u.id === coAuthorId);
+        if (coObj) (articleData as Partial<Record<string, unknown>>).coAuthorName = coObj.displayName;
+      }
+
+      if (draftId) {
+        // If we have a draftId (either existing article being edited or autosave draft), update it
+        // Before publishing, ensure tag documents exist (if writer)
+        if (saveStatus === 'published' && userData) {
+          try {
+            await Promise.all(tags.map(t => createOrGetTag(t, userData.id!)));
+          } catch (e) {
+            console.warn('Could not ensure tag docs:', e);
+          }
+        }
+
+        await updateArticle(draftId, articleData as Partial<Article>, userData?.id || '');
+        // Update tag usage counts only when publishing or moving from draft to published
+        if (saveStatus === 'published') {
+          await updateTagUsageCounts(originalTags, tags);
+        }
+      } else if (isEditing && id) {
         // Update tag usage counts (increment new, decrement removed)
         await updateTagUsageCounts(originalTags, tags);
-        await updateDoc(doc(db, 'articles', id), articleData as Partial<Article>);
+        await updateArticle(id, articleData as Partial<Article>, userData?.id || '');
       } else {
-        // For new articles, increment usage for all tags
+        // For new articles without a draft (unlikely since autosave creates one), increment usage for all tags
         await Promise.all(tags.map(tag => incrementTagUsage(tag)));
-        await addDoc(collection(db, 'articles'), articleData);
+        await createDraft(articleData as Partial<Article>);
       }
 
       navigate('/dashboard/articles');
@@ -231,6 +338,34 @@ export default function CreateEditArticlePage() {
                 <option key={s} value={s}>{s}</option>
               ))}
             </select>
+          </div>
+
+          {/* Author / Co-author */}
+          <div>
+            <label className="block text-sm font-medium text-ink mb-2">Author</label>
+            <select
+              value={authorId}
+              onChange={e => setAuthorId(e.target.value || undefined)}
+              className="w-full border border-stone rounded px-4 py-2 focus:ring-2 focus:ring-accent bg-white"
+            >
+              <option value="">(Default: current user)</option>
+              {staffUsers.map(u => (
+                <option key={u.id} value={u.id}>{u.displayName}</option>
+              ))}
+            </select>
+            <div className="mt-3">
+              <label className="block text-sm font-medium text-ink mb-2">Co-author (optional)</label>
+              <select
+                value={coAuthorId}
+                onChange={e => setCoAuthorId(e.target.value || undefined)}
+                className="w-full border border-stone rounded px-4 py-2 focus:ring-2 focus:ring-accent bg-white"
+              >
+                <option value="">None</option>
+                {staffUsers.map(u => (
+                  <option key={u.id} value={u.id}>{u.displayName}</option>
+                ))}
+              </select>
+            </div>
           </div>
 
           {/* Tags */}

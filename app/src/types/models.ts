@@ -35,7 +35,7 @@ export interface User {
   roles: UserRole[]; // Can have multiple roles
   isStaff: boolean; // true if user has writer/editor/admin/dev/superuser
   isActive: boolean; // Account active status
-  createdAt: Timestamp;
+  createdAt?: Timestamp;
   lastLoginAt?: Timestamp;
 }
 
@@ -45,18 +45,21 @@ export interface Article {
   title: string;
   slug: string;
   subtitle?: string;
-  summary: string; // Max 300 characters
-  content: string; // Tiptap HTML content
+  summary?: string; // Max 300 characters
+  content?: string; // Tiptap HTML content
   featuredImageId?: string;
+  featuredImageUrl?: string;
   section?: string;
-  tags: string[];
-  authorId: string;
+  tags?: string[];
+  authorId?: string;
   coAuthorId?: string;
-  status: ArticleStatus;
+  authorName?: string;
+  coAuthorName?: string;
+  status?: ArticleStatus;
   publishedAt?: Timestamp;
-  lastUpdatedAt: Timestamp;
-  lastUpdatedBy: string;
-  createdAt: Timestamp;
+  lastUpdatedAt?: Timestamp;
+  lastUpdatedBy?: string;
+  createdAt?: Timestamp;
 }
 
 // Media/Image interface
@@ -67,33 +70,21 @@ export interface Media {
   description: string;
   alt: string; // Can default to description
   sourceCredit: string; // e.g., "AP / Getty Images"
-  uploadedAt: Timestamp | Date;
-  uploadedBy: string;
-  type: 'image' | 'video';
+  uploadedAt?: Timestamp | Date;
+  uploadedBy?: string;
+  type?: 'image' | 'video';
   usageCount?: number; // Track how many times used in articles
   lastUpdated?: Timestamp | Date; // Last time metadata was updated
-}
-
-// Author interface (deprecated - use User instead)
-// Kept for backward compatibility
-export interface Author {
-  id?: string;
-  displayName: string;
-  role: 'reader' | 'writer' | 'editor' | 'admin';
-  avatarUrl?: string;
-  bio?: string;
-  email: string;
-  createdAt: Timestamp;
 }
 
 // Comment interface
 export interface Comment {
   id?: string;
-  articleId: string;
-  userId: string;
-  body: string;
-  status: 'pending' | 'approved' | 'hidden';
-  createdAt: Timestamp;
+  articleId?: string;
+  userId?: string;
+  body?: string;
+  status?: 'pending' | 'approved' | 'hidden';
+  createdAt?: Timestamp;
   editedAt?: Timestamp;
 }
 
@@ -127,7 +118,7 @@ export interface DGNOPayload {
 export interface Donor {
   id?: string; // userId
   userId: string;
-  lastDonationAt: Timestamp;
+  lastDonationAt?: Timestamp;
   stripeCustomerId?: string;
 }
 
@@ -148,7 +139,7 @@ export interface Tag {
   name: string; // Display name (e.g., "Climate Change")
   slug: string; // URL-safe version
   usageCount: number; // How many articles use this tag
-  createdAt: Timestamp;
-  createdBy: string; // User ID who created the tag
+  createdAt?: Timestamp;
+  createdBy?: string; // User ID who created the tag
   lastUsed?: Timestamp; // Last time used in an article
 }

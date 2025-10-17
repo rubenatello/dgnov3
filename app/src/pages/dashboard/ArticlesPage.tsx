@@ -13,6 +13,7 @@ export default function ArticlesPage() {
   const navigate = useNavigate();
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
+  const [limitedView, setLimitedView] = useState(false);
   const [filterStatus, setFilterStatus] = useState<'all' | ArticleStatus>('all');
   const [search, setSearch] = useState('');
 
@@ -25,23 +26,54 @@ export default function ArticlesPage() {
     setLoading(true);
     try {
       const articlesRef = collection(db, 'articles');
-      let q = query(articlesRef, orderBy('lastUpdatedAt', 'desc'));
+      let q;
 
-      // Filter by status if not 'all'
-      if (filterStatus !== 'all') {
-        q = query(articlesRef, where('status', '==', filterStatus), orderBy('lastUpdatedAt', 'desc'));
-      }
+      // Non-writer users should only fetch published articles (security rules
+      // restrict reading drafts). Writers/editors/admins see broader results.
+      if (!isWriter()) {
+        // Always show published articles to non-writers regardless of the
+        // selected filter (avoid permission denied errors).
+        q = query(articlesRef, where('status', '==', 'published'), orderBy('lastUpdatedAt', 'desc'));
+      } else {
+        // Writers and above: allow filtering by status and (for writers-only)
+        // restrict to their own articles when appropriate.
+        q = query(articlesRef, orderBy('lastUpdatedAt', 'desc'));
 
-      // If user is writer (not editor/admin), only show their own articles
-      if (isWriter() && !isEditor() && !isAdmin()) {
-        q = query(articlesRef, where('authorId', '==', userData?.id), orderBy('lastUpdatedAt', 'desc'));
+        // Filter by status if not 'all'
+        if (filterStatus !== 'all') {
+          q = query(articlesRef, where('status', '==', filterStatus), orderBy('lastUpdatedAt', 'desc'));
+        }
+
+        // If user is writer (not editor/admin), only show their own articles
+        if (isWriter() && !isEditor() && !isAdmin()) {
+          q = query(articlesRef, where('authorId', '==', userData?.id), orderBy('lastUpdatedAt', 'desc'));
+        }
       }
 
       const snapshot = await getDocs(q);
       const fetchedArticles = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Article[];
       setArticles(fetchedArticles);
     } catch (error) {
-      console.error('Error fetching articles:', error);
+      // Firestore may require a composite index for some where+orderBy combos
+      // or the security rules might block the privileged query. Provide a
+      // graceful fallback: try published-only articles which are readable by
+      // everyone and surface a limited-view message.
+      const e = error as { code?: string; message?: string };
+      if (e.code === 'failed-precondition' && e.message?.includes('index')) {
+        console.error('Firestore index required for this query. Create it using the link in the error message:', e.message);
+      } else if (e.message?.includes('Missing or insufficient permissions')) {
+        console.warn('Privileged articles query failed due to permissions. Falling back to published-only query.');
+        try {
+          const fallbackQ = query(collection(db, 'articles'), where('status', '==', 'published'), orderBy('lastUpdatedAt', 'desc'));
+          const snap = await getDocs(fallbackQ);
+          setArticles(snap.docs.map(d => ({ id: d.id, ...d.data() })) as Article[]);
+          setLimitedView(true);
+        } catch (fallbackErr) {
+          console.error('Fallback fetch also failed:', fallbackErr);
+        }
+      } else {
+        console.error('Error fetching articles:', error);
+      }
     } finally {
       setLoading(false);
     }
@@ -132,6 +164,11 @@ export default function ArticlesPage() {
         </div>
 
         {/* Articles Table */}
+        {limitedView && (
+          <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded text-yellow-800 text-sm">
+            Your view is limited to published articles. Drafts and private articles are visible only to writers and editors.
+          </div>
+        )}
         {loading ? (
           <div className="text-center text-inkMuted py-12">Loading articles...</div>
         ) : filteredArticles.length === 0 ? (

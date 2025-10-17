@@ -4,6 +4,7 @@ import { Header, Footer } from './components';
 import ProtectedRoute from './components/ProtectedRoute';
 import { HomePage } from './pages';
 import LoginPage from './pages/LoginPage';
+import ArticleView from './pages/ArticleView';
 
 import DashboardPage from './pages/dashboard/DashboardPage';
 import MediaPage from './pages/dashboard/MediaPage';
@@ -30,6 +31,34 @@ function App() {
           />
           
           <Route path="/login" element={<LoginPage />} />
+
+          {/* Public article view */}
+          <Route
+            path="/article/:slug"
+            element={
+              <div className="min-h-screen flex flex-col">
+                <Header />
+                <main className="flex-1">
+                  <ArticleView />
+                </main>
+                <Footer />
+              </div>
+            }
+          />
+
+          {/* Optionally support date-prefixed slugs: /article/yyyy/mm/dd/slug */}
+          <Route
+            path="/article/:yyyy/:mm/:dd/:slug"
+            element={
+              <div className="min-h-screen flex flex-col">
+                <Header />
+                <main className="flex-1">
+                  <ArticleView />
+                </main>
+                <Footer />
+              </div>
+            }
+          />
 
           {/* Protected Routes */}
           <Route
