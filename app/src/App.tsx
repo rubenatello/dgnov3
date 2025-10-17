@@ -7,6 +7,8 @@ import LoginPage from './pages/LoginPage';
 
 import DashboardPage from './pages/dashboard/DashboardPage';
 import MediaPage from './pages/dashboard/MediaPage';
+import ArticlesPage from './pages/dashboard/ArticlesPage';
+import CreateEditArticlePage from './pages/dashboard/CreateEditArticlePage';
 
 function App() {
   return (
@@ -45,6 +47,34 @@ function App() {
             element={
               <ProtectedRoute requireStaff>
                 <MediaPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Articles Management (staff only) */}
+          <Route
+            path="/dashboard/articles"
+            element={
+              <ProtectedRoute requireStaff>
+                <ArticlesPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/dashboard/articles/create"
+            element={
+              <ProtectedRoute requireStaff>
+                <CreateEditArticlePage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/dashboard/articles/edit/:id"
+            element={
+              <ProtectedRoute requireStaff>
+                <CreateEditArticlePage />
               </ProtectedRoute>
             }
           />

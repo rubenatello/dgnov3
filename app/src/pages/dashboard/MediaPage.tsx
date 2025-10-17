@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Timestamp } from 'firebase/firestore';
-import { uploadMediaFile, addMedia, getAllMedia } from '../../services/mediaService';
+import { uploadMediaFile, addMedia, getAllMedia, updateMedia, deleteMedia } from '../../services/mediaService';
 import { useAuth } from '../../contexts/AuthContext';
 import DashboardLayout from '../../components/DashboardLayout';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faUpload, faImage, faVideo, faSearch, faPlus } from '@fortawesome/free-solid-svg-icons';
+import { faUpload, faImage, faVideo, faSearch, faPlus, faEdit, faTrash } from '@fortawesome/free-solid-svg-icons';
 import type { Media } from '../../types/models';
 
 export default function MediaPage() {
@@ -12,6 +12,7 @@ export default function MediaPage() {
   const [media, setMedia] = useState<Media[]>([]);
   const [loading, setLoading] = useState(true);
   const [showUpload, setShowUpload] = useState(false);
+  const [editingMedia, setEditingMedia] = useState<Media | null>(null);
   const [filterType, setFilterType] = useState<'all' | 'image' | 'video'>('all');
   const [search, setSearch] = useState('');
 
@@ -55,20 +56,35 @@ export default function MediaPage() {
         mediaType = file.type.startsWith('video') ? 'video' : 'image';
       }
       
-      const meta: Omit<Media, 'id'> = {
-        url,
-        title,
-        description,
-        alt: alt || description, // Use alt if provided, otherwise use description
-        sourceCredit,
-        uploadedAt: Timestamp.fromDate(new Date()),
-        uploadedBy: userData?.id || '',
-        type: mediaType,
-        usageCount: 0,
-        lastUpdated: Timestamp.fromDate(new Date()),
-      };
-      await addMedia(meta);
+      if (editingMedia) {
+        // Update existing media
+        if (!editingMedia.id) throw new Error('Media ID is missing');
+        await updateMedia(editingMedia.id, {
+          title,
+          description,
+          alt: alt || description,
+          sourceCredit,
+          lastUpdated: Timestamp.fromDate(new Date()),
+        });
+      } else {
+        // Create new media
+        const meta: Omit<Media, 'id'> = {
+          url,
+          title,
+          description,
+          alt: alt || description,
+          sourceCredit,
+          uploadedAt: Timestamp.fromDate(new Date()),
+          uploadedBy: userData?.id || '',
+          type: mediaType,
+          usageCount: 0,
+          lastUpdated: Timestamp.fromDate(new Date()),
+        };
+        await addMedia(meta);
+      }
+      
       setShowUpload(false);
+      setEditingMedia(null);
       setFile(null);
       setImageUrl('');
       setTitle('');
@@ -83,6 +99,32 @@ export default function MediaPage() {
       setError('Upload failed. Check console for details.');
     } finally {
       setUploading(false);
+    }
+  }
+
+  // Handle edit
+  function handleEdit(item: Media) {
+    setEditingMedia(item);
+    setTitle(item.title);
+    setDescription(item.description);
+    setAlt(item.alt);
+    setSourceCredit(item.sourceCredit);
+    setImageUrl(item.url);
+    setShowUpload(true);
+  }
+
+  // Handle delete
+  async function handleDelete(item: Media) {
+    if (!item.id) return alert('Media ID is missing');
+    if (!confirm(`Delete "${item.title}"? This cannot be undone.`)) return;
+    try {
+      await deleteMedia(item.id, item.url);
+      // Refresh gallery
+      const all = await getAllMedia(filterType === 'all' ? undefined : filterType);
+      setMedia(all);
+    } catch (error) {
+      console.error(error);
+      alert('Delete failed. Check console for details.');
     }
   }
 
@@ -146,46 +188,50 @@ export default function MediaPage() {
               ×
             </button>
             <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-              <FontAwesomeIcon icon={faUpload} /> Upload Media
+              <FontAwesomeIcon icon={faUpload} /> {editingMedia ? 'Edit Media' : 'Upload Media'}
             </h2>
             {error && <div className="text-red-600 mb-2 text-sm">{error}</div>}
             
             {/* File Upload */}
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-ink mb-2">Upload File</label>
-              <label className="flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-stone rounded-lg cursor-pointer hover:border-accent hover:bg-accent hover:bg-opacity-5 transition-all">
-                <FontAwesomeIcon icon={faUpload} className="text-accent" />
-                <span className="text-sm text-ink">
-                  {file ? file.name : 'Choose image or video'}
-                </span>
-                <input
-                  type="file"
-                  accept="image/*,video/*"
-                  onChange={e => setFile(e.target.files?.[0] || null)}
-                  className="hidden"
-                />
-              </label>
-            </div>
+            {!editingMedia && (
+              <>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-ink mb-2">Upload File</label>
+                  <label className="flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-stone rounded-lg cursor-pointer hover:border-accent hover:bg-accent hover:bg-opacity-5 transition-all">
+                    <FontAwesomeIcon icon={faUpload} className="text-accent" />
+                    <span className="text-sm text-ink">
+                      {file ? file.name : 'Choose image or video'}
+                    </span>
+                    <input
+                      type="file"
+                      accept="image/*,video/*"
+                      onChange={e => setFile(e.target.files?.[0] || null)}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
 
-            {/* OR Divider */}
-            <div className="flex items-center gap-2 mb-4">
-              <div className="flex-1 border-t border-stone"></div>
-              <span className="text-sm text-inkMuted">OR</span>
-              <div className="flex-1 border-t border-stone"></div>
-            </div>
+                {/* OR Divider */}
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="flex-1 border-t border-stone"></div>
+                  <span className="text-sm text-inkMuted">OR</span>
+                  <div className="flex-1 border-t border-stone"></div>
+                </div>
 
-            {/* Image URL */}
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-ink mb-2">Image URL</label>
-              <input
-                type="url"
-                placeholder="https://example.com/image.jpg"
-                className="w-full border border-stone rounded px-3 py-2 focus:ring-2 focus:ring-accent"
-                value={imageUrl}
-                onChange={e => setImageUrl(e.target.value)}
-              />
-              <p className="text-xs text-inkMuted mt-1">Paste a direct link to an image instead of uploading</p>
-            </div>
+                {/* Image URL */}
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-ink mb-2">Image URL</label>
+                  <input
+                    type="url"
+                    placeholder="https://example.com/image.jpg"
+                    className="w-full border border-stone rounded px-3 py-2 focus:ring-2 focus:ring-accent"
+                    value={imageUrl}
+                    onChange={e => setImageUrl(e.target.value)}
+                  />
+                  <p className="text-xs text-inkMuted mt-1">Paste a direct link to an image instead of uploading</p>
+                </div>
+              </>
+            )}
             
             <div className="mb-3">
               <input
@@ -238,7 +284,7 @@ export default function MediaPage() {
               className="w-full bg-accent text-white py-2 rounded-lg font-medium hover:bg-opacity-90 transition-all"
               disabled={uploading}
             >
-              {uploading ? 'Uploading...' : 'Upload'}
+              {uploading ? (editingMedia ? 'Updating...' : 'Uploading...') : (editingMedia ? 'Update' : 'Upload')}
             </button>
           </form>
         </div>
@@ -252,7 +298,7 @@ export default function MediaPage() {
           <div className="col-span-full text-center text-inkMuted">No media found.</div>
         ) : (
           media.map(m => (
-            <div key={m.id} className="bg-white border border-stone rounded-lg overflow-hidden shadow-sm">
+            <div key={m.id} className="bg-white border border-stone rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow">
               {m.type === 'image' ? (
                 <img src={m.url} alt={m.alt} className="w-full h-40 object-cover" />
               ) : (
@@ -262,7 +308,25 @@ export default function MediaPage() {
                 <div className="font-bold text-ink mb-1 truncate">{m.title}</div>
                 <div className="text-xs text-inkMuted mb-1 truncate">{m.description}</div>
                 <div className="text-xs text-inkMuted mb-1">Credit: {m.sourceCredit}</div>
-                <div className="text-xs text-inkMuted">Type: {m.type}</div>
+                <div className="text-xs text-inkMuted mb-2">Type: {m.type}</div>
+                
+                {/* Action Buttons */}
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleEdit(m)}
+                    className="flex-1 bg-stone text-ink px-2 py-1.5 rounded text-xs hover:bg-accent hover:text-white transition-colors flex items-center justify-center gap-1"
+                    title="Edit"
+                  >
+                    <FontAwesomeIcon icon={faEdit} /> Edit
+                  </button>
+                  <button
+                    onClick={() => handleDelete(m)}
+                    className="flex-1 bg-stone text-ink px-2 py-1.5 rounded text-xs hover:bg-red-600 hover:text-white transition-colors flex items-center justify-center gap-1"
+                    title="Delete"
+                  >
+                    <FontAwesomeIcon icon={faTrash} /> Delete
+                  </button>
+                </div>
               </div>
             </div>
           ))
