@@ -1,0 +1,65 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isWriter() {
+      return isSignedIn() && 
+        (request.auth.token.role == 'writer' || 
+         request.auth.token.role == 'editor' || 
+         request.auth.token.role == 'admin');
+    }
+    
+    function isValidImageType() {
+      return request.resource.contentType.matches('image/.*');
+    }
+    
+    function isValidVideoType() {
+      return request.resource.contentType.matches('video/.*');
+    }
+    
+    function isValidSize(maxSizeMB) {
+      return request.resource.size < maxSizeMB * 1024 * 1024;
+    }
+
+    // Assets folder (internal use only - logos, staff photos, etc.)
+    match /assets/{allPaths=**} {
+      // Anyone can read
+      allow read: if true;
+      
+      // Only writers can upload
+      allow write: if isWriter() && isValidSize(10);
+    }
+
+    // Images folder (article images)
+    match /images/{allPaths=**} {
+      // Anyone can read
+      allow read: if true;
+      
+      // Writers can upload images (max 10MB)
+      allow create: if isWriter() && 
+        isValidImageType() && 
+        isValidSize(10);
+      
+      // Writers can update/delete their own images
+      allow update, delete: if isWriter();
+    }
+
+    // Videos folder (article videos)
+    match /videos/{allPaths=**} {
+      // Anyone can read
+      allow read: if true;
+      
+      // Writers can upload videos (max 100MB)
+      allow create: if isWriter() && 
+        isValidVideoType() && 
+        isValidSize(100);
+      
+      // Writers can update/delete their own videos
+      allow update, delete: if isWriter();
+    }
+  }
+}

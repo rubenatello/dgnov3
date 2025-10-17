@@ -1,0 +1,140 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+    
+    function hasRole(role) {
+      return isSignedIn() && request.auth.token.role == role;
+    }
+    
+    function isWriter() {
+      return hasRole('writer') || hasRole('editor') || hasRole('admin');
+    }
+    
+    function isEditor() {
+      return hasRole('editor') || hasRole('admin');
+    }
+    
+    function isAdmin() {
+      return hasRole('admin');
+    }
+
+    // Articles collection
+    match /articles/{articleId} {
+      // Anyone can read published articles
+      allow read: if resource.data.status == 'published';
+      
+      // Writers, editors, admins can read all articles
+      allow read: if isWriter();
+      
+      // Writers can create articles
+      allow create: if isWriter();
+      
+      // Writers can update their own articles, editors/admins can update any
+      allow update: if isWriter() && 
+        (request.auth.uid == resource.data.authorId || isEditor());
+      
+      // Only editors and admins can delete
+      allow delete: if isEditor();
+    }
+
+    // Authors/Users collection
+    match /authors/{userId} {
+      // Anyone can read author profiles
+      allow read: if true;
+      
+      // Users can update their own profile
+      allow update: if isOwner(userId);
+      
+      // Only admins can create/delete authors
+      allow create, delete: if isAdmin();
+    }
+
+    // Comments collection
+    match /comments/{commentId} {
+      // Anyone can read approved comments
+      allow read: if resource.data.status == 'approved';
+      
+      // Editors can read all comments
+      allow read: if isEditor();
+      
+      // Signed-in users can create comments
+      allow create: if isSignedIn();
+      
+      // Users can update/delete their own comments
+      allow update, delete: if isOwner(resource.data.userId);
+      
+      // Editors can update/delete any comment (moderation)
+      allow update, delete: if isEditor();
+    }
+
+    // Reactions collection
+    match /reactions/{reactionId} {
+      // Anyone can read reactions
+      allow read: if true;
+      
+      // Signed-in users can create reactions
+      allow create: if isSignedIn() && 
+        request.resource.data.userId == request.auth.uid;
+      
+      // Users can delete their own reactions
+      allow delete: if isOwner(resource.data.userId);
+    }
+
+    // Bookmarks collection
+    match /bookmarks/{userId}/{articleId} {
+      // Users can only access their own bookmarks
+      allow read, write: if isOwner(userId);
+    }
+
+    // Media collection
+    match /media/{mediaId} {
+      // Anyone can read media metadata
+      allow read: if true;
+      
+      // Writers can create media
+      allow create: if isWriter();
+      
+      // Writers can update their own media, editors can update any
+      allow update: if isWriter() && 
+        (request.auth.uid == resource.data.uploadedBy || isEditor());
+      
+      // Only editors can delete media
+      allow delete: if isEditor();
+    }
+
+    // DGNO (AI analysis) collection
+    match /dgno/{articleId} {
+      // Anyone can read approved DGNO analysis
+      allow read: if true;
+      
+      // Only editors and admins can write DGNO data
+      allow write: if isEditor();
+    }
+
+    // Donors collection
+    match /donors/{userId} {
+      // Users can read their own donor info
+      allow read: if isOwner(userId);
+      
+      // System/functions can write (via service account)
+      // Users cannot directly write to this collection
+    }
+
+    // Donations collection
+    match /donations/{donationId} {
+      // Users can read their own donations
+      allow read: if isOwner(resource.data.userId);
+      
+      // Only backend functions can create donations (via webhook)
+      // No direct user writes
+    }
+  }
+}
