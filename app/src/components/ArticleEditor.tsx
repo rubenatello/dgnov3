@@ -9,8 +9,7 @@ import { TaskItem, TaskList } from '@tiptap/extension-list'
 import { TextAlign } from '@tiptap/extension-text-align'
 import { Typography } from '@tiptap/extension-typography'
 import { Highlight } from '@tiptap/extension-highlight'
-import { Subscript } from '@tiptap/extension-subscript'
-import { Superscript } from '@tiptap/extension-superscript'
+// removed Subscript/Superscript — not needed for toolbar
 import { Placeholder } from '@tiptap/extension-placeholder'
 // Selection lives in @tiptap/extension-selection if you want the latest;
 // leaving as your original import path if that’s how your project is set.
@@ -43,9 +42,9 @@ import '@/components/tiptap-node/paragraph-node/paragraph-node.scss'
 // --- Tiptap UI ---
 import { HeadingDropdownMenu } from '@/components/tiptap-ui/heading-dropdown-menu'
 import MediaPicker from './MediaPicker'
+import { ImagePlusIcon } from '@/components/tiptap-icons/image-plus-icon'
 import { ListDropdownMenu } from '@/components/tiptap-ui/list-dropdown-menu'
 import { BlockquoteButton } from '@/components/tiptap-ui/blockquote-button'
-import { CodeBlockButton } from '@/components/tiptap-ui/code-block-button'
 import {
   ColorHighlightPopover,
   ColorHighlightPopoverContent,
@@ -114,9 +113,8 @@ const MainToolbarContent = ({
 
       <ToolbarGroup>
         <HeadingDropdownMenu levels={[1, 2, 3, 4]} portal={isMobile} />
-        <ListDropdownMenu types={['bulletList', 'orderedList', 'taskList']} portal={isMobile} />
-        <BlockquoteButton />
-        <CodeBlockButton />
+  <ListDropdownMenu types={['bulletList', 'orderedList', 'taskList']} portal={isMobile} />
+  <BlockquoteButton />
       </ToolbarGroup>
 
       <ToolbarSeparator />
@@ -125,17 +123,10 @@ const MainToolbarContent = ({
         <MarkButton type="bold" />
         <MarkButton type="italic" />
         <MarkButton type="strike" />
-        <MarkButton type="code" />
+  {/* inline code removed */}
         <MarkButton type="underline" />
         {!isMobile ? <ColorHighlightPopover /> : <ColorHighlightPopoverButton onClick={onHighlighterClick} />}
         {!isMobile ? <LinkPopover /> : <LinkButton onClick={onLinkClick} />}
-      </ToolbarGroup>
-
-      <ToolbarSeparator />
-
-      <ToolbarGroup>
-        <MarkButton type="superscript" />
-        <MarkButton type="subscript" />
       </ToolbarGroup>
 
       <ToolbarSeparator />
@@ -169,8 +160,15 @@ const MainToolbarContent = ({
 
       <ToolbarGroup>
         {/* Open the Media Picker to insert/select images */}
-        <Button data-style="ghost" onClick={onAddClick} className="tiptap-add-media">
-          Add
+        <Button
+          data-style="ghost"
+          data-appearance="emphasized"
+          aria-label="Insert media"
+          onClick={onAddClick}
+          className="tiptap-add-media"
+          data-size="small"
+        >
+          <ImagePlusIcon className="tiptap-button-icon" />
         </Button>
       </ToolbarGroup>
 
@@ -232,11 +230,9 @@ export function ArticleEditor({ content, onChange }: ArticleEditorProps) {
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
       TaskList,
       TaskItem.configure({ nested: true }),
-      Highlight.configure({ multicolor: true }),
-      Typography,
-      Superscript,
-      Subscript,
-      Selection,
+  Highlight.configure({ multicolor: true }),
+  Typography,
+  Selection,
       Placeholder.configure({ placeholder: 'Start writing your article here...' }),
 
       // Uploads (your existing uploader). It should ultimately insert our custom node,

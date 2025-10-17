@@ -82,3 +82,28 @@
   color: #6b7280; /* slate-500 for credit */
   font-size: 0.85rem;
 }
+
+/* Layout: center the editor and allow more width on larger screens */
+.article-editor-wrapper {
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 1200px; /* default max width on desktop */
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+@media (min-width: 1400px) {
+  .article-editor-wrapper { max-width: 1400px; }
+}
+
+/* Give the editor content area more vertical space by default */
+.article-editor-content {
+  min-height: 240px; /* default taller editing area */
+}
+
+/* Ensure add-media button in toolbar is visible */
+.tiptap-add-media {
+  opacity: 1 !important;
+  color: inherit;
+}
