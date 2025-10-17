@@ -1,0 +1,84 @@
+/* Center any inline images inside the article editor content */
+.article-editor-content img,
+.article-editor-content figure img {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 100%;
+  height: auto;
+}
+
+/* If you use <figure> for images with captions, ensure the figure is centered */
+.article-editor-content figure.article-figure {
+  display: block;              /* keep normal flow */
+  margin-left: auto;
+  margin-right: auto;
+  text-align: center;         /* centers figcaption inline text if any */
+  max-width: 100%;            /* won't overflow editor width */
+}
+
+/* Narrow content: if you're inserting figures with inline width (e.g., max-width:600px) keep them centered */
+.article-editor-content figure.article-figure img {
+  width: 100%;    /* image fills its figure's width */
+  height: auto;
+  display: block;
+}
+
+/* Optional: a responsive set of helpers for the 'small/medium/large' widths */
+.article-editor-content figure.article-figure.size-small { max-width: 300px; }
+.article-editor-content figure.article-figure.size-medium { max-width: 600px; }
+.article-editor-content figure.article-figure.size-large { max-width: 900px; }
+
+/* Ensure centering works even if the image node or resizer sets inline width */
+.article-editor-content figure.article-figure {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+  text-align: center; /* center inline-block children */
+}
+
+.article-editor-content figure.article-figure img {
+  display: inline-block; /* so margin:auto on wrapper centers the image when resize sets width */
+  vertical-align: middle;
+  max-width: 100%;
+  height: auto;
+}
+
+/* Stronger selectors to target Tiptap/ProseMirror image nodes and ensure centering */
+.article-editor-content .ProseMirror img,
+.article-editor-content img[contenteditable="false"],
+.article-editor-content img[class*="ProseMirror"],
+.article-editor-content img.article-figure-img {
+  display: block; 
+  margin-left: auto;
+  margin-right: auto; 
+  max-width: 100%; 
+  height: auto; 
+}
+
+/* Paragraph-based captions (Tiptap may sanitize <figcaption> into <p>) */
+.article-editor-content p.article-figcaption {
+  color: #4b5563; /* slate-600 */
+  font-size: 0.9rem;
+  line-height: 1.2;
+  text-align: center;
+  margin-top: 0.35rem;
+}
+
+/* If you mark caption paragraphs non-editable, still allow selection/copy */
+.article-editor-content p.article-figcaption[contenteditable="false"] {
+  user-select: text;
+}
+
+/* Separate description and credit spans inside the caption */
+.article-editor-content .article-description {
+  display: block;
+  color: #374151; /* slightly darker slate for description */
+  margin-bottom: 0.15rem;
+}
+
+.article-editor-content .article-credit {
+  display: inline-block;
+  color: #6b7280; /* slate-500 for credit */
+  font-size: 0.85rem;
+}

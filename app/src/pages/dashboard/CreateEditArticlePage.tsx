@@ -11,6 +11,7 @@ import { faSave, faArrowLeft } from '@fortawesome/free-solid-svg-icons';
 import type { Article, ArticleStatus } from '../../types/models';
 import { SECTIONS } from '../../types/models';
 import { updateTagUsageCounts, incrementTagUsage } from '../../services/tagService';
+import MediaPicker from '../../components/MediaPicker';
 
 export default function CreateEditArticlePage() {
   const { id } = useParams<{ id: string }>();
@@ -30,6 +31,9 @@ export default function CreateEditArticlePage() {
   const [section, setSection] = useState('');
   const [tags, setTags] = useState<string[]>([]);
   const [originalTags, setOriginalTags] = useState<string[]>([]); // Track original tags for usage count
+  const [featuredImageId, setFeaturedImageId] = useState<string | undefined>(undefined);
+  const [featuredImageUrl, setFeaturedImageUrl] = useState<string | undefined>(undefined);
+  const [showMediaPicker, setShowMediaPicker] = useState(false);
 
   // Load article if editing
   useEffect(() => {
@@ -43,14 +47,16 @@ export default function CreateEditArticlePage() {
       const docRef = doc(db, 'articles', articleId);
       const docSnap = await getDoc(docRef);
       if (docSnap.exists()) {
-        const data = docSnap.data() as Article;
-        setTitle(data.title);
-        setSubtitle(data.subtitle || '');
-        setSummary(data.summary);
-        setContent(data.content);
+        const data = docSnap.data() as Partial<Article & { featuredImageUrl?: string }>;
+  setTitle(data.title || '');
+  setSubtitle(data.subtitle || '');
+  setSummary(data.summary || '');
+  setContent(data.content || '');
         setSection(data.section || '');
         setTags(data.tags || []);
         setOriginalTags(data.tags || []); // Track original for usage count updates
+        setFeaturedImageId(data.featuredImageId || undefined);
+        setFeaturedImageUrl(data.featuredImageUrl || undefined);
       } else {
         setError('Article not found');
       }
@@ -81,7 +87,7 @@ export default function CreateEditArticlePage() {
       const slug = generateSlug(title);
       const now = Timestamp.fromDate(new Date());
 
-      const articleData: Omit<Article, 'id'> = {
+  const articleData: Omit<Article, 'id'> = {
         title,
         slug,
         subtitle,
@@ -95,6 +101,7 @@ export default function CreateEditArticlePage() {
         lastUpdatedBy: userData?.id || '',
         createdAt: isEditing ? (await getDoc(doc(db, 'articles', id!))).data()?.createdAt || now : now,
         ...(saveStatus === 'published' && { publishedAt: now }),
+        featuredImageId,
       };
 
       if (isEditing && id) {
@@ -136,11 +143,27 @@ export default function CreateEditArticlePage() {
             >
               <FontAwesomeIcon icon={faArrowLeft} />
             </button>
-            <h1 className="text-2xl font-heading font-bold text-ink">
-              {isEditing ? 'Edit Article' : 'Create New Article'}
-            </h1>
+            <div>
+              <h1 className="text-2xl font-heading font-bold text-ink">
+                {isEditing ? 'Edit Article' : 'Create New Article'}
+              </h1>
+              {featuredImageUrl && (
+                <div className="mt-2">
+                  <img src={featuredImageUrl} alt="Featured" className="w-48 h-28 object-cover rounded border" />
+                </div>
+              )}
+            </div>
+          </div>
+          <div>
+            <button className="px-3 py-2 bg-stone rounded mr-2" onClick={() => setShowMediaPicker(true)}>Select Featured Image</button>
+            <button className="px-3 py-2 bg-accent text-white rounded" onClick={() => { setFeaturedImageId(undefined); setFeaturedImageUrl(undefined); }}>Remove</button>
           </div>
         </div>
+        <MediaPicker
+          isOpen={showMediaPicker}
+          onClose={() => setShowMediaPicker(false)}
+          onSelect={(m) => { setFeaturedImageId(m.id); setFeaturedImageUrl(m.url); setShowMediaPicker(false); }}
+        />
 
         {error && (
           <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">

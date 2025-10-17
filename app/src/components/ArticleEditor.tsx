@@ -1,91 +1,105 @@
-import * as React from 'react';
-import { EditorContent, EditorContext, useEditor } from '@tiptap/react';
+import * as React from 'react'
+import type { Media } from '../types/models'
+import { EditorContent, EditorContext, useEditor } from '@tiptap/react'
 
 // --- Tiptap Core Extensions ---
-import { StarterKit } from '@tiptap/starter-kit';
-import { Image } from '@tiptap/extension-image';
-import { TaskItem, TaskList } from '@tiptap/extension-list';
-import { TextAlign } from '@tiptap/extension-text-align';
-import { Typography } from '@tiptap/extension-typography';
-import { Highlight } from '@tiptap/extension-highlight';
-import { Subscript } from '@tiptap/extension-subscript';
-import { Superscript } from '@tiptap/extension-superscript';
-import { Selection } from '@tiptap/extensions';
-import { Placeholder } from '@tiptap/extension-placeholder';
+import { StarterKit } from '@tiptap/starter-kit'
+// NOTE: we keep ImageUploadNode for uploads, but we don't need the base Image node anymore
+import { TaskItem, TaskList } from '@tiptap/extension-list'
+import { TextAlign } from '@tiptap/extension-text-align'
+import { Typography } from '@tiptap/extension-typography'
+import { Highlight } from '@tiptap/extension-highlight'
+import { Subscript } from '@tiptap/extension-subscript'
+import { Superscript } from '@tiptap/extension-superscript'
+import { Placeholder } from '@tiptap/extension-placeholder'
+// Selection lives in @tiptap/extension-selection if you want the latest;
+// leaving as your original import path if that’s how your project is set.
+import { Selection } from '@tiptap/extensions'
+
+// --- Custom node ---
+import { ArticleFigure } from '@/components/tiptap-node/article-figure/article-figure-extension'
+import '@/components/tiptap-node/article-figure/article-figure.scss'
 
 // --- UI Primitives ---
-import { Button } from '@/components/tiptap-ui-primitive/button';
-import { Spacer } from '@/components/tiptap-ui-primitive/spacer';
+import { Button } from '@/components/tiptap-ui-primitive/button'
+import { Spacer } from '@/components/tiptap-ui-primitive/spacer'
 import {
   Toolbar,
   ToolbarGroup,
   ToolbarSeparator,
-} from '@/components/tiptap-ui-primitive/toolbar';
+} from '@/components/tiptap-ui-primitive/toolbar'
 
-// --- Tiptap Node ---
-import { ImageUploadNode } from '@/components/tiptap-node/image-upload-node/image-upload-node-extension';
-import { HorizontalRule } from '@/components/tiptap-node/horizontal-rule-node/horizontal-rule-node-extension';
-import '@/components/tiptap-node/blockquote-node/blockquote-node.scss';
-import '@/components/tiptap-node/code-block-node/code-block-node.scss';
-import '@/components/tiptap-node/horizontal-rule-node/horizontal-rule-node.scss';
-import '@/components/tiptap-node/list-node/list-node.scss';
-import '@/components/tiptap-node/image-node/image-node.scss';
-import '@/components/tiptap-node/heading-node/heading-node.scss';
-import '@/components/tiptap-node/paragraph-node/paragraph-node.scss';
+// --- Tiptap Nodes (yours) ---
+import { ImageUploadNode } from '@/components/tiptap-node/image-upload-node/image-upload-node-extension'
+import { HorizontalRule } from '@/components/tiptap-node/horizontal-rule-node/horizontal-rule-node-extension'
+import '@/components/tiptap-node/blockquote-node/blockquote-node.scss'
+import '@/components/tiptap-node/code-block-node/code-block-node.scss'
+import '@/components/tiptap-node/horizontal-rule-node/horizontal-rule-node.scss'
+import '@/components/tiptap-node/list-node/list-node.scss'
+import '@/components/tiptap-node/image-node/image-node.scss'
+import '@/components/tiptap-node/heading-node/heading-node.scss'
+import '@/components/tiptap-node/paragraph-node/paragraph-node.scss'
 
 // --- Tiptap UI ---
-import { HeadingDropdownMenu } from '@/components/tiptap-ui/heading-dropdown-menu';
-import { ListDropdownMenu } from '@/components/tiptap-ui/list-dropdown-menu';
-import { BlockquoteButton } from '@/components/tiptap-ui/blockquote-button';
-import { CodeBlockButton } from '@/components/tiptap-ui/code-block-button';
+import { HeadingDropdownMenu } from '@/components/tiptap-ui/heading-dropdown-menu'
+import MediaPicker from './MediaPicker'
+import { ListDropdownMenu } from '@/components/tiptap-ui/list-dropdown-menu'
+import { BlockquoteButton } from '@/components/tiptap-ui/blockquote-button'
+import { CodeBlockButton } from '@/components/tiptap-ui/code-block-button'
 import {
   ColorHighlightPopover,
   ColorHighlightPopoverContent,
   ColorHighlightPopoverButton,
-} from '@/components/tiptap-ui/color-highlight-popover';
+} from '@/components/tiptap-ui/color-highlight-popover'
 import {
   LinkPopover,
   LinkContent,
   LinkButton,
-} from '@/components/tiptap-ui/link-popover';
-import { MarkButton } from '@/components/tiptap-ui/mark-button';
-import { TextAlignButton } from '@/components/tiptap-ui/text-align-button';
-import { UndoRedoButton } from '@/components/tiptap-ui/undo-redo-button';
+} from '@/components/tiptap-ui/link-popover'
+import { MarkButton } from '@/components/tiptap-ui/mark-button'
+import { TextAlignButton } from '@/components/tiptap-ui/text-align-button'
+import { UndoRedoButton } from '@/components/tiptap-ui/undo-redo-button'
 
 // --- Icons ---
-import { ArrowLeftIcon } from '@/components/tiptap-icons/arrow-left-icon';
-import { HighlighterIcon } from '@/components/tiptap-icons/highlighter-icon';
-import { LinkIcon } from '@/components/tiptap-icons/link-icon';
+import { ArrowLeftIcon } from '@/components/tiptap-icons/arrow-left-icon'
+import { HighlighterIcon } from '@/components/tiptap-icons/highlighter-icon'
+import { LinkIcon } from '@/components/tiptap-icons/link-icon'
 
 // --- Hooks ---
-import { useIsMobile } from '@/hooks/use-mobile';
-import { useWindowSize } from '@/hooks/use-window-size';
-import { useCursorVisibility } from '@/hooks/use-cursor-visibility';
+import { useIsMobile } from '@/hooks/use-mobile'
+import { useWindowSize } from '@/hooks/use-window-size'
+import { useCursorVisibility } from '@/hooks/use-cursor-visibility'
 
 // --- Lib ---
-import { handleImageUpload, MAX_FILE_SIZE } from '@/lib/tiptap-utils';
+import { handleImageUpload, MAX_FILE_SIZE } from '@/lib/tiptap-utils'
 
 // --- Styles ---
-import '@/components/tiptap-templates/simple/simple-editor.scss';
-import './ArticleEditor.scss';
-import MediaPicker from './MediaPicker';
-import type { Media } from '../types/models';
+import '@/components/tiptap-templates/simple/simple-editor.scss'
+import './ArticleEditor.scss'
 
 interface ArticleEditorProps {
-  content: string;
-  onChange: (content: string) => void;
+  content: string
+  onChange: (content: string) => void
 }
 
 const MainToolbarContent = ({
   onHighlighterClick,
   onLinkClick,
-  onMediaClick,
   isMobile,
+  onAddClick,
+  onSizeSmall,
+  onSizeMedium,
+  onSizeLarge,
+  onWidthAuto,
 }: {
-  onHighlighterClick: () => void;
-  onLinkClick: () => void;
-  onMediaClick: () => void;
-  isMobile: boolean;
+  onHighlighterClick: () => void
+  onLinkClick: () => void
+  isMobile: boolean
+  onAddClick: () => void
+  onSizeSmall: () => void
+  onSizeMedium: () => void
+  onSizeLarge: () => void
+  onWidthAuto: () => void
 }) => {
   return (
     <>
@@ -100,10 +114,7 @@ const MainToolbarContent = ({
 
       <ToolbarGroup>
         <HeadingDropdownMenu levels={[1, 2, 3, 4]} portal={isMobile} />
-        <ListDropdownMenu
-          types={['bulletList', 'orderedList', 'taskList']}
-          portal={isMobile}
-        />
+        <ListDropdownMenu types={['bulletList', 'orderedList', 'taskList']} portal={isMobile} />
         <BlockquoteButton />
         <CodeBlockButton />
       </ToolbarGroup>
@@ -116,11 +127,7 @@ const MainToolbarContent = ({
         <MarkButton type="strike" />
         <MarkButton type="code" />
         <MarkButton type="underline" />
-        {!isMobile ? (
-          <ColorHighlightPopover />
-        ) : (
-          <ColorHighlightPopoverButton onClick={onHighlighterClick} />
-        )}
+        {!isMobile ? <ColorHighlightPopover /> : <ColorHighlightPopoverButton onClick={onHighlighterClick} />}
         {!isMobile ? <LinkPopover /> : <LinkButton onClick={onLinkClick} />}
       </ToolbarGroup>
 
@@ -142,23 +149,42 @@ const MainToolbarContent = ({
 
       <ToolbarSeparator />
 
+      {/* Figure controls */}
       <ToolbarGroup>
-        <Button data-style="ghost" onClick={onMediaClick}>
-          Image
+        <Button data-style="ghost" title="Figure: Small" onClick={onSizeSmall}>
+          S
+        </Button>
+        <Button data-style="ghost" title="Figure: Medium" onClick={onSizeMedium}>
+          M
+        </Button>
+        <Button data-style="ghost" title="Figure: Large" onClick={onSizeLarge}>
+          L
+        </Button>
+        <Button data-style="ghost" title="Figure: Auto Width" onClick={onWidthAuto}>
+          Auto
+        </Button>
+      </ToolbarGroup>
+
+      <ToolbarSeparator />
+
+      <ToolbarGroup>
+        {/* Open the Media Picker to insert/select images */}
+        <Button data-style="ghost" onClick={onAddClick} className="tiptap-add-media">
+          Add
         </Button>
       </ToolbarGroup>
 
       <Spacer />
     </>
-  );
-};
+  )
+}
 
 const MobileToolbarContent = ({
   type,
   onBack,
 }: {
-  type: 'highlighter' | 'link';
-  onBack: () => void;
+  type: 'highlighter' | 'link'
+  onBack: () => void
 }) => (
   <>
     <ToolbarGroup>
@@ -174,30 +200,15 @@ const MobileToolbarContent = ({
 
     <ToolbarSeparator />
 
-    {type === 'highlighter' ? (
-      <ColorHighlightPopoverContent />
-    ) : (
-      <LinkContent />
-    )}
+    {type === 'highlighter' ? <ColorHighlightPopoverContent /> : <LinkContent />}
   </>
-);
+)
 
 export function ArticleEditor({ content, onChange }: ArticleEditorProps) {
-  const escapeHtml = (s: string) =>
-    s
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#039;');
-
-  const isMobile = useIsMobile();
-  const { height } = useWindowSize();
-  const [mobileView, setMobileView] = React.useState<
-    'main' | 'highlighter' | 'link'
-  >('main');
-  const toolbarRef = React.useRef<HTMLDivElement>(null);
-  const [showMediaPicker, setShowMediaPicker] = React.useState(false);
+  const isMobile = useIsMobile()
+  const { height } = useWindowSize()
+  const [mobileView, setMobileView] = React.useState<'main' | 'highlighter' | 'link'>('main')
+  const toolbarRef = React.useRef<HTMLDivElement>(null)
 
   const editor = useEditor({
     immediatelyRender: false,
@@ -208,31 +219,28 @@ export function ArticleEditor({ content, onChange }: ArticleEditorProps) {
         autocorrect: 'off',
         autocapitalize: 'off',
         'aria-label': 'Article content editor',
-        class: 'simple-editor',
+        class: 'simple-editor article-editor-content', // ensure scoping styles apply
         'data-placeholder': 'Start writing your article here...',
       },
     },
     extensions: [
       StarterKit.configure({
         horizontalRule: false,
-        link: {
-          openOnClick: false,
-          enableClickSelection: true,
-        },
+        link: { openOnClick: false, enableClickSelection: true },
       }),
       HorizontalRule,
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
       TaskList,
       TaskItem.configure({ nested: true }),
       Highlight.configure({ multicolor: true }),
-      Image,
       Typography,
       Superscript,
       Subscript,
       Selection,
-      Placeholder.configure({
-        placeholder: 'Start writing your article here...',
-      }),
+      Placeholder.configure({ placeholder: 'Start writing your article here...' }),
+
+      // Uploads (your existing uploader). It should ultimately insert our custom node,
+      // but it’s fine if it just provides the file URL—we insert via handleInsertMedia below.
       ImageUploadNode.configure({
         accept: 'image/*',
         maxSize: MAX_FILE_SIZE,
@@ -240,59 +248,59 @@ export function ArticleEditor({ content, onChange }: ArticleEditorProps) {
         upload: handleImageUpload,
         onError: (error) => console.error('Upload failed:', error),
       }),
+
+      // 👇 Our custom figure node with non-editable caption
+      ArticleFigure,
     ],
     content: content || '<p></p>',
     onUpdate: ({ editor }) => {
-      const html = editor.getHTML();
-      onChange(html);
+      const html = editor.getHTML()
+      onChange(html)
     },
-  });
+  })
 
-  // Only set content when it's externally changed (e.g., loading existing article)
-  const isFirstRender = React.useRef(true);
+  // Media picker state
+  const [pickerOpen, setPickerOpen] = React.useState(false)
+
+  // Insert ArticleFigure using the command (no raw HTML)
+  const handleInsertMedia = (media: Media, size: 'small' | 'medium' | 'large' = 'medium') => {
+    if (!editor || !media) return
+    editor
+      .chain()
+      .focus()
+      .insertArticleFigure({
+        src: media.url,
+        alt: media.alt || media.title || '',
+        description: media.description || '',
+        credit: media.sourceCredit || '',
+        mediaId: media.id,
+        size,
+        width: null, // user can drag to set width later
+      })
+      .run()
+  }
+
+  // toolbar helpers target the selected ArticleFigure
+  const setSize = (s: 'small' | 'medium' | 'large') => editor?.commands.setArticleFigureSize(s)
+  const setWidthAuto = () => editor?.commands.setArticleFigureWidth(null)
+
+  // Only set content when it's externally changed (e.g., opening an existing article)
+  const isFirstRender = React.useRef(true)
   React.useEffect(() => {
     if (editor && content && isFirstRender.current) {
-      editor.commands.setContent(content);
-      isFirstRender.current = false;
+      editor.commands.setContent(content)
+      isFirstRender.current = false
     }
-  }, [editor, content]);
+  }, [editor, content])
 
   const rect = useCursorVisibility({
     editor,
     overlayHeight: toolbarRef.current?.getBoundingClientRect().height ?? 0,
-  });
+  })
 
   React.useEffect(() => {
-    if (!isMobile && mobileView !== 'main') {
-      setMobileView('main');
-    }
-  }, [isMobile, mobileView]);
-
-  const handleMediaInsert = (media: Media) => {
-    if (!editor) return;
-    const altText = media.alt || media.description || media.title || 'image';
-    const title = media.title || '';
-    const captionBase = media.description || media.title || '';
-    const caption = captionBase
-      ? `${captionBase}${media.sourceCredit ? ' — ' + media.sourceCredit : ''}`
-      : media.sourceCredit
-      ? `Photo: ${media.sourceCredit}`
-      : '';
-
-    editor
-      .chain()
-      .focus()
-      .setImage({ src: media.url, alt: altText, title })
-      .run();
-
-    if (caption) {
-      const cap = escapeHtml(caption);
-      editor
-        .chain()
-  .insertContent(`<p class="image-caption">${cap}</p>`)
-        .run();
-    }
-  };
+    if (!isMobile && mobileView !== 'main') setMobileView('main')
+  }, [isMobile, mobileView])
 
   return (
     <div className="article-editor-wrapper">
@@ -301,19 +309,19 @@ export function ArticleEditor({ content, onChange }: ArticleEditorProps) {
           ref={toolbarRef}
           className="tiptap-toolbar"
           style={{
-            ...(isMobile
-              ? {
-                  bottom: `calc(100% - ${height - rect.y}px)`,
-                }
-              : {}),
+            ...(isMobile ? { bottom: `calc(100% - ${height - rect.y}px)` } : {}),
           }}
         >
           {mobileView === 'main' ? (
             <MainToolbarContent
               onHighlighterClick={() => setMobileView('highlighter')}
               onLinkClick={() => setMobileView('link')}
-              onMediaClick={() => setShowMediaPicker(true)}
               isMobile={isMobile}
+              onAddClick={() => setPickerOpen(true)}
+              onSizeSmall={() => setSize('small')}
+              onSizeMedium={() => setSize('medium')}
+              onSizeLarge={() => setSize('large')}
+              onWidthAuto={setWidthAuto}
             />
           ) : (
             <MobileToolbarContent
@@ -323,20 +331,15 @@ export function ArticleEditor({ content, onChange }: ArticleEditorProps) {
           )}
         </Toolbar>
 
-        <EditorContent
-          editor={editor}
-          role="presentation"
-          className="article-editor-content"
+        {/* Media Picker modal used to select/upload images to insert */}
+        <MediaPicker
+          isOpen={pickerOpen}
+          onClose={() => setPickerOpen(false)}
+          onSelect={(m: Media, size: 'small' | 'medium' | 'large' = 'medium') => handleInsertMedia(m, size)}
         />
+
+        <EditorContent editor={editor} role="presentation" className="article-editor-content" />
       </EditorContext.Provider>
-      <MediaPicker
-        isOpen={showMediaPicker}
-        onClose={() => setShowMediaPicker(false)}
-        onSelect={(m) => {
-          handleMediaInsert(m);
-          setShowMediaPicker(false);
-        }}
-      />
     </div>
-  );
+  )
 }

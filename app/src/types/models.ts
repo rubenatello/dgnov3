@@ -67,11 +67,11 @@ export interface Media {
   description: string;
   alt: string; // Can default to description
   sourceCredit: string; // e.g., "AP / Getty Images"
-  uploadedAt: Timestamp;
+  uploadedAt: Timestamp | Date;
   uploadedBy: string;
   type: 'image' | 'video';
   usageCount?: number; // Track how many times used in articles
-  lastUpdated?: Timestamp; // Last time metadata was updated
+  lastUpdated?: Timestamp | Date; // Last time metadata was updated
 }
 
 // Author interface (deprecated - use User instead)

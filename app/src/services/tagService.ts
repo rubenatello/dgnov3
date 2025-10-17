@@ -1,6 +1,7 @@
 import {
   collection,
   doc,
+  getDoc,
   getDocs,
   addDoc,
   updateDoc,
@@ -8,8 +9,8 @@ import {
   orderBy,
   limit,
   where,
-  serverTimestamp,
   Timestamp,
+  serverTimestamp,
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import type { Tag } from '../types/models';

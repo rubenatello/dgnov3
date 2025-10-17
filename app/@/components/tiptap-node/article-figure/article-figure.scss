@@ -1,0 +1,76 @@
+.article-editor-content {
+  /* center the figure block itself */
+  figure.article-figure {
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+    text-align: center;
+
+    /* cap widths by size, still allow explicit px width override */
+    &.size-small  { max-width: 300px; }
+    &.size-medium { max-width: 600px; }
+    &.size-large  { max-width: 900px; }
+  }
+
+  /* a centered inline-block wrapper that we resize */
+  .article-figure-imgwrap {
+    display: inline-block;
+    vertical-align: middle;
+    max-width: 100%;
+    position: relative;
+
+    img {
+      display: block;
+      max-width: 100%;
+      height: auto;
+      margin: 0 auto;
+      pointer-events: none; /* avoids image initiating drags */
+      user-select: none;
+    }
+
+    /* resize handle (bottom-right) */
+    .article-figure-resizer {
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      width: 14px;
+      height: 14px;
+      border: 1px solid #9ca3af; /* slate-400-ish */
+      background: rgba(156, 163, 175, 0.2);
+      cursor: nwse-resize;
+      border-radius: 2px;
+    }
+  }
+
+  /* light grey, smaller caption text; not editable */
+  figcaption.article-figcaption {
+    color: #6b7280; /* slate-500 */
+    font-size: 0.875rem;
+    line-height: 1.2;
+    margin-top: 0.35rem;
+    user-select: text; /* allow copy */
+    pointer-events: auto; /* allow text selection */
+  }
+
+  .article-description {
+    display: block;
+    color: #4b5563; /* slate-600, slightly darker than credit */
+    margin-bottom: 0.1rem;
+  }
+
+  .article-credit {
+    display: inline-block;
+    color: #6b7280; /* slate-500 */
+    font-size: 0.85rem;
+  }
+
+  /* selection ring so users know the figure is selected */
+  figure.article-figure.is-selected .article-figure-imgwrap {
+    outline: 2px solid #3b82f6; /* blue-500 */
+    outline-offset: 2px;
+  }
+}
+
+/* IMPORTANT: remove your global !important image centering rules that target all imgs,
+   they block the resizing by forcing width behavior.
+   Keep centering only within .article-figure scope as above. */
