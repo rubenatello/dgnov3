@@ -6,6 +6,25 @@ export type UserRole = 'reader' | 'writer' | 'editor' | 'admin' | 'dev' | 'super
 // Article status options
 export type ArticleStatus = 'draft' | 'review' | 'scheduled' | 'published';
 
+// News sections/categories - fixed list for site navigation
+export const SECTIONS = [
+  'Politics',
+  'Immigration',
+  'Legislation',
+  'Foreign Affairs',
+  'Economy',
+  'White House',
+  'Courts',
+  'Congress',
+  'Human Rights',
+  'Environment',
+  'Business',
+  'Tech',
+  'Finance',
+] as const;
+
+export type Section = typeof SECTIONS[number];
+
 // User interface (replaces Author)
 export interface User {
   id?: string; // Firebase Auth UID
@@ -27,7 +46,7 @@ export interface Article {
   slug: string;
   subtitle?: string;
   summary: string; // Max 300 characters
-  content: object; // Tiptap JSON content
+  content: string; // Tiptap HTML content
   featuredImageId?: string;
   section?: string;
   tags: string[];
@@ -121,4 +140,15 @@ export interface Donation {
   createdAt: Timestamp;
   recurring: boolean;
   stripePaymentIntent?: string;
+}
+
+// Tag interface - for SEO, metadata, and article categorization
+export interface Tag {
+  id?: string; // Auto-generated slug (e.g., "climate-change")
+  name: string; // Display name (e.g., "Climate Change")
+  slug: string; // URL-safe version
+  usageCount: number; // How many articles use this tag
+  createdAt: Timestamp;
+  createdBy: string; // User ID who created the tag
+  lastUsed?: Timestamp; // Last time used in an article
 }

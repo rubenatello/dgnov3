@@ -1,5 +1,5 @@
 
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../hooks/useAuth';
 import DashboardLayout from '../../components/DashboardLayout';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {

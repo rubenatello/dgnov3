@@ -2,12 +2,15 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Timestamp, doc, getDoc, addDoc, updateDoc, collection } from 'firebase/firestore';
 import { db } from '../../config/firebase';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../hooks/useAuth';
 import DashboardLayout from '../../components/DashboardLayout';
-import TiptapEditor from '../../components/TiptapEditor';
+import { ArticleEditor } from '../../components/ArticleEditor';
+import TagInput from '../../components/TagInput';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faSave, faArrowLeft } from '@fortawesome/free-solid-svg-icons';
 import type { Article, ArticleStatus } from '../../types/models';
+import { SECTIONS } from '../../types/models';
+import { updateTagUsageCounts, incrementTagUsage } from '../../services/tagService';
 
 export default function CreateEditArticlePage() {
   const { id } = useParams<{ id: string }>();
@@ -23,10 +26,10 @@ export default function CreateEditArticlePage() {
   const [title, setTitle] = useState('');
   const [subtitle, setSubtitle] = useState('');
   const [summary, setSummary] = useState('');
-  const [content, setContent] = useState<object>({});
+  const [content, setContent] = useState<string>('');
   const [section, setSection] = useState('');
   const [tags, setTags] = useState<string[]>([]);
-  const [tagInput, setTagInput] = useState('');
+  const [originalTags, setOriginalTags] = useState<string[]>([]); // Track original tags for usage count
 
   // Load article if editing
   useEffect(() => {
@@ -47,6 +50,7 @@ export default function CreateEditArticlePage() {
         setContent(data.content);
         setSection(data.section || '');
         setTags(data.tags || []);
+        setOriginalTags(data.tags || []); // Track original for usage count updates
       } else {
         setError('Article not found');
       }
@@ -63,18 +67,6 @@ export default function CreateEditArticlePage() {
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-|-$/g, '');
-  }
-
-  function handleAddTag() {
-    const trimmed = tagInput.trim();
-    if (trimmed && !tags.includes(trimmed)) {
-      setTags([...tags, trimmed]);
-      setTagInput('');
-    }
-  }
-
-  function handleRemoveTag(tag: string) {
-    setTags(tags.filter(t => t !== tag));
   }
 
   async function handleSave(saveStatus: ArticleStatus) {
@@ -106,8 +98,12 @@ export default function CreateEditArticlePage() {
       };
 
       if (isEditing && id) {
+        // Update tag usage counts (increment new, decrement removed)
+        await updateTagUsageCounts(originalTags, tags);
         await updateDoc(doc(db, 'articles', id), articleData as Partial<Article>);
       } else {
+        // For new articles, increment usage for all tags
+        await Promise.all(tags.map(tag => incrementTagUsage(tag)));
         await addDoc(collection(db, 'articles'), articleData);
       }
 
@@ -165,6 +161,11 @@ export default function CreateEditArticlePage() {
               placeholder="Enter article title"
               required
             />
+            {title && (
+              <p className="mt-2 text-sm text-gray-500">
+                Article slug: /articles/{new Date().getFullYear()}/{String(new Date().getMonth() + 1).padStart(2, '0')}/{String(new Date().getDate()).padStart(2, '0')}/{generateSlug(title)}
+              </p>
+            )}
           </div>
 
           {/* Subtitle */}
@@ -196,56 +197,34 @@ export default function CreateEditArticlePage() {
 
           {/* Section */}
           <div>
-            <label className="block text-sm font-medium text-ink mb-2">Section</label>
-            <input
-              type="text"
+            <label className="block text-sm font-medium text-ink mb-2">Section/Category</label>
+            <select
               value={section}
               onChange={e => setSection(e.target.value)}
-              className="w-full border border-stone rounded px-4 py-2 focus:ring-2 focus:ring-accent"
-              placeholder="e.g., Politics, Technology, World"
-            />
+              className="w-full border border-stone rounded px-4 py-2 focus:ring-2 focus:ring-accent bg-white"
+            >
+              <option value="">Select a section...</option>
+              {SECTIONS.map(s => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
           </div>
 
           {/* Tags */}
           <div>
-            <label className="block text-sm font-medium text-ink mb-2">Tags</label>
-            <div className="flex gap-2 mb-2">
-              <input
-                type="text"
-                value={tagInput}
-                onChange={e => setTagInput(e.target.value)}
-                onKeyPress={e => e.key === 'Enter' && (e.preventDefault(), handleAddTag())}
-                className="flex-1 border border-stone rounded px-4 py-2 focus:ring-2 focus:ring-accent"
-                placeholder="Type a tag and press Enter"
-              />
-              <button
-                onClick={handleAddTag}
-                className="px-4 py-2 bg-stone text-ink rounded hover:bg-accent hover:text-white transition-colors"
-              >
-                Add
-              </button>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {tags.map(tag => (
-                <span key={tag} className="inline-flex items-center gap-2 px-3 py-1 bg-accent bg-opacity-10 text-accent rounded-full text-sm">
-                  {tag}
-                  <button
-                    onClick={() => handleRemoveTag(tag)}
-                    className="hover:text-red-600"
-                  >
-                    ×
-                  </button>
-                </span>
-              ))}
-            </div>
+            <label className="block text-sm font-medium text-ink mb-2">
+              Tags
+              <span className="text-xs text-gray-500 ml-2">(for SEO and metadata)</span>
+            </label>
+            <TagInput tags={tags} onTagsChange={setTags} />
           </div>
 
           {/* Content Editor */}
           <div>
             <label className="block text-sm font-medium text-ink mb-2">Content</label>
             <div className="border border-stone rounded overflow-hidden">
-              <TiptapEditor 
-                content={JSON.stringify(content)} 
+              <ArticleEditor 
+                content={content} 
                 onChange={setContent} 
               />
             </div>

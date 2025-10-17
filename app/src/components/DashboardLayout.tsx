@@ -1,6 +1,6 @@
 
 import type { ReactNode } from 'react';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import DashboardSidebar from './DashboardSidebar';
 

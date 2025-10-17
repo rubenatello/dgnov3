@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import {
   type User as FirebaseUser,
@@ -10,35 +10,7 @@ import {
 import { doc, getDoc, setDoc, Timestamp } from 'firebase/firestore';
 import { auth, db } from '../config/firebase';
 import type { User, UserRole } from '../types/models';
-
-interface AuthContextType {
-  currentUser: FirebaseUser | null;
-  userData: User | null;
-  loading: boolean;
-  signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, displayName: string) => Promise<void>;
-  signOut: () => Promise<void>;
-  // Role checking functions
-  isReader: () => boolean;
-  isWriter: () => boolean;
-  isEditor: () => boolean;
-  isAdmin: () => boolean;
-  isDev: () => boolean;
-  isSuperUser: () => boolean;
-  isStaff: () => boolean;
-  hasRole: (role: UserRole) => boolean;
-  hasAnyRole: (roles: UserRole[]) => boolean;
-}
-
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-};
+import { AuthContext, type AuthContextType } from './AuthContextBase';
 
 interface AuthProviderProps {
   children: ReactNode;
@@ -115,11 +87,15 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   // Role checking functions
   const hasRole = (role: UserRole): boolean => {
-    return userData?.roles?.includes(role) ?? false;
+    const userRoles = userData?.roles?.map(r => r.toLowerCase()) ?? [];
+    return userRoles.includes(role.toLowerCase());
   };
 
   const hasAnyRole = (roles: UserRole[]): boolean => {
-    return roles.some((role) => hasRole(role));
+    const userRoles = userData?.roles?.map(r => r.toLowerCase()) ?? [];
+    // Superusers (and admins) implicitly satisfy any role requirement
+    if (userRoles.includes('superuser') || userRoles.includes('admin')) return true;
+    return roles.some((role) => userRoles.includes(role.toLowerCase()));
   };
 
   const isReader = () => hasRole('reader');
@@ -128,7 +104,12 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const isAdmin = () => hasRole('admin');
   const isDev = () => hasRole('dev');
   const isSuperUser = () => hasRole('superuser');
-  const isStaff = () => userData?.isStaff ?? false;
+  const isStaff = () => {
+    const userRoles = userData?.roles?.map(r => r.toLowerCase()) ?? [];
+    const staffRoles: UserRole[] = ['writer', 'editor', 'admin', 'dev', 'superuser'];
+    // Derive staff from roles first; fall back to stored flag for legacy users
+    return userRoles.some((r) => staffRoles.includes(r)) || (userData?.isStaff ?? false);
+  };
 
   const value: AuthContextType = {
     currentUser,

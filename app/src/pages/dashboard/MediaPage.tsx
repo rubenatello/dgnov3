@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Timestamp } from 'firebase/firestore';
 import { uploadMediaFile, addMedia, getAllMedia, updateMedia, deleteMedia } from '../../services/mediaService';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../hooks/useAuth';
 import DashboardLayout from '../../components/DashboardLayout';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faUpload, faImage, faVideo, faSearch, faPlus, faEdit, faTrash } from '@fortawesome/free-solid-svg-icons';
