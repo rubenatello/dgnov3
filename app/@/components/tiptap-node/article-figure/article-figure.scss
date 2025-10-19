@@ -1,4 +1,5 @@
-.article-editor-content {
+.article-editor-content,
+.article-content {
   /* center the figure block itself */
   figure.article-figure {
     display: block;
@@ -50,18 +51,21 @@
     margin-top: 0.35rem;
     user-select: text; /* allow copy */
     pointer-events: auto; /* allow text selection */
+    text-align: center; /* ensure caption centered under image */
   }
 
   .article-description {
     display: block;
     color: #4b5563; /* slate-600, slightly darker than credit */
     margin-bottom: 0.1rem;
+    text-align: center;
   }
 
   .article-credit {
     display: inline-block;
     color: #6b7280; /* slate-500 */
     font-size: 0.85rem;
+    text-align: center;
   }
 
   /* selection ring so users know the figure is selected */
@@ -74,3 +78,23 @@
 /* IMPORTANT: remove your global !important image centering rules that target all imgs,
    they block the resizing by forcing width behavior.
    Keep centering only within .article-figure scope as above. */
+
+/* Prose/high-specificity overrides: Tailwind's prose plugin may set figcaption/img rules;
+   ensure our article-content scope wins when rendering content on the public page. */
+.article-content.prose figure.article-figure {
+  margin-left: auto;
+  margin-right: auto;
+  text-align: center;
+}
+.article-content.prose figure.article-figure .article-figure-imgwrap img {
+  margin-left: auto;
+  margin-right: auto;
+  display: block;
+}
+.article-content.prose figure.article-figure .article-figcaption,
+.article-content.prose figure.article-figure .article-description,
+.article-content.prose figure.article-figure .article-credit {
+  text-align: center;
+  color: #6b7280;
+  font-size: 0.9rem;
+}
