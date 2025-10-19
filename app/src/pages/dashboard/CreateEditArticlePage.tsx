@@ -42,6 +42,7 @@ export default function CreateEditArticlePage() {
   const [coAuthorId, setCoAuthorId] = useState<string | undefined>(undefined);
   const [showMediaPicker, setShowMediaPicker] = useState(false);
   const [draftId, setDraftId] = useState<string | undefined>(undefined);
+  const [articleStatus, setArticleStatus] = useState<ArticleStatus | undefined>(undefined);
 
   // Load article if editing
   useEffect(() => {
@@ -134,8 +135,9 @@ export default function CreateEditArticlePage() {
         setOriginalTags(data.tags || []); // Track original for usage count updates
         setFeaturedImageId(data.featuredImageId || undefined);
         setFeaturedImageUrl(data.featuredImageUrl || undefined);
-        setDraftId(articleId);
-        setAuthorId(data.authorId || undefined);
+    setDraftId(articleId);
+    setArticleStatus(data.status as ArticleStatus | undefined);
+    setAuthorId(data.authorId || undefined);
   setCoAuthorId((data as unknown as Partial<Record<string, unknown>>).coAuthorId as string | undefined || undefined);
       } else {
         setError('Article not found');
@@ -181,7 +183,8 @@ export default function CreateEditArticlePage() {
         lastUpdatedAt: now,
         lastUpdatedBy: userData?.id || '',
         createdAt: isEditing ? (await getDoc(doc(db, 'articles', id!))).data()?.createdAt || now : now,
-        ...(saveStatus === 'published' && { publishedAt: now }),
+        // Only set publishedAt when publishing for the first time
+        ...(saveStatus === 'published' && articleStatus !== 'published' ? { publishedAt: now } : {}),
         featuredImageId,
       };
 
@@ -221,7 +224,9 @@ export default function CreateEditArticlePage() {
         await createDraft(articleData as Partial<Article>);
       }
 
-      navigate('/dashboard/articles');
+  // update local status (helps when staying on the page)
+  if (saveStatus === 'published') setArticleStatus('published');
+  navigate('/dashboard/articles');
     } catch (err) {
       console.error('Error saving article:', err);
       setError('Failed to save article');
@@ -412,7 +417,7 @@ export default function CreateEditArticlePage() {
               className="flex-1 bg-accent text-white px-6 py-3 rounded-lg font-medium hover:bg-opacity-90 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
             >
               <FontAwesomeIcon icon={faSave} />
-              Publish Now
+              {articleStatus === 'published' ? 'Update Now' : 'Publish Now'}
             </button>
           </div>
         </div>
