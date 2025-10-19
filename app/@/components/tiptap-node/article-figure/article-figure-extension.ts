@@ -44,6 +44,36 @@ export const ArticleFigure = Node.create({
     return [
       {
         tag: 'figure.article-figure',
+        getAttrs: (dom: Node | string | HTMLElement) => {
+          const el = dom as HTMLElement
+          if (!el || el.nodeType !== 1) return {}
+
+          const mediaId = el.getAttribute('data-media-id') || ''
+          // size may be present as a class like 'size-medium'
+          const sizeClass = Array.from(el.classList).find((c) => c.startsWith('size-'))
+          const size = sizeClass ? (sizeClass.replace('size-', '') as 'small' | 'medium' | 'large') : 'medium'
+
+          const wrap = el.querySelector('.article-figure-imgwrap') as HTMLElement | null
+          const img = wrap?.querySelector('img') as HTMLImageElement | null
+          const src = img?.getAttribute('src') || ''
+          const alt = img?.getAttribute('alt') || ''
+
+          const caption = el.querySelector('.article-figcaption') as HTMLElement | null
+          const descEl = caption?.querySelector('.article-description') as HTMLElement | null
+          const creditEl = caption?.querySelector('.article-credit') as HTMLElement | null
+          const description = descEl?.textContent || ''
+          // strip leading dash/emdash from credit if present
+          let credit = creditEl?.textContent || ''
+          credit = credit.replace(/^\s*[—-]\s*/, '')
+
+          // width may be set as an inline style on the wrap
+          let width: number | null = null
+          const styleAttr = wrap?.getAttribute('style') || ''
+          const m = styleAttr.match(/width\s*:\s*(\d+)px/)
+          if (m) width = parseInt(m[1], 10)
+
+          return { src, alt, description, credit, mediaId, size, width }
+        },
       },
     ]
   },

@@ -61,6 +61,19 @@ export async function getAllMedia(type?: 'image' | 'video') {
   return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Media[];
 }
 
+// Get media metadata by id
+export async function getMediaById(id: string) {
+  try {
+    const d = await getDocs(query(collection(db, MEDIA_COLLECTION), where('__name__', '==', id)));
+    if (d.docs.length === 0) return null;
+  const data = d.docs[0].data() as Record<string, unknown>;
+  return { id: d.docs[0].id, ...(data as unknown as Media) } as Media;
+  } catch (err) {
+    console.warn('getMediaById error', err);
+    return null;
+  }
+}
+
 // Update media metadata
 export async function updateMedia(id: string, data: Partial<Media>) {
   await updateDoc(doc(db, MEDIA_COLLECTION, id), data);

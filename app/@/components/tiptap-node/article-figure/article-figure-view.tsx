@@ -2,6 +2,7 @@
 import * as React from 'react'
 import type { NodeViewProps } from '@tiptap/react'
 import { NodeViewWrapper } from '@tiptap/react' // 👈 add this
+import { getMediaById } from '../../../../src/services/mediaService'
 
 export default function ArticleFigureView(props: NodeViewProps) {
   const { node, updateAttributes, selected, editor } = props
@@ -31,28 +32,41 @@ export default function ArticleFigureView(props: NodeViewProps) {
     document.addEventListener('mouseup', onMouseUp)
   }
 
-  const onMouseMove = (e: MouseEvent) => {
+  const onMouseMove = React.useCallback((e: MouseEvent) => {
     if (!dragging.current) return
     const dx = e.clientX - startX.current
-    const base =
-      startW.current ?? (wrapperRef.current?.getBoundingClientRect().width ?? 0)
+    const base = startW.current ?? (wrapperRef.current?.getBoundingClientRect().width ?? 0)
     const newWidth = Math.max(120, Math.round(base + dx))
     updateAttributes({ width: newWidth })
-  }
+  }, [updateAttributes])
 
-  const onMouseUp = () => {
+  const onMouseUp = React.useCallback(() => {
     dragging.current = false
     document.removeEventListener('mousemove', onMouseMove)
     document.removeEventListener('mouseup', onMouseUp)
-  }
+  }, [onMouseMove])
 
   React.useEffect(() => {
+    // If src is empty but mediaId is present (saved as data-media-id), try to fetch the URL
+    // so the editor shows the image when loading published content.
+    const tryLoadFromMedia = async () => {
+      const nodeAttrs = node.attrs as Record<string, unknown>
+      const mediaId = typeof nodeAttrs.mediaId === 'string' ? (nodeAttrs.mediaId as string) : undefined
+      const src = typeof nodeAttrs.src === 'string' ? (nodeAttrs.src as string) : undefined
+      if (!src && mediaId) {
+        const m = await getMediaById(mediaId)
+        if (m && typeof (m.url) === 'string') {
+          updateAttributes({ src: m.url })
+        }
+      }
+    }
+    tryLoadFromMedia()
     return () => {
       // cleanup if unmounted during drag
       document.removeEventListener('mousemove', onMouseMove)
       document.removeEventListener('mouseup', onMouseUp)
     }
-  }, [])
+  }, [node.attrs, onMouseMove, onMouseUp, updateAttributes])
 
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (!selected) return
@@ -74,7 +88,8 @@ export default function ArticleFigureView(props: NodeViewProps) {
   }
 
   const selectNode = () => {
-    const pos = (props as any).getPos?.()
+    const maybe = props as unknown as { getPos?: () => number }
+    const pos = maybe.getPos?.()
     if (typeof pos === 'number') editor.commands.setNodeSelection(pos)
   }
 
