@@ -62,7 +62,32 @@ export default function CreateEditArticlePage() {
       const key = `unsavedArticleDraftId:${userData?.id || 'anon'}`;
       const stored = localStorage.getItem(key);
       if (stored && !isEditing) {
-        setDraftId(stored);
+        // Validate the stored draft id: it must exist, be a draft, and belong to the current user
+        (async () => {
+          try {
+            const docRef = doc(db, 'articles', stored);
+            const snap = await getDoc(docRef);
+            if (!snap.exists()) {
+              localStorage.removeItem(key);
+              return;
+            }
+            const data = snap.data() as Partial<Article> | undefined;
+            if (!data) {
+              localStorage.removeItem(key);
+              return;
+            }
+            // Only rehydrate if it's still a draft and authorId matches current user (or empty/anonymous)
+            if ((data.status === 'draft') && (String(data.authorId || '') === String(userData?.id || ''))) {
+              setDraftId(stored);
+            } else {
+              // stale or owned by someone else — remove
+              localStorage.removeItem(key);
+            }
+          } catch {
+            // If validation fails, clear the key to avoid accidental overwrites
+            try { localStorage.removeItem(key); } catch { /* ignore */ }
+          }
+        })();
       }
     } catch {
       // ignore

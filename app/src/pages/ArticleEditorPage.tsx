@@ -8,7 +8,7 @@ export default function ArticleEditorPage() {
   const [title, setTitle] = useState('');
   const [subtitle, setSubtitle] = useState('');
   const [summary, setSummary] = useState('');
-  const [content, setContent] = useState<object>({});
+  const [content, setContent] = useState<string>('');
   const [tags, setTags] = useState('');
   const [status, setStatus] = useState<ArticleStatus>('draft');
   const [saving, setSaving] = useState(false);
@@ -39,7 +39,7 @@ export default function ArticleEditorPage() {
         title: title.trim(),
         subtitle: subtitle.trim() || undefined,
         summary: summary.trim(),
-        content,
+        content: typeof content === 'string' ? content : JSON.stringify(content),
         tags: tags.split(',').map(t => t.trim()).filter(t => t),
         authorId: userId,
         status,
@@ -157,7 +157,7 @@ export default function ArticleEditorPage() {
           </label>
           <TiptapEditor
             content=""
-            onChange={setContent}
+            onChange={(json: object) => setContent(JSON.stringify(json))}
             editable={true}
           />
         </div>

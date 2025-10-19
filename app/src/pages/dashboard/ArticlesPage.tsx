@@ -5,7 +5,8 @@ import { useAuth } from '../../hooks/useAuth';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPlus, faEdit, faTrash, faEye, faSearch, faFilter } from '@fortawesome/free-solid-svg-icons';
 import type { Article, ArticleStatus } from '../../types/models';
-import { collection, getDocs, deleteDoc, doc, query, where, orderBy } from 'firebase/firestore';
+import { collection, getDocs, deleteDoc, doc, query, where, orderBy, getDoc } from 'firebase/firestore';
+import type { Timestamp } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 
 export default function ArticlesPage() {
@@ -16,6 +17,23 @@ export default function ArticlesPage() {
   const [limitedView, setLimitedView] = useState(false);
   const [filterStatus, setFilterStatus] = useState<'all' | ArticleStatus>('all');
   const [search, setSearch] = useState('');
+  const [userMap, setUserMap] = useState<Record<string, string>>({});
+
+  function formatMaybeTimestamp(value?: Timestamp | string | number | Date | unknown) {
+    if (value == null) return '—';
+    try {
+      // Firestore Timestamp has toDate()
+      if (typeof value === 'object' && value !== null && 'toDate' in (value as object) && typeof (value as { toDate?: unknown }).toDate === 'function') {
+        return (value as Timestamp).toDate().toLocaleString();
+      }
+      const d = value instanceof Date ? value : new Date(String(value));
+      if (isNaN(d.getTime())) return '—';
+      return d.toLocaleString();
+    } catch (err) {
+      console.warn('formatMaybeTimestamp error', err);
+      return '—';
+    }
+  }
 
   useEffect(() => {
     fetchArticles();
@@ -52,6 +70,26 @@ export default function ArticlesPage() {
 
       const snapshot = await getDocs(q);
       const fetchedArticles = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Article[];
+      // gather unique lastUpdatedBy ids to resolve display names
+      const uids = Array.from(new Set(fetchedArticles.map(a => a.lastUpdatedBy).filter(Boolean) as string[]));
+      if (uids.length > 0) {
+        const map: Record<string, string> = {};
+        await Promise.all(uids.map(async uid => {
+          try {
+            const ud = await getDoc(doc(db, 'users', uid));
+            if (ud.exists()) {
+              const d = ud.data() as { displayName?: string; name?: string; email?: string };
+              map[uid] = d.displayName || d.name || d.email || uid;
+            } else {
+              map[uid] = uid;
+            }
+          } catch (err) {
+            console.warn('Failed to load user display for', uid, err);
+            map[uid] = uid;
+          }
+        }));
+        setUserMap(map);
+      }
       setArticles(fetchedArticles);
     } catch (error) {
       // Firestore may require a composite index for some where+orderBy combos
@@ -182,7 +220,9 @@ export default function ArticlesPage() {
                 <tr>
                   <th className="px-4 py-3 text-left text-sm font-medium text-ink">Title</th>
                   <th className="px-4 py-3 text-left text-sm font-medium text-ink">Status</th>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-ink">Published</th>
                   <th className="px-4 py-3 text-left text-sm font-medium text-ink">Last Updated</th>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-ink">Last Updated By</th>
                   <th className="px-4 py-3 text-right text-sm font-medium text-ink">Actions</th>
                 </tr>
               </thead>
@@ -205,7 +245,13 @@ export default function ArticlesPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-sm text-inkMuted">
-                      {article.lastUpdatedAt?.toDate().toLocaleDateString()}
+                      {formatMaybeTimestamp(article.publishedAt)}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-inkMuted">
+                      {formatMaybeTimestamp(article.lastUpdatedAt)}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-inkMuted">
+                      {article.lastUpdatedBy ? (userMap[article.lastUpdatedBy] || article.lastUpdatedBy) : '—'}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex gap-2 justify-end">

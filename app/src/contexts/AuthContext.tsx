@@ -105,10 +105,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const isDev = () => hasRole('dev');
   const isSuperUser = () => hasRole('superuser');
   const isStaff = () => {
-    const userRoles = userData?.roles?.map(r => r.toLowerCase()) ?? [];
-    const staffRoles: UserRole[] = ['writer', 'editor', 'admin', 'dev', 'superuser'];
+    const userRoles = userData?.roles ?? [];
+    const staffRoles = ['writer', 'editor', 'admin', 'dev', 'superuser'];
     // Derive staff from roles first; fall back to stored flag for legacy users
-    return userRoles.some((r) => staffRoles.includes(r)) || (userData?.isStaff ?? false);
+    return userRoles.some((r) => staffRoles.includes(r as string)) || (userData?.isStaff ?? false);
   };
 
   const value: AuthContextType = {

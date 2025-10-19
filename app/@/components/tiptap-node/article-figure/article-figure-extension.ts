@@ -1,4 +1,5 @@
 import { Node, mergeAttributes } from '@tiptap/core'
+import { NodeSelection } from 'prosemirror-state'
 import { ReactNodeViewRenderer } from '@tiptap/react'
 import ArticleFigureView from './article-figure-view'
 
@@ -130,9 +131,11 @@ export const ArticleFigure = Node.create({
         (size) =>
         ({ state, chain }) => {
           const { selection } = state
-          const node = selection.node
-          if (node?.type.name === this.name) {
-            return chain().updateAttributes(this.name, { size }).run()
+          if (selection instanceof NodeSelection) {
+            const node = selection.node
+            if (node?.type.name === this.name) {
+              return chain().updateAttributes(this.name, { size }).run()
+            }
           }
           return false
         },
@@ -141,9 +144,11 @@ export const ArticleFigure = Node.create({
         (width) =>
         ({ state, chain }) => {
           const { selection } = state
-          const node = selection.node
-          if (node?.type.name === this.name) {
-            return chain().updateAttributes(this.name, { width }).run()
+          if (selection instanceof NodeSelection) {
+            const node = selection.node
+            if (node?.type.name === this.name) {
+              return chain().updateAttributes(this.name, { width }).run()
+            }
           }
           return false
         },
