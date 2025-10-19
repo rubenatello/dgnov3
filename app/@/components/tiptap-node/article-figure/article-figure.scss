@@ -5,6 +5,8 @@
     display: block;
     margin-left: auto;
     margin-right: auto;
+    margin-top: 1.25rem; /* add vertical spacing above figure */
+    margin-bottom: 1.25rem; /* spacing below */
     text-align: center;
 
     /* cap widths by size, still allow explicit px width override */
@@ -19,6 +21,7 @@
     vertical-align: middle;
     max-width: 100%;
     position: relative;
+    min-height: 140px; /* placeholder height so empty/slow-loading images don't collapse */
 
     img {
       display: block;
@@ -85,6 +88,8 @@
   margin-left: auto;
   margin-right: auto;
   text-align: center;
+  margin-top: 1.25rem;
+  margin-bottom: 1.25rem;
 }
 .article-content.prose figure.article-figure .article-figure-imgwrap img {
   margin-left: auto;
@@ -97,4 +102,12 @@
   text-align: center;
   color: #6b7280;
   font-size: 0.9rem;
+}
+/* hide resizer handle in public view */
+.article-content.prose figure.article-figure .article-figure-resizer { display: none; }
+
+/* Ensure paragraphs inside article-content keep vertical spacing (editor line breaks become paragraphs) */
+.article-content.prose p {
+  margin-top: 0.85rem;
+  margin-bottom: 0.85rem;
 }
