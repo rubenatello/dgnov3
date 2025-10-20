@@ -125,6 +125,7 @@ export default function CreateEditArticlePage() {
           section,
           tags,
           featuredImageId,
+          featuredImageUrl,
           slug: title ? generateSlug(title) : `untitled-${Date.now()}`,
         }, userData.id || '');
         setLastSaved(new Date());
@@ -207,15 +208,13 @@ export default function CreateEditArticlePage() {
         lastUpdatedBy: userData?.id || '',
         createdAt: isEditing ? (await getDoc(doc(db, 'articles', id!))).data()?.createdAt || now : now,
         featuredImageId,
+        featuredImageUrl,
       };
-
-      // If publishing and breaking toggle is enabled set breakingUntil to 3 hours from now
+      // If publishing and breaking toggle is enabled set breakingRequested flag; Cloud Function will set breakingUntil server-side
       if (saveStatus === 'published' && isBreaking) {
-        const until = Timestamp.fromDate(new Date(Date.now() + 3 * 60 * 60 * 1000));
-        (articleData as Partial<Record<string, unknown>>).breakingUntil = until;
+        (articleData as Partial<Record<string, unknown>>).breakingRequested = true;
       } else if (saveStatus === 'published' && !isBreaking) {
-        // clear breakingUntil if unselected and publishing
-        (articleData as Partial<Record<string, unknown>>).breakingUntil = null;
+        (articleData as Partial<Record<string, unknown>>).breakingRequested = false;
       }
 
       // Include author/coauthor display names

@@ -59,6 +59,8 @@ export interface Article {
   publishedAt?: Timestamp;
   // When present and in the future, this article is treated as "breaking" until this time
   breakingUntil?: Timestamp | null;
+  // When true at publish time, Cloud Function will set breakingUntil to server time + 3 hours
+  breakingRequested?: boolean;
   lastUpdatedAt?: Timestamp;
   lastUpdatedBy?: string;
   createdAt?: Timestamp;
