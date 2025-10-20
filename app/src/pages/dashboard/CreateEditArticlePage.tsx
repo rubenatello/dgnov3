@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Timestamp, doc, getDoc, collection, addDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { Timestamp, doc, getDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { useAuth } from '../../hooks/useAuth';
 import DashboardLayout from '../../components/DashboardLayout';
@@ -16,6 +16,7 @@ import { getWritersAndEditors } from '../../services/userService';
 import type { StaffUser } from '../../services/userService';
 import { createArticle, updateArticle, publishArticle } from '../../services/articleService';
 import MediaPicker from '../../components/MediaPicker';
+
 
 export default function CreateEditArticlePage() {
   const { id } = useParams<{ id: string }>();
@@ -61,80 +62,47 @@ export default function CreateEditArticlePage() {
     })();
   }, [id, isEditing]);
 
-  // Rehydrate draftId from localStorage if present
-  useEffect(() => {
-    if (!isEditing && userData) {
-      const key = `unsavedArticleDraftId:${userData.id}`;
-      const stored = localStorage.getItem(key);
-      if (stored) {
-        // Validate the stored draft id
-        (async () => {
-          try {
-            const docRef = doc(db, 'articles', stored);
-            const snap = await getDoc(docRef);
-            if (snap.exists()) {
-              const data = snap.data() as Partial<Article>;
-              if (data.status === 'draft' && data.authorId === userData.id) {
-                setDraftId(stored);
-                // Load the draft content
-                setTitle(data.title || '');
-                setSubtitle(data.subtitle || '');
-                setSummary(data.summary || '');
-                setContent(data.content || '');
-                setSection(data.section || '');
-                setTags(data.tags || []);
-                setFeaturedImageId(data.featuredImageId);
-                setAuthorId(data.authorId);
-                return;
-              }
-            }
-            // If validation fails, clear the key
-            localStorage.removeItem(key);
-          } catch {
-            localStorage.removeItem(key);
-          }
-        })();
-      }
-    }
-  }, [userData, isEditing]);
+  // No localStorage - always start fresh for new articles
 
-  // Auto-create draft when user starts typing (immediate, no delays)
+  // Auto-create main article when user starts typing (only once)
+  const createArticleRef = useRef(false);
+  
   useEffect(() => {
-    if (!draftId && userData && !isEditing && (title.trim() || summary.trim() || content.trim())) {
+    if (!draftId && userData && !isEditing && title.trim() && !createArticleRef.current) {
+      createArticleRef.current = true; // Prevent multiple calls
+      
       (async () => {
         try {
-          const key = `unsavedArticleDraftId:${userData.id}`;
-          
-          // Create new draft document
+          // Create main article document ONCE when title is entered
           const initial = {
             authorId: userData.id,
-            title: title || '',
+            title: title,
             subtitle: subtitle || '',
             summary: summary || '',
             content: content || '',
             section: section || '',
             tags: tags || [],
             featuredImageId: featuredImageId || null,
-            status: 'draft',
+            status: 'draft', // This is the main article in draft status
             createdAt: serverTimestamp(),
             lastUpdatedAt: serverTimestamp(),
-            slug: title ? generateSlug(title) : `untitled-${Date.now()}`,
+            slug: generateSlug(title),
           };
 
           const docRef = await addDoc(collection(db, 'articles'), initial);
-          const newDraftId = docRef.id;
+          const newArticleId = docRef.id;
           
-          setDraftId(newDraftId);
-          localStorage.setItem(key, newDraftId);
+          setDraftId(newArticleId);
           setLastSaved(new Date());
         } catch (err) {
-          console.error('Failed to create draft:', err);
+          console.error('Failed to create article:', err);
+          createArticleRef.current = false; // Reset on error
         }
       })();
     }
-  }, [title, summary, content, userData, draftId, isEditing, subtitle, section, tags, featuredImageId]);
+  }, [title, userData, draftId, isEditing]); // Simplified dependencies
 
-  // Autosave: debounced updates to existing draft (3 seconds after changes)
+  // Simple Autosave: updates the same article document every 3 seconds
   useEffect(() => {
     if (!draftId || isAutoSaving || !userData) return;
 
@@ -147,17 +115,17 @@ export default function CreateEditArticlePage() {
     autosaveTimerRef.current = window.setTimeout(async () => {
       setIsAutoSaving(true);
       try {
-        await updateDoc(doc(db, 'articles', draftId), {
+        // Update the main article document with current content
+        await updateArticle(draftId, {
           title,
           subtitle,
           summary,
           content,
           section,
           tags,
-          featuredImageId: featuredImageId || null,
-          lastUpdatedAt: serverTimestamp(),
+          featuredImageId,
           slug: title ? generateSlug(title) : `untitled-${Date.now()}`,
-        });
+        }, userData.id || '');
         setLastSaved(new Date());
       } catch (err) {
         console.error('Autosave failed:', err);
@@ -250,7 +218,7 @@ export default function CreateEditArticlePage() {
       }
 
       if (draftId) {
-        // We have a draft - update or publish it
+        // We have the main article - update or publish it
         if (saveStatus === 'published' && userData) {
           // Ensure tag documents exist before publishing
           try {
@@ -259,14 +227,13 @@ export default function CreateEditArticlePage() {
             console.warn('Could not ensure tag docs:', e);
           }
           
-          // Publish via transaction
+          // Publish via transaction (updates the main article document)
           await publishArticle(draftId, articleData as Partial<Article>, userData.id || '');
           await updateTagUsageCounts(originalTags, tags);
           
-          // Clear draft from localStorage since it's now published
-          localStorage.removeItem(`unsavedArticleDraftId:${userData.id}`);
+          // Article is now published - no localStorage cleanup needed
         } else {
-          // Regular draft update
+          // Regular update to the main article document
           await updateArticle(draftId, articleData as Partial<Article>, userData?.id || '');
         }
       } else if (isEditing && id) {
@@ -278,14 +245,16 @@ export default function CreateEditArticlePage() {
         }
         await updateTagUsageCounts(originalTags, tags);
       } else {
-        // New article without draft (direct publish)
+        // This case should rarely happen now since we auto-create the main article
+        // But handle direct publish for safety
         if (saveStatus === 'published') {
           const newId = await createArticle(articleData as Omit<Article, 'id' | 'createdAt' | 'lastUpdatedAt' | 'slug'>);
           await publishArticle(newId, { publishedAt: now }, userData?.id || '');
           await Promise.all(tags.map(tag => incrementTagUsage(tag)));
         } else {
-          // This shouldn't happen since we auto-create drafts, but handle it
-          await createArticle(articleData as Omit<Article, 'id' | 'createdAt' | 'lastUpdatedAt' | 'slug'>);
+          // Create main article document
+          const newId = await createArticle(articleData as Omit<Article, 'id' | 'createdAt' | 'lastUpdatedAt' | 'slug'>);
+          setDraftId(newId);
           await Promise.all(tags.map(tag => incrementTagUsage(tag)));
         }
       }
@@ -300,6 +269,8 @@ export default function CreateEditArticlePage() {
       setSaving(false);
     }
   }
+
+
 
   if (loading) {
     return (
@@ -371,7 +342,7 @@ export default function CreateEditArticlePage() {
           </div>
         )}
 
-        {/* Autosave Status */}
+        {/* Simple Autosave Status */}
         <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded">
           <div className="flex items-center justify-between">
             <span className="text-sm text-blue-700">
@@ -380,7 +351,7 @@ export default function CreateEditArticlePage() {
             </span>
             {draftId && (
               <span className="text-xs text-blue-500">
-                Draft ID: {draftId.substring(0, 8)}...
+                Article ID: {draftId.substring(0, 8)}...
               </span>
             )}
           </div>

@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/DashboardLayout';
 import { useAuth } from '../../hooks/useAuth';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPlus, faEdit, faTrash, faEye, faSearch, faFilter } from '@fortawesome/free-solid-svg-icons';
+import { faPlus, faEdit, faTrash, faEye, faSearch, faFilter, faBroom } from '@fortawesome/free-solid-svg-icons';
+import { cleanupOrphanedDrafts } from '../../services/cleanupService';
 import type { Article, ArticleStatus } from '../../types/models';
 import { collection, getDocs, deleteDoc, doc, query, where, orderBy, getDoc } from 'firebase/firestore';
 import type { Timestamp } from 'firebase/firestore';
@@ -18,6 +19,29 @@ export default function ArticlesPage() {
   const [filterStatus, setFilterStatus] = useState<'all' | ArticleStatus>('all');
   const [search, setSearch] = useState('');
   const [userMap, setUserMap] = useState<Record<string, string>>({});
+  const [cleaningUp, setCleaningUp] = useState(false);
+
+  async function handleCleanupDrafts() {
+    if (!userData?.id) return;
+    
+    if (!confirm('This will delete short drafts like "t", "te", etc. Continue?')) return;
+    
+    setCleaningUp(true);
+    try {
+      const deletedCount = await cleanupOrphanedDrafts(userData.id);
+      if (deletedCount > 0) {
+        alert(`Cleaned up ${deletedCount} orphaned drafts`);
+        fetchArticles(); // Refresh the list
+      } else {
+        alert('No orphaned drafts found to clean up');
+      }
+    } catch (error) {
+      console.error('Cleanup failed:', error);
+      alert('Failed to clean up drafts');
+    } finally {
+      setCleaningUp(false);
+    }
+  }
 
   function formatMaybeTimestamp(value?: Timestamp | string | number | Date | unknown) {
     if (value == null) return '—';
@@ -141,12 +165,22 @@ export default function ArticlesPage() {
       <div>
         <div className="mb-6 flex items-center justify-between">
           <h1 className="text-2xl font-heading font-bold text-ink">Manage Articles</h1>
-          <button
-            className="bg-accent text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-opacity-90 transition-all"
-            onClick={() => navigate('/dashboard/articles/create')}
-          >
-            <FontAwesomeIcon icon={faPlus} /> Create Article
-          </button>
+          <div className="flex gap-3">
+            <button
+              className="bg-red-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-opacity-90 transition-all text-sm"
+              onClick={handleCleanupDrafts}
+              disabled={cleaningUp}
+            >
+              <FontAwesomeIcon icon={faBroom} /> 
+              {cleaningUp ? 'Cleaning...' : 'Clean Drafts'}
+            </button>
+            <button
+              className="bg-accent text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-opacity-90 transition-all"
+              onClick={() => navigate('/dashboard/articles/create')}
+            >
+              <FontAwesomeIcon icon={faPlus} /> Create Article
+            </button>
+          </div>
         </div>
 
         {/* Filters */}
@@ -219,6 +253,7 @@ export default function ArticlesPage() {
               <thead className="bg-stone bg-opacity-30">
                 <tr>
                   <th className="px-4 py-3 text-left text-sm font-medium text-ink">Title</th>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-ink">Article ID</th>
                   <th className="px-4 py-3 text-left text-sm font-medium text-ink">Status</th>
                   <th className="px-4 py-3 text-left text-sm font-medium text-ink">Published</th>
                   <th className="px-4 py-3 text-left text-sm font-medium text-ink">Last Updated</th>
@@ -232,6 +267,11 @@ export default function ArticlesPage() {
                     <td className="px-4 py-3">
                       <div className="font-medium text-ink">{article.title}</div>
                       <div className="text-xs text-inkMuted truncate max-w-md">{article.summary}</div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="text-xs font-mono text-inkMuted bg-stone-50 px-2 py-1 rounded">
+                        {article.id ? article.id.substring(0, 8) + '...' : 'N/A'}
+                      </div>
                     </td>
                     <td className="px-4 py-3">
                       <span className={`

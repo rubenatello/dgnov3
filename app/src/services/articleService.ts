@@ -8,13 +8,29 @@ import {
   query, 
   where, 
   orderBy,
-  serverTimestamp
+  serverTimestamp,
+  limit
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import type { Article, ArticleStatus } from '../types/models';
 import { generateSlug } from '../utils/helpers';
 
 const ARTICLES_COLLECTION = 'articles';
+
+// Type for autosave documents
+export interface ArticleAutosave {
+  id: string;
+  title: string;
+  subtitle?: string;
+  content: string;
+  summary?: string;
+  tags?: string[];
+  section?: string;
+  featuredImageUrl?: string;
+  authorId: string;
+  createdAt: Date | object; // Allow Firestore serverTimestamp
+  timestamp: Date | object; // Allow Firestore serverTimestamp
+}
 
 // Remove undefined values from an object before sending to Firestore
 // internal: sanitize object before sending to Firestore. We allow `any` here because
@@ -202,4 +218,121 @@ export async function publishArticle(
 
     tx.update(ref, payload as Partial<Record<string, unknown>>);
   });
+}
+
+/**
+ * Create an autosave in the autosaves subcollection under an article
+ */
+export async function createAutosave(
+  articleId: string,
+  autosaveData: Omit<ArticleAutosave, 'id' | 'createdAt' | 'timestamp'>
+): Promise<string> {
+  const autosave = {
+    ...autosaveData,
+    createdAt: serverTimestamp(),
+    timestamp: serverTimestamp(),
+  };
+
+  const clean = sanitizeForFirestore(autosave);
+  const autosavesCollection = collection(db, ARTICLES_COLLECTION, articleId, 'autosaves');
+  const docRef = await addDoc(autosavesCollection, clean as Partial<ArticleAutosave>);
+  return docRef.id;
+}
+
+/**
+ * Get all autosaves for an article, ordered by timestamp (newest first)
+ */
+export async function getAutosaves(articleId: string): Promise<ArticleAutosave[]> {
+  const autosavesCollection = collection(db, ARTICLES_COLLECTION, articleId, 'autosaves');
+  const q = query(autosavesCollection, orderBy('timestamp', 'desc'));
+  
+  const querySnapshot = await getDocs(q);
+  return querySnapshot.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data()
+  } as ArticleAutosave));
+}
+
+/**
+ * Get the latest autosave for an article
+ */
+export async function getLatestAutosave(articleId: string): Promise<ArticleAutosave | null> {
+  const autosavesCollection = collection(db, ARTICLES_COLLECTION, articleId, 'autosaves');
+  const q = query(autosavesCollection, orderBy('timestamp', 'desc'), limit(1));
+  
+  const querySnapshot = await getDocs(q);
+  if (querySnapshot.empty) return null;
+  
+  const doc = querySnapshot.docs[0];
+  return { id: doc.id, ...doc.data() } as ArticleAutosave;
+}
+
+/**
+ * Get a specific autosave by ID
+ */
+export async function getAutosave(articleId: string, autosaveId: string): Promise<ArticleAutosave | null> {
+  const docRef = doc(db, ARTICLES_COLLECTION, articleId, 'autosaves', autosaveId);
+  const docSnap = await getDoc(docRef);
+  
+  if (docSnap.exists()) {
+    return { id: docSnap.id, ...docSnap.data() } as ArticleAutosave;
+  }
+  return null;
+}
+
+/**
+ * Delete an autosave
+ */
+export async function deleteAutosave(articleId: string, autosaveId: string): Promise<void> {
+  const { deleteDoc } = await import('firebase/firestore');
+  const docRef = doc(db, ARTICLES_COLLECTION, articleId, 'autosaves', autosaveId);
+  await deleteDoc(docRef);
+}
+
+/**
+ * Restore an autosave to the main article document
+ */
+export async function restoreAutosave(
+  articleId: string, 
+  autosaveId: string, 
+  userId: string
+): Promise<void> {
+  const autosave = await getAutosave(articleId, autosaveId);
+  if (!autosave) throw new Error('Autosave not found');
+
+  const updates: Partial<Article> = {
+    title: autosave.title,
+    subtitle: autosave.subtitle,
+    content: autosave.content,
+    summary: autosave.summary,
+    tags: autosave.tags,
+    section: autosave.section,
+    featuredImageUrl: autosave.featuredImageUrl,
+  };
+
+  await updateArticle(articleId, updates, userId);
+}
+
+/**
+ * Publish an article from an autosave
+ */
+export async function publishFromAutosave(
+  articleId: string,
+  autosaveId: string,
+  userId: string
+): Promise<void> {
+  const autosave = await getAutosave(articleId, autosaveId);
+  if (!autosave) throw new Error('Autosave not found');
+
+  const updates: Partial<Article> = {
+    title: autosave.title,
+    subtitle: autosave.subtitle,
+    content: autosave.content,
+    summary: autosave.summary,
+    tags: autosave.tags,
+    section: autosave.section,
+    featuredImageUrl: autosave.featuredImageUrl,
+  };
+
+  await publishArticle(articleId, updates, userId);
 }
