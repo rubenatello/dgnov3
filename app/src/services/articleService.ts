@@ -167,3 +167,39 @@ export async function createDraft(
   const docRef = await addDoc(collection(db, ARTICLES_COLLECTION), clean as Partial<Article>);
   return docRef.id;
 }
+
+/**
+ * Publish an article in a transaction.
+ * - Ensures publishedAt is set only once (if not already present)
+ * - Atomically updates status and other fields
+ */
+export async function publishArticle(
+  articleId: string,
+  updates: Partial<Article>,
+  userId: string
+): Promise<void> {
+  // Import runTransaction lazily to avoid circular issues in some bundlers
+  const { runTransaction } = await import('firebase/firestore');
+  const ref = doc(db, ARTICLES_COLLECTION, articleId);
+
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists()) throw new Error('Article not found');
+    const data = snap.data();
+
+    // Prepare payload: keep sanitation consistent with updateArticle
+    const payload = sanitizeForFirestore<Article>({
+      ...(updates as Partial<Article>),
+      status: 'published',
+      lastUpdatedAt: serverTimestamp() as unknown as Article['lastUpdatedAt'],
+      lastUpdatedBy: userId as unknown as Article['lastUpdatedBy'],
+    });
+
+    // If publishedAt wasn't set before, set it now
+    if (!data.publishedAt) {
+      (payload as Partial<Record<string, unknown>>).publishedAt = serverTimestamp();
+    }
+
+    tx.update(ref, payload as Partial<Record<string, unknown>>);
+  });
+}

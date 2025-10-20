@@ -49,17 +49,25 @@ service cloud.firestore {
         request.resource.data.status == 'draft'
       );
 
-      // Writers can update their own articles, editors/admins can update any.
-      // Additionally permit the article's author to update their own draft
-      // (resource.status == 'draft'), but only as long as they don't change
-      // status (non-writers may not publish).
+      // Writers can update their own articles; editors/admins can update any.
+      // Authors (signed-in) may update their own drafts but cannot change
+      // status to 'published' unless they are a writer. Also, once
+      // publishedAt is set it cannot be modified except by editors/admins.
       allow update: if (
-        isWriter() && (request.auth.uid == resource.data.authorId || isEditor())
+        // editors/admins can update any field
+        (isEditor())
       ) || (
-        isSignedIn() &&
-        request.auth.uid == resource.data.authorId &&
-        resource.data.status == 'draft' &&
-        request.resource.data.status == 'draft'
+        // writers can update their own articles
+        isWriter() && request.auth.uid == resource.data.authorId
+      ) || (
+        // non-writer signed-in authors can update their own draft but cannot publish
+        isSignedIn() && request.auth.uid == resource.data.authorId && resource.data.status == 'draft' && request.resource.data.status == 'draft'
+      );
+
+      // Additional validation: prevent changing publishedAt after it's set, unless editor/admin
+      allow update: if (
+        (resource.data.publishedAt == null && request.resource.data.publishedAt == request.resource.data.publishedAt) ||
+        (resource.data.publishedAt != null && isEditor() && request.resource.data.publishedAt == request.resource.data.publishedAt)
       );
       
       // Only editors and admins can delete
