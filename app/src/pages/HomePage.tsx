@@ -10,6 +10,11 @@ function ArticleCard({ article }: { article: Article }) {
   const publishedAt = _p
     ? (_p instanceof Timestamp ? _p.toDate() : (_p instanceof Date ? _p : new Date(String(_p))))
     : null;
+  const _b: unknown = article.breakingUntil;
+  const breakingUntil = _b
+    ? (_b instanceof Timestamp ? _b.toDate() : (_b instanceof Date ? _b : new Date(String(_b))))
+    : null;
+  const isBreaking = breakingUntil ? breakingUntil.getTime() > Date.now() : false;
   return (
     <Link to={`/article/${article.slug}`} className="block group">
       <div className="flex gap-4 items-start">
@@ -19,7 +24,10 @@ function ArticleCard({ article }: { article: Article }) {
           <div className="w-36 h-24 bg-gray-100 rounded-md flex items-center justify-center text-gray-400">Image</div>
         )}
         <div>
-          <h3 className="text-lg font-medium text-ink group-hover:text-accent">{article.title}</h3>
+          <div className="flex items-center gap-3">
+            {isBreaking && <span className="text-sm font-bold text-red-700 uppercase">BREAKING</span>}
+            <h3 className="text-lg font-medium text-ink group-hover:text-accent">{article.title}</h3>
+          </div>
           {article.summary && <p className="text-sm text-inkMuted line-clamp-2">{article.summary}</p>}
           <div className="text-xs text-gray-500 mt-1">
             {article.authorName && <span className="mr-2">By {article.authorName}</span>}
