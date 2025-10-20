@@ -38,6 +38,7 @@ export default function CreateEditArticlePage() {
   const [originalTags, setOriginalTags] = useState<string[]>([]);
   const [featuredImageId, setFeaturedImageId] = useState<string | undefined>(undefined);
   const [featuredImageUrl, setFeaturedImageUrl] = useState<string | undefined>(undefined);
+  const [isBreaking, setIsBreaking] = useState<boolean>(false);
   const [staffUsers, setStaffUsers] = useState<StaffUser[]>([]);
   const [authorId, setAuthorId] = useState<string | undefined>(undefined);
   const [coAuthorId, setCoAuthorId] = useState<string | undefined>(undefined);
@@ -160,6 +161,7 @@ export default function CreateEditArticlePage() {
         setArticleStatus(data.status as ArticleStatus | undefined);
         setAuthorId(data.authorId || undefined);
         setCoAuthorId((data as unknown as Partial<Record<string, unknown>>).coAuthorId as string | undefined || undefined);
+  setIsBreaking(!!data.breakingUntil && ((data.breakingUntil as unknown as Timestamp).toDate ? (data.breakingUntil as unknown as Timestamp).toDate() > new Date() : new Date(String(data.breakingUntil)) > new Date()));
       } else {
         setError('Article not found');
       }
@@ -206,6 +208,15 @@ export default function CreateEditArticlePage() {
         createdAt: isEditing ? (await getDoc(doc(db, 'articles', id!))).data()?.createdAt || now : now,
         featuredImageId,
       };
+
+      // If publishing and breaking toggle is enabled set breakingUntil to 3 hours from now
+      if (saveStatus === 'published' && isBreaking) {
+        const until = Timestamp.fromDate(new Date(Date.now() + 3 * 60 * 60 * 1000));
+        (articleData as Partial<Record<string, unknown>>).breakingUntil = until;
+      } else if (saveStatus === 'published' && !isBreaking) {
+        // clear breakingUntil if unselected and publishing
+        (articleData as Partial<Record<string, unknown>>).breakingUntil = null;
+      }
 
       // Include author/coauthor display names
       const authorObj = staffUsers.find(u => u.id === (authorId || userData?.id));
@@ -468,7 +479,14 @@ export default function CreateEditArticlePage() {
           </div>
 
           {/* Actions */}
-          <div className="flex gap-3 pt-4 border-t border-stone">
+          <div className="flex flex-col gap-3 pt-4 border-t border-stone">
+            <label className="flex items-center gap-3 text-sm">
+              <input type="checkbox" checked={isBreaking} onChange={e => setIsBreaking(e.target.checked)} />
+              <span className="font-medium">BREAKING NEWS?</span>
+              <span className="text-xs text-accent font-style: italic">(If checked, article shows in Breaking section for 3 hours after publish)</span>
+            </label>
+
+            <div className="flex gap-3">
             <button
               onClick={() => handleSave('draft')}
               disabled={saving}
@@ -495,6 +513,7 @@ export default function CreateEditArticlePage() {
             </button>
           </div>
         </div>
+      </div>
       </div>
     </DashboardLayout>
   );

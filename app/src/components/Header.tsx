@@ -40,7 +40,7 @@ export default function Header() {
 
             {/* Desktop Navigation: render sections (centered) */}
             <nav className="hidden md:flex flex-1 justify-center items-center">
-              <div className="flex flex-wrap gap-x-6 gap-y-1 justify-center max-w-5xl">
+              <div className="flex flex-wrap gap-x-3 gap-y-1 justify-center max-w-4xl">
                 {SECTIONS.map((s) => (
                   <Link
                     key={s}

@@ -117,6 +117,22 @@ export async function getPublishedArticles(): Promise<Article[]> {
 }
 
 /**
+ * Get current breaking articles (published, and breakingUntil in the future)
+ */
+export async function getBreakingArticles(): Promise<Article[]> {
+  const now = new Date();
+  const q = query(
+    collection(db, ARTICLES_COLLECTION),
+    where('status', '==', 'published'),
+    where('breakingUntil', '>', now),
+    orderBy('breakingUntil', 'desc')
+  );
+
+  const querySnapshot = await getDocs(q);
+  return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Article));
+}
+
+/**
  * Get a single article by slug
  */
 export async function getArticleBySlug(slug: string): Promise<Article | null> {

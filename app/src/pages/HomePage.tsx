@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { getPublishedArticles } from '../services/articleService';
+import { getPublishedArticles, getBreakingArticles } from '../services/articleService';
 import type { Article } from '../types/models';
 import { format } from 'date-fns';
 import { Timestamp } from 'firebase/firestore';
@@ -33,18 +33,24 @@ function ArticleCard({ article }: { article: Article }) {
 
 export default function HomePage() {
   const [articles, setArticles] = useState<Article[]>([]);
+  const [breaking, setBreaking] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     setLoading(true);
-    getPublishedArticles()
-      .then(setArticles)
-      .catch((err) => {
+    (async () => {
+      try {
+        const [published, breakingList] = await Promise.all([getPublishedArticles(), getBreakingArticles()]);
+        setArticles(published);
+        setBreaking(breakingList);
+      } catch (err) {
         console.error('Failed to load articles', err);
         setError(String(err));
-      })
-      .finally(() => setLoading(false));
+      } finally {
+        setLoading(false);
+      }
+    })();
   }, []);
 
   // Most recent
@@ -104,6 +110,20 @@ export default function HomePage() {
 
       {!loading && !error && (
         <div className="space-y-12">
+          {breaking.length > 0 && (
+            <section>
+              <h2 className="text-2xl font-semibold mb-4">Breaking</h2>
+              <div className="space-y-4">
+                {breaking.map(a => (
+                  <div key={a.id} className="p-4 bg-red-50 border border-red-200 rounded">
+                    <h3 className="text-lg font-bold text-red-700">BREAKING: {a.title}</h3>
+                    {a.summary && <p className="text-sm text-inkMuted">{a.summary}</p>}
+                    <Link to={`/article/${a.slug}`} className="text-sm text-red-600 underline mt-2 block">Read</Link>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
           {articles.length === 0 && (
             <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 text-yellow-700 rounded">
               No published articles were found. Verify in the Firestore console that the article document has <code>status: "published"</code> and a valid <code>publishedAt</code> timestamp. If you've just published an article, wait a few seconds for server timestamps to propagate.
