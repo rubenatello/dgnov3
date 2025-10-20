@@ -101,10 +101,7 @@ export default function HomePage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
-      <header className="mb-8">
-        <h1 className="text-4xl font-heading font-bold">Latest</h1>
-        <p className="text-gray-600">Fresh reporting and analysis — updated as published</p>
-      </header>
+
 
       {loading && <div>Loading articles…</div>}
 

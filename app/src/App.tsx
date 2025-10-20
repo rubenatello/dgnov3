@@ -5,11 +5,14 @@ import ProtectedRoute from './components/ProtectedRoute';
 import { HomePage } from './pages';
 import LoginPage from './pages/LoginPage';
 import ArticleView from './pages/ArticleView';
-
 import DashboardPage from './pages/dashboard/DashboardPage';
 import MediaPage from './pages/dashboard/MediaPage';
 import ArticlesPage from './pages/dashboard/ArticlesPage';
 import CreateEditArticlePage from './pages/dashboard/CreateEditArticlePage';
+import SettingsPage from './pages/dashboard/SettingsPage';
+import AboutPage from './pages/AboutPage';
+import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
+import NotFoundPage from './pages/NotFoundPage';
 
 function App() {
   return (
@@ -107,6 +110,24 @@ function App() {
               </ProtectedRoute>
             }
           />
+
+          <Route
+            path="/dashboard/settings"
+            element={
+              <ProtectedRoute>
+                <SettingsPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* About Page */}
+          <Route path="/about" element={<AboutPage />} />
+
+          {/* Privacy Policy Page */}
+          <Route path="/privacy" element={<PrivacyPolicyPage />} />
+
+          {/* 404 Page - Catch all unmatched routes */}
+          <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </Router>
     </AuthProvider>

@@ -32,6 +32,10 @@ export interface User {
   displayName: string;
   bio?: string;
   avatarUrl?: string;
+  profileImageUrl?: string; // Alternative field name for profile images
+  website?: string;
+  twitter?: string;
+  linkedin?: string;
   roles: UserRole[]; // Can have multiple roles
   isStaff: boolean; // true if user has writer/editor/admin/dev/superuser
   isActive: boolean; // Account active status

@@ -1,5 +1,6 @@
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import { collection, getDocs, query, where, doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../config/firebase';
+import type { User } from '../types/models';
 
 export type StaffUser = {
   id: string;
@@ -48,4 +49,42 @@ export async function getWritersAndEditors(): Promise<StaffUser[]> {
   }
 
   return Object.values(users);
+}
+
+/**
+ * Get user profile by ID
+ */
+export async function getUserProfile(userId: string): Promise<User | null> {
+  try {
+    const userDoc = await getDoc(doc(db, 'users', userId));
+    if (userDoc.exists()) {
+      return { id: userDoc.id, ...userDoc.data() } as User;
+    }
+    return null;
+  } catch (error) {
+    console.error('Error getting user profile:', error);
+    throw error;
+  }
+}
+
+/**
+ * Update user profile
+ */
+export async function updateUserProfile(userId: string, data: Partial<User>): Promise<void> {
+  try {
+    const userRef = doc(db, 'users', userId);
+    // Remove any undefined values — Firestore rejects undefined field values in update
+    const cleaned: Record<string, unknown> = {};
+    Object.entries(data || {}).forEach(([k, v]) => {
+      if (v !== undefined) cleaned[k] = v as unknown;
+    });
+
+    await updateDoc(userRef, {
+      ...cleaned,
+      lastUpdatedAt: serverTimestamp(),
+    });
+  } catch (error) {
+    console.error('Error updating user profile:', error);
+    throw error;
+  }
 }

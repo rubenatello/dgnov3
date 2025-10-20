@@ -6,11 +6,20 @@ service firebase.storage {
       return request.auth != null;
     }
     
+    // Role checks use the token.roles map (recommended). Storage rules cannot
+    // safely call get() on Firestore, so we rely on auth token claims here.
+    function hasRole(role) {
+      return request.auth != null && (
+        (request.auth.token.roles != null && request.auth.token.roles[role] == true)
+      );
+    }
+
     function isWriter() {
-      return isSignedIn() && 
-        (request.auth.token.role == 'writer' || 
-         request.auth.token.role == 'editor' || 
-         request.auth.token.role == 'admin');
+      return hasRole('writer') || hasRole('editor') || hasRole('admin') || hasRole('superuser');
+    }
+
+    function isEditor() {
+      return hasRole('editor') || hasRole('admin') || hasRole('superuser');
     }
     
     function isValidImageType() {
@@ -44,8 +53,10 @@ service firebase.storage {
         isValidImageType() && 
         isValidSize(10);
       
-      // Writers can update/delete their own images
-      allow update, delete: if isWriter();
+  // Update/delete: only the original uploader (stored in metadata) or an editor
+  // can modify or remove objects. When uploading, the client should set
+  // customMetadata.uploadedBy = auth.uid so ownership can be enforced here.
+  allow update, delete: if isEditor() || (isWriter() && request.auth.uid == resource.metadata.customMetadata.uploadedBy);
     }
 
     // Videos folder (article videos)

@@ -26,11 +26,17 @@ export async function uploadMediaFile(file: File, folder: string = 'images') {
   try {
     const storageRef = ref(storage, `${folder}/${Date.now()}_${file.name}`);
     
-    // Upload with metadata
+    // Get current user for ownership tracking
+    const { getAuth } = await import('firebase/auth');
+    const auth = getAuth();
+    const currentUser = auth.currentUser;
+    
+    // Upload with metadata including uploader info for security rules
     const metadata = {
       contentType: file.type,
       customMetadata: {
-        uploadedAt: new Date().toISOString()
+        uploadedAt: new Date().toISOString(),
+        uploadedBy: currentUser?.uid || 'anonymous'
       }
     };
     

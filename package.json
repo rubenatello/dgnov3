@@ -1,0 +1,25 @@
+{
+  "name": "dgnov3-root",
+  "version": "1.0.0",
+  "description": "DGNO - Digital Government News Organization",
+  "private": true,
+  "scripts": {
+    "dev": "cd app && npm run dev",
+    "build": "cd app && npm run build",
+    "preview": "cd app && npm run preview",
+    "emulators": "firebase emulators:start",
+    "emulators:debug": "firebase emulators:start --debug",
+    "test-rules": "node app/scripts/emulator-tests.js",
+    "setup-admin": "node scripts/setup-user-roles.js",
+    "deploy": "firebase deploy",
+    "deploy-rules": "firebase deploy --only firestore:rules,storage:rules",
+    "deploy-hosting": "npm run build && firebase deploy --only hosting",
+    "deploy-all": "npm run build && firebase deploy"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.7.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

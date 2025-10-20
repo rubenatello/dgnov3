@@ -4,3 +4,4 @@
 export { default as Header } from './Header';
 export { default as Footer } from './Footer';
 export { default as TiptapEditor } from './TiptapEditor';
+export { default as MediaPicker } from './MediaPicker';

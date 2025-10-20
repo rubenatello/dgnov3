@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { SECTIONS } from '../types/models';
+import DonationModal from './DonationModal';
 
 export default function Header() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [donationModalOpen, setDonationModalOpen] = useState(false);
 
   return (
     <>
@@ -17,6 +19,12 @@ export default function Header() {
             >
               Subscribe
             </a>
+            <button 
+              onClick={() => setDonationModalOpen(true)}
+              className="text-sm px-5 py-1.5 bg-accent text-white rounded-full hover:bg-accent/90 transition-all duration-300"
+            >
+              Donate
+            </button>
             <a 
               href="/login"
               className="text-sm px-5 py-1.5 bg-white text-ink rounded-full hover:bg-accent hover:text-white transition-all duration-300"
@@ -89,6 +97,12 @@ export default function Header() {
           </div>
         </div>
       )}
+
+      {/* Donation Modal */}
+      <DonationModal 
+        isOpen={donationModalOpen} 
+        onClose={() => setDonationModalOpen(false)} 
+      />
     </>
   );
 }

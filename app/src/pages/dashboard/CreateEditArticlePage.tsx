@@ -316,11 +316,13 @@ export default function CreateEditArticlePage() {
               <h1 className="text-2xl font-heading font-bold text-ink">
                 {isEditing ? 'Edit Article' : 'Create New Article'}
               </h1>
-              {featuredImageUrl && (
-                <div className="mt-2">
-                  <img src={featuredImageUrl} alt="Featured" className="w-48 h-28 object-cover rounded border" />
-                </div>
-              )}
+              <div className="mt-2">
+                <img
+                  src={featuredImageUrl || '/default-image.png'}
+                  alt="Featured"
+                  className="w-48 h-28 object-cover rounded border"
+                />
+              </div>
             </div>
           </div>
           <div>

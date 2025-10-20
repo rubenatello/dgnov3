@@ -10,12 +10,17 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
     
+    // Safe role check: prefer token.roles (authoritative), fall back to users/{uid}
+    // but only if the document exists. Avoids runtime errors when the doc is
+    // missing. Note: frequent get() calls can affect rule performance; prefer
+    // setting custom claims for production.
     function hasRole(role) {
       return request.auth != null && (
-        // Preferred: check custom token claims (authoritative)
         (request.auth.token.roles != null && request.auth.token.roles[role] == true)
-        // Fallback: check the users/{uid} document's rolesMap field
-        || (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.rolesMap[role] == true)
+        || (
+          exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.rolesMap[role] == true
+        )
       );
     }
 
@@ -40,38 +45,85 @@ service cloud.firestore {
       allow read: if isWriter();
       
       // Writers can create articles. Additionally allow any signed-in user to
-      // create a lightweight draft for themselves (status == 'draft'). This
-      // enables autosave/draft workflows for authors who don't yet have the
-      // 'writer' role.
+      // create an article for themselves (status == 'draft'). This enables 
+      // autosave/draft workflows for authors who don't yet have the 'writer' role.
       allow create: if isWriter() || (
         isSignedIn() &&
         request.auth.uid == request.resource.data.authorId &&
         request.resource.data.status == 'draft'
       );
 
-      // Writers can update their own articles; editors/admins can update any.
-      // Authors (signed-in) may update their own drafts but cannot change
-      // status to 'published' unless they are a writer. Also, once
-      // publishedAt is set it cannot be modified except by editors/admins.
+      // Single coherent update rule:
+      // - Editors/admins can update any article.
+      // - Writers can update their own articles.
+      // - Signed-in non-writer authors can update their own drafts but may not
+      //   change status (cannot publish).
+      // Additionally, protect `publishedAt`: once set it may not be changed
+      // except by editors; setting `publishedAt` for the first time is allowed
+      // for the author if they are a writer (i.e., publishing) or for editors.
       allow update: if (
-        // editors/admins can update any field
-        (isEditor())
+        // editors/admins: full access
+        isEditor()
       ) || (
-        // writers can update their own articles
+        // writers may update their own articles
         isWriter() && request.auth.uid == resource.data.authorId
       ) || (
-        // non-writer signed-in authors can update their own draft but cannot publish
-        isSignedIn() && request.auth.uid == resource.data.authorId && resource.data.status == 'draft' && request.resource.data.status == 'draft'
-      );
-
-      // Additional validation: prevent changing publishedAt after it's set, unless editor/admin
-      allow update: if (
-        (resource.data.publishedAt == null && request.resource.data.publishedAt == request.resource.data.publishedAt) ||
-        (resource.data.publishedAt != null && isEditor() && request.resource.data.publishedAt == request.resource.data.publishedAt)
+        // non-writer signed-in authors may update their own drafts but may not
+        // change the status (must remain 'draft')
+        isSignedIn() &&
+        request.auth.uid == resource.data.authorId &&
+        resource.data.status == 'draft' &&
+        request.resource.data.status == 'draft'
+      )
+      // Now enforce publishedAt constraints regardless of which branch matched
+      && (
+        // If publishedAt was never set, it's allowed to remain unset or be set
+        // only if the actor is an editor or (a writer author who is publishing).
+        (
+          resource.data.publishedAt == null && (
+            request.resource.data.publishedAt == null ||
+            isEditor() ||
+            (isWriter() && request.auth.uid == resource.data.authorId && request.resource.data.status == 'published')
+          )
+        )
+        // If publishedAt was already set, it must remain unchanged unless editor
+        || (
+          resource.data.publishedAt != null && (
+            request.resource.data.publishedAt == resource.data.publishedAt ||
+            isEditor()
+          )
+        )
       );
       
       // Only editors and admins can delete
       allow delete: if isEditor();
+
+      // Autosaves subcollection - version history for each article
+      match /autosaves/{autosaveId} {
+        // Article author, writers, editors, and admins can read autosaves
+        allow read: if isSignedIn() && (
+          request.auth.uid == resource.data.authorId ||
+          request.auth.uid == get(/databases/$(database)/documents/articles/$(articleId)).data.authorId ||
+          isWriter()
+        );
+        
+        // Article author and writers can create/update autosaves
+        // Allow creation without needing to check the parent article first
+        allow create: if isSignedIn() && (
+          request.auth.uid == request.resource.data.authorId ||
+          isWriter()
+        );
+        
+        // Allow updates to autosaves by author or writers
+        allow update: if isSignedIn() && (
+          request.auth.uid == resource.data.authorId ||
+          request.auth.uid == get(/databases/$(database)/documents/articles/$(articleId)).data.authorId ||
+          isWriter()
+        );
+        
+        // Only editors and admins can delete autosaves (for cleanup)
+        allow delete: if isEditor();
+      }
     }
 
     // Users collection
