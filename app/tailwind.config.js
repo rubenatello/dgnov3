@@ -12,7 +12,7 @@ export default {
         ink: '#1D212B',
         inkMuted: '#303030',
         sand: '#929faeff',
-        paper: '#FFFAF0',
+        paper: '#fcf7eeff',
         stone: '#E5E2DC',
         accent: '#6e86ffff',
       },

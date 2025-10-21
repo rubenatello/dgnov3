@@ -21,6 +21,7 @@ export const SECTIONS = [
   'Business',
   'Tech',
   'Finance',
+  
 ] as const;
 
 export type Section = typeof SECTIONS[number];

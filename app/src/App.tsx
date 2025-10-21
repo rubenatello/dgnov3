@@ -13,6 +13,7 @@ import SettingsPage from './pages/dashboard/SettingsPage';
 import AboutPage from './pages/AboutPage';
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 import NotFoundPage from './pages/NotFoundPage';
+import ArticlesSection from './pages/ArticlesSection';
 
 function App() {
   return (
@@ -45,6 +46,19 @@ function App() {
                   <ArticleView />
                 </main>
                 <Footer />
+              </div>
+            }
+          />
+
+          {/* Articles Section */}
+          <Route
+            path="/articles/:section"
+            element={
+              <div className="min-h-screen flex flex-col">
+                <main className="flex-1">
+                  <ArticlesSection />
+                </main>
+
               </div>
             }
           />
