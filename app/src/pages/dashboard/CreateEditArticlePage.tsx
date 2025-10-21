@@ -210,11 +210,16 @@ export default function CreateEditArticlePage() {
         featuredImageId,
         featuredImageUrl,
       };
-      // If publishing and breaking toggle is enabled set breakingRequested flag; Cloud Function will set breakingUntil server-side
-      if (saveStatus === 'published' && isBreaking) {
-        (articleData as Partial<Record<string, unknown>>).breakingRequested = true;
-      } else if (saveStatus === 'published' && !isBreaking) {
-        (articleData as Partial<Record<string, unknown>>).breakingRequested = false;
+      // If publishing, set breakingRequested ONLY if checked; otherwise omit
+      if (saveStatus === 'published') {
+        if (isBreaking) {
+          (articleData as Partial<Record<string, unknown>>).breakingRequested = true;
+        } else {
+          // Remove breakingRequested from payload entirely for non-breaking
+          if ('breakingRequested' in articleData) {
+            delete (articleData as Partial<Record<string, unknown>>).breakingRequested;
+          }
+        }
       }
 
       // Include author/coauthor display names
