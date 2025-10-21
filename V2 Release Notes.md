@@ -8,3 +8,4 @@ V2 Due Date = 11/16/2025
 [] Newsletter templates??
 [] Subscribe email integration, users who subscribe paid or free, get email notifications and articles e-mailed to them. 
 [] Sign up page and link do not work. need to build a signup modal or fucntion for subscribe button and signin link in the login modal for readers to be able to donate, and subscribe to newsletter.
+[] For writers, editors, superusers -- an overlay to access /dashboard should allow them to get to the dashboard in a click

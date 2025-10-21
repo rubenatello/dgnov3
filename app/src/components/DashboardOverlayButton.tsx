@@ -19,28 +19,33 @@ export default function DashboardOverlayButton() {
   if (!visible) return null;
 
   return (
-    <button
+    <img
+      src={adminIcon}
+      alt="Dashboard"
       onClick={() => navigate('/dashboard')}
       style={{
         position: 'fixed',
         bottom: '24px',
         right: '24px',
         zIndex: 1000,
-        background: 'white',
-        borderRadius: '50%',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-        padding: '12px',
-        border: '2px solid #232425',
         cursor: 'pointer',
         width: '56px',
         height: '56px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
+        transition: 'filter 0.2s',
       }}
       aria-label="Go to dashboard"
-    >
-      <img src={adminIcon} alt="Dashboard" style={{ width: '32px', height: '32px' }} />
-    </button>
+      tabIndex={0}
+      onKeyDown={e => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          navigate('/dashboard');
+        }
+      }}
+      onMouseOver={e => {
+        (e.currentTarget as HTMLImageElement).style.filter = 'brightness(0.85)';
+      }}
+      onMouseOut={e => {
+        (e.currentTarget as HTMLImageElement).style.filter = '';
+      }}
+    />
   );
 }
