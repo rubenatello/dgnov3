@@ -38,11 +38,11 @@ service cloud.firestore {
 
     // Articles collection
     match /articles/{articleId} {
-      // Anyone can read published articles
-      allow read: if resource.data.status == 'published';
+      // Anyone (including anonymous users) can read published articles
+      allow read: if resource != null && resource.data.status == 'published';
       
-      // Writers, editors, admins can read all articles
-      allow read: if isWriter();
+      // Writers, editors, admins can read all articles (authenticated users only)
+      allow read: if isSignedIn() && isWriter();
       
       // Writers can create articles. Additionally allow any signed-in user to
       // create an article for themselves (status == 'draft'). This enables 
