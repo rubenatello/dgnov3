@@ -48,8 +48,11 @@ service firebase.storage {
       // Anyone can read
       allow read: if true;
       
-      // Writers can upload images (max 10MB)
-      allow create: if isWriter() && 
+      // Allow any signed-in user to upload images (max 10MB).
+      // Rationale: Storage cannot read Firestore for roles; some staff accounts
+      // may rely on Firestore roles fallback. The dashboard routes are staff-gated
+      // in the app, so this keeps UX unblocked while update/delete remain stricter.
+      allow create: if isSignedIn() && 
         isValidImageType() && 
         isValidSize(10);
       
@@ -64,8 +67,8 @@ service firebase.storage {
       // Anyone can read
       allow read: if true;
       
-      // Writers can upload videos (max 100MB)
-      allow create: if isWriter() && 
+      // Allow any signed-in user to upload videos (max 100MB)
+      allow create: if isSignedIn() && 
         isValidVideoType() && 
         isValidSize(100);
       

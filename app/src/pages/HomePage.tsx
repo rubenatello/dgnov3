@@ -4,6 +4,7 @@ import { getPublishedArticles, getBreakingArticles } from '../services/articleSe
 import type { Article } from '../types/models';
 import { format } from 'date-fns';
 import { Timestamp } from 'firebase/firestore';
+import LoadingScreen from '../components/LoadingScreen';
 
 function ArticleCard({ article }: { article: Article }) {
   const _p: unknown = article.publishedAt;
@@ -103,7 +104,7 @@ export default function HomePage() {
     <div className="max-w-7xl mx-auto px-4 py-8">
 
 
-      {loading && <div>Loading articles…</div>}
+  {loading && <LoadingScreen message="Loading articles…" />}
 
       {error && (
         <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded">
