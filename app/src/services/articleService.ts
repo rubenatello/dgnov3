@@ -138,7 +138,10 @@ export async function getBreakingArticles(): Promise<Article[]> {
 export async function getArticleBySlug(slug: string): Promise<Article | null> {
   const q = query(
     collection(db, ARTICLES_COLLECTION),
+    // Add status filter so Firestore rules can evaluate query for anonymous users
+    // Public readers are allowed to fetch only published articles
     where('slug', '==', slug),
+    where('status', '==', 'published'),
   );
 
   const querySnapshot = await getDocs(q);
