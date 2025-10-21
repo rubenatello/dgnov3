@@ -3,23 +3,25 @@ import { Link } from 'react-router-dom';
 import { SECTIONS } from '../types/models';
 import DonationModal from './DonationModal';
 import DashboardOverlayButton from './DashboardOverlayButton';
+import SubscribeModal from './SubscribeModal';
 
 export default function Header() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [donationModalOpen, setDonationModalOpen] = useState(false);
+  const [subscribeModalOpen, setSubscribeModalOpen] = useState(false);
 
   return (
     <>
-      {/* Top Bar - Dark with Subscribe/Login */}
+      {/* Top Bar - Dark with Subscribe/Donate/Login Buttons */}
       <div className="bg-[#232425ff] text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-end h-10 gap-3">
-            <a 
-              href="#subscribe"
+            <button
+              onClick={() => setSubscribeModalOpen(true)}
               className="text-sm px-5 py-1.5 bg-transparent border border-white text-white rounded-full hover:bg-accent hover:border-accent transition-all duration-300"
             >
               Subscribe
-            </a>
+            </button>
             <button 
               onClick={() => setDonationModalOpen(true)}
               className="text-sm px-5 py-1.5 bg-accent text-white rounded-full hover:bg-accent/90 transition-all duration-300"
@@ -98,6 +100,11 @@ export default function Header() {
           </div>
         </div>
       )}
+      {/* Subscribe Modal */}
+      <SubscribeModal 
+        open={subscribeModalOpen} 
+        onClose={() => setSubscribeModalOpen(false)} 
+      />
 
       {/* Donation Modal */}
       <DonationModal 
