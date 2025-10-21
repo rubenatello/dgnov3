@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { SECTIONS } from '../types/models';
 import DonationModal from './DonationModal';
+import DashboardOverlayButton from './DashboardOverlayButton';
 
 export default function Header() {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -103,6 +104,7 @@ export default function Header() {
         isOpen={donationModalOpen} 
         onClose={() => setDonationModalOpen(false)} 
       />
+      <DashboardOverlayButton />
     </>
   );
 }
