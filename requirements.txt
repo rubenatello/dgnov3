@@ -1,0 +1,10 @@
+As of 10/21/2025
+
+node>=18.0.0
+npm>=9.0.0
+npx>=9.0.0
+typescript>=5.0.0
+eslint>=8.0.0
+
+use package.json for npm dependencies
+use package-lock.json for npm lockfile
