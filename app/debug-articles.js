@@ -1,7 +1,6 @@
 // Debug script to check articles with featured images
 import { initializeApp } from 'firebase/app';
 import { getFirestore, collection, getDocs, query, where } from 'firebase/firestore';
-
 const firebaseConfig = {
   apiKey: "AIzaSyBk7arB4Zzb4mT6iM0v2Y7nQWJq1NFVMtE",
   authDomain: "dgnov3.firebaseapp.com",

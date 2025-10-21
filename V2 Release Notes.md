@@ -7,3 +7,4 @@ V2 Due Date = 11/16/2025
 [] Engagement feature users if logged in can like, comment and bookmark articles.
 [] Newsletter templates??
 [] Subscribe email integration, users who subscribe paid or free, get email notifications and articles e-mailed to them. 
+[] Sign up page and link do not work. need to build a signup modal or fucntion for subscribe button and signin link in the login modal for readers to be able to donate, and subscribe to newsletter.
