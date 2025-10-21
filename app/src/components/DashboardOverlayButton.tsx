@@ -1,5 +1,5 @@
 import { useAuth } from '../hooks/useAuth';
-import adminIcon from '../../public/icons/admin-icon.png';
+import adminIcon from '../../public/adminicon.png';
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
