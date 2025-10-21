@@ -210,16 +210,9 @@ export default function CreateEditArticlePage() {
         featuredImageId,
         featuredImageUrl,
       };
-      // If publishing, set breakingRequested ONLY if checked; otherwise omit
+      // If publishing, always set breakingRequested explicitly
       if (saveStatus === 'published') {
-        if (isBreaking) {
-          (articleData as Partial<Record<string, unknown>>).breakingRequested = true;
-        } else {
-          // Remove breakingRequested from payload entirely for non-breaking
-          if ('breakingRequested' in articleData) {
-            delete (articleData as Partial<Record<string, unknown>>).breakingRequested;
-          }
-        }
+        (articleData as Partial<Record<string, unknown>>).breakingRequested = !!isBreaking;
       }
 
       // Include author/coauthor display names
