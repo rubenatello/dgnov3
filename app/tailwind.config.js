@@ -11,7 +11,7 @@ export default {
         bgDark: '#232425ff', // Renamed from bg-dark (hyphens not allowed)
         ink: '#1D212B',
         inkMuted: '#303030',
-        sand: '#929faeff',
+        sand: '#a7b6c7ff',
         paper: '#fcf7eeff',
         stone: '#E5E2DC',
         accent: '#6e86ffff',

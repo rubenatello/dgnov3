@@ -6,5 +6,5 @@ npx>=9.0.0
 typescript>=5.0.0
 eslint>=8.0.0
 
-use package.json for npm dependencies
+use dgnov3/app/package.json for npm dependencies
 use package-lock.json for npm lockfile

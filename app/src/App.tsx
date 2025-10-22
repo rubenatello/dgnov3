@@ -1,6 +1,9 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
-import { Header, Footer } from './components';
+import { ArticlesProvider } from './contexts/ArticlesContext';
+import { Footer } from './components';
+import Header from './components/header/Header';
+import CookieConsentBanner from './components/CookieConsentBanner';
 import ProtectedRoute from './components/ProtectedRoute';
 import { HomePage } from './pages';
 import LoginPage from './pages/LoginPage';
@@ -18,6 +21,7 @@ import ArticlesSection from './pages/ArticlesSection';
 function App() {
   return (
     <AuthProvider>
+      <ArticlesProvider>
       <Router>
         <Routes>
           {/* Public Routes */}
@@ -30,6 +34,7 @@ function App() {
                   <HomePage />
                 </main>
                 <Footer />
+                <CookieConsentBanner />
               </div>
             }
           />
@@ -46,6 +51,7 @@ function App() {
                   <ArticleView />
                 </main>
                 <Footer />
+                <CookieConsentBanner />
               </div>
             }
           />
@@ -58,6 +64,7 @@ function App() {
                 <main className="flex-1">
                   <ArticlesSection />
                 </main>
+                <CookieConsentBanner />
 
               </div>
             }
@@ -73,6 +80,7 @@ function App() {
                   <ArticleView />
                 </main>
                 <Footer />
+                <CookieConsentBanner />
               </div>
             }
           />
@@ -144,6 +152,7 @@ function App() {
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </Router>
+      </ArticlesProvider>
     </AuthProvider>
   );
 }
