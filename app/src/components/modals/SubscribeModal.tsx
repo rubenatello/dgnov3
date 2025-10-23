@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
-import { auth } from '../config/firebase';
+import { auth } from '../../config/firebase';
 
 interface SubscribeModalProps { 
   open: boolean;
@@ -46,7 +46,7 @@ export default function SubscribeModal({ open, onClose }: SubscribeModalProps) {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur">
       <div className="bg-bg rounded-lg shadow-lg p-8 w-full max-w-md relative">
         <button
           className="absolute top-3 right-3 text-inkMuted text-xl"
@@ -55,7 +55,8 @@ export default function SubscribeModal({ open, onClose }: SubscribeModalProps) {
         >
           ×
         </button>
-        <h2 className="font-heading text-2xl text-ink mb-4">Subscribe / Sign Up</h2>
+        <h2 className="text-center font-heading text-2xl font-semibold text-ink mb-4">Subscribe & Sign Up!</h2>
+        <p className="text-center text-inkMuted mb-6">Join our community for exclusive content and updates. You will receive updates on articles!</p>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <input
             type="text"

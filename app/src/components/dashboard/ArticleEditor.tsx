@@ -1,5 +1,5 @@
 import * as React from 'react'
-import type { Media } from '../types/models'
+import type { Media } from '../../types/models'
 import { EditorContent, EditorContext, useEditor } from '@tiptap/react'
 
 // --- Tiptap Core Extensions ---
@@ -41,7 +41,7 @@ import '@/components/tiptap-node/paragraph-node/paragraph-node.scss'
 
 // --- Tiptap UI ---
 import { HeadingDropdownMenu } from '@/components/tiptap-ui/heading-dropdown-menu'
-import MediaPicker from './MediaPicker'
+import MediaPicker from '../MediaPicker'
 import { ImagePlusIcon } from '@/components/tiptap-icons/image-plus-icon'
 import { ListDropdownMenu } from '@/components/tiptap-ui/list-dropdown-menu'
 import { BlockquoteButton } from '@/components/tiptap-ui/blockquote-button'

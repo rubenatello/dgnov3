@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { updateUserProfile, getUserProfile } from '../../services/userService';
 import { uploadMediaFile } from '../../services/mediaService';
-import DashboardLayout from '../../components/DashboardLayout';
+import DashboardLayout from '../../components/dashboard/DashboardLayout';
 import type { User } from '../../types/models';
 export default function SettingsPage() {
   const { currentUser, userData } = useAuth();

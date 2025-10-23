@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { Article } from '../../types/models';
+import { trackSearchEvent, isAnalyticsEnabled } from '../../lib/analytics';
 
 interface SearchModalProps {
   open: boolean;
@@ -53,6 +54,13 @@ export default function SearchModal({ open, onClose, articles }: SearchModalProp
 
       setResults(filteredResults);
       setIsSearching(false);
+      // track the search event (best-effort)
+      try {
+        if (isAnalyticsEnabled()) trackSearchEvent(q, filteredResults.length);
+      } catch (err) {
+        // don't let analytics break search
+        console.warn('trackSearchEvent failed', err);
+      }
     }, 300); // Debounce search by 300ms
 
     return () => clearTimeout(searchTimeout);

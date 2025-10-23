@@ -1,60 +1,58 @@
-import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { SECTIONS } from '../../types/models';
 
-export default function NavMenu() {
-	const [mobileOpen, setMobileOpen] = useState(false);
+interface NavMenuProps {
+	mobileMenuOpen: boolean;
+	setMobileMenuOpen: (open: boolean) => void;
+}
+
+export default function NavMenu({ mobileMenuOpen, setMobileMenuOpen }: NavMenuProps) {
+	// Split sections into primary and secondary for better organization
+	const primarySections = SECTIONS.slice(0, 6); // Politics, Immigration, Legislation, Foreign Affairs, Economy, White House
+	const secondarySections = SECTIONS.slice(6); // Courts, Congress, Human Rights, Environment, Business, Tech, Finance
 
 	return (
 		<>
-			{/* Desktop Navigation: render sections (centered) */}
-			<nav className="hidden md:flex flex-1 justify-center items-center">
-				<div className="flex flex-wrap gap-x-3 gap-y-1 justify-center max-w-4xl">
-					{SECTIONS.map((s) => (
+			{/* Desktop Navigation Only - Mobile handled by MobileHeader */}
+			<nav className="flex items-center">
+				{/* Primary sections */}
+				<div className="flex items-center space-x-1">
+					{primarySections.map((section) => (
 						<Link
-							key={s}
-							to={`/articles/${s.toLowerCase().replace(/\s+/g, '-')}`}
-							className="text-ink hover:text-accent transition-colors text-xs uppercase tracking-tight px-4 py-1 rounded-full border border-stone/20 shadow-sm bg-white hover:bg-stone/50"
-							style={{ transform: 'scaleX(.98)' }}
+							key={section}
+							to={`/articles/${section.toLowerCase().replace(/\s+/g, '-')}`}
+							className="text-md font-medium text-inkMuted hover:text-accent hover:underline decoration-blue-100 decoration-2 underline-offset-8 px-4 py-2 rounded-md transition-all duration-200"
 						>
-							{s}
+							{section}
 						</Link>
 					))}
-				</div>
-			</nav>
-
-			{/* Mobile menu button */}
-			<div className="md:hidden">
-				<button
-					className="text-ink hover:text-accent p-2"
-					onClick={() => setMobileOpen((v) => !v)}
-					aria-label="Toggle menu"
-				>
-					<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-						<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-					</svg>
-				</button>
-			</div>
-
-			{/* Mobile Dropdown Panel */}
-			{mobileOpen && (
-				<div className="md:hidden bg-white border-b border-stone absolute left-0 right-0 top-full">
-					<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
-						<nav className="flex flex-col space-y-2">
-							{SECTIONS.map((s) => (
-								<Link
-									key={s}
-									to={`/articles/${s.toLowerCase().replace(/\s+/g, '-')}`}
-									className="text-ink hover:text-accent transition-colors py-2 px-1"
-									onClick={() => setMobileOpen(false)}
-								>
-									<span className="inline-block px-3 py-1 rounded-full border border-stone/10 shadow-sm bg-white hover:bg-stone/50 text-xs uppercase tracking-tight" style={{ transform: 'scaleX(.98)' }}>{s}</span>
-								</Link>
-							))}
-						</nav>
+					
+					{/* More dropdown for secondary sections */}
+					<div className="relative group">
+						<button className="text-md font-medium text-inkMuted hover:text-accent px-4 py-2 rounded-md transition-all duration-200 flex items-center">
+							More
+							<svg className="ml-1 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+								<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+							</svg>
+						</button>
+						
+						{/* Dropdown menu */}
+						<div className="absolute left-0 top-full mt-1 w-56 bg-white rounded-lg shadow-lg border border-stone opacity-0 invisible group-hover:opacity-100 group-hover:visible hover:opacity-100 hover:visible transition-all duration-150 z-50 pointer-events-none group-hover:pointer-events-auto">
+							<div className="py-1">
+								{secondarySections.map((section) => (
+									<Link
+										key={section}
+										to={`/articles/${section.toLowerCase().replace(/\s+/g, '-')}`}
+										className="block px-4 py-2 text-md text-inkMuted hover:text-accent hover:underline decoration-blue-100 decoration-2 underline-offset-8 transition-colors duration-200"
+									>
+										{section}
+									</Link>
+								))}
+							</div>
+						</div>
 					</div>
 				</div>
-			)}
+			</nav>
 		</>
 	);
 }

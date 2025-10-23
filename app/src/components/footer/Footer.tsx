@@ -9,11 +9,11 @@ export default function Footer() {
           <div>
             <div className="flex-shrink-0">
             <a href="/" className="flex items-center gap-3">
-               <img src="/logo.png" alt="DGNO" className="h-14 invert" />
+               <img src="/logo.png" alt="DGNO" className="h-14 invert hover:invert-80" />
             </a>
           </div>
             <p className="text-white text-sm">
-              Delivering groundbreaking news and original reporting.
+              Very pro democracy, unapologetically anti-corruption. Join us in making a difference.
             </p>
           </div>
 

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import DashboardLayout from '../../components/DashboardLayout';
+import DashboardLayout from '../../components/dashboard/DashboardLayout';
 import { useAuth } from '../../hooks/useAuth';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPlus, faEdit, faTrash, faEye, faSearch, faFilter, faBroom } from '@fortawesome/free-solid-svg-icons';

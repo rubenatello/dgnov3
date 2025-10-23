@@ -1,9 +1,10 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import { useEffect } from 'react';
+import { trackPageView, isAnalyticsEnabled } from './lib/analytics';
 import { AuthProvider } from './contexts/AuthContext';
 import { ArticlesProvider } from './contexts/ArticlesContext';
-import { Footer } from './components';
-import Header from './components/header/Header';
-import CookieConsentBanner from './components/CookieConsentBanner';
+import ToastProvider from './components/toast/ToastProvider';
+import Layout from './components/layout/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
 import { HomePage } from './pages';
 import LoginPage from './pages/LoginPage';
@@ -19,71 +20,40 @@ import NotFoundPage from './pages/NotFoundPage';
 import ArticlesSection from './pages/ArticlesSection';
 
 function App() {
+  function RouteChangeTracker() {
+    const location = useLocation();
+    useEffect(() => {
+      try {
+        if (isAnalyticsEnabled()) trackPageView(location.pathname + location.search);
+      } catch (err) {
+        // non-fatal
+        console.warn('RouteChangeTracker error', err);
+      }
+    }, [location]);
+    return null;
+  }
   return (
     <AuthProvider>
       <ArticlesProvider>
-      <Router>
+        <ToastProvider>
+        <Router>
+        <RouteChangeTracker />
         <Routes>
-          {/* Public Routes */}
-          <Route
-            path="/"
-            element={
-              <div className="min-h-screen flex flex-col">
-                <Header />
-                <main className="flex-1">
-                  <HomePage />
-                </main>
-                <Footer />
-                <CookieConsentBanner />
-              </div>
-            }
-          />
-          
+          {/* Public Routes using shared Layout (Header/Footer/CookieConsentBanner) */}
+          <Route element={<Layout />}> 
+            <Route path="/" element={<HomePage />} />
+            <Route path="/article/:slug" element={<ArticleView />} />
+            <Route path="/articles/:section" element={<ArticlesSection />} />
+            {/* Optionally support date-prefixed slugs: /article/yyyy/mm/dd/slug */}
+            <Route path="/article/:yyyy/:mm/:dd/:slug" element={<ArticleView />} />
+            {/* Informational pages that should include site chrome */}
+            <Route path="/about" element={<AboutPage />} />
+            <Route path="/privacy" element={<PrivacyPolicyPage />} />
+            {/* 404 Page - Catch all unmatched routes rendered with chrome */}
+            <Route path="*" element={<NotFoundPage />} />
+          </Route>
+
           <Route path="/login" element={<LoginPage />} />
-
-          {/* Public article view */}
-          <Route
-            path="/article/:slug"
-            element={
-              <div className="min-h-screen flex flex-col">
-                <Header />
-                <main className="flex-1">
-                  <ArticleView />
-                </main>
-                <Footer />
-                <CookieConsentBanner />
-              </div>
-            }
-          />
-
-          {/* Articles Section */}
-          <Route
-            path="/articles/:section"
-            element={
-              <div className="min-h-screen flex flex-col">
-                <main className="flex-1">
-                  <ArticlesSection />
-                </main>
-                <CookieConsentBanner />
-
-              </div>
-            }
-          />
-
-          {/* Optionally support date-prefixed slugs: /article/yyyy/mm/dd/slug */}
-          <Route
-            path="/article/:yyyy/:mm/:dd/:slug"
-            element={
-              <div className="min-h-screen flex flex-col">
-                <Header />
-                <main className="flex-1">
-                  <ArticleView />
-                </main>
-                <Footer />
-                <CookieConsentBanner />
-              </div>
-            }
-          />
 
           {/* Protected Routes */}
           <Route
@@ -142,16 +112,10 @@ function App() {
             }
           />
 
-          {/* About Page */}
-          <Route path="/about" element={<AboutPage />} />
-
-          {/* Privacy Policy Page */}
-          <Route path="/privacy" element={<PrivacyPolicyPage />} />
-
-          {/* 404 Page - Catch all unmatched routes */}
-          <Route path="*" element={<NotFoundPage />} />
+          {/* Login and dashboard remain outside the Layout */}
         </Routes>
-      </Router>
+        </Router>
+        </ToastProvider>
       </ArticlesProvider>
     </AuthProvider>
   );

@@ -1,5 +1,7 @@
 import { useState } from 'react';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '../../hooks/useAuth';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faHeart } from '@fortawesome/free-solid-svg-icons';
 
 interface DonationModalProps {
   isOpen: boolean;
@@ -22,16 +24,27 @@ export default function DonationModal({ isOpen, onClose }: DonationModalProps) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg shadow-lg max-w-md w-full p-6">
+    <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-white/95 backdrop-saturate-105 rounded-lg shadow-lg max-w-md w-full p-6">
         <div className="flex justify-between items-center mb-4">
-          <h3 className="text-xl font-semibold text-ink">Support DGNO</h3>
+          <a href="/" className="flex items-center group">
+            <img 
+              src="/logo.png"
+              alt="DGNO"
+              className="h-12 transition-transform duration-200 hover:invert-30"
+            />
+          </a>
+          <h3 className="text-xl font-bold italic text-ink">Support DGNO</h3>
           <button 
             onClick={onClose}
             className="text-gray-500 hover:text-gray-700"
           >
             ✕
           </button>
+        </div>
+        
+        <div className="flex justify-center mb-4">
+          <FontAwesomeIcon icon={faHeart} className="text-4xl text-accent" />
         </div>
 
         <p className="text-gray-600 mb-6">

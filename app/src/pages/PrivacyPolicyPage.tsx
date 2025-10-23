@@ -1,17 +1,46 @@
-import { Header, Footer } from '../components';
+// Layout provides Header/Footer
+import { useState, useEffect } from 'react';
+import { disableAnalytics } from '../lib/analytics';
+import useToast from '../hooks/useToast';
+
+const AS_OF = 'October 23, 2025';
 
 export default function PrivacyPolicyPage() {
+  const [consentGiven, setConsentGiven] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    try {
+      const cookies = document.cookie.split(';').map(c => c.trim());
+      const existing = cookies.find(c => c.startsWith('dgnov3CookieConsent='));
+      setConsentGiven(!!existing);
+    } catch {
+      setConsentGiven(null);
+    }
+  }, []);
+
+  const toast = useToast();
+
+  const handleRevoke = () => {
+    try {
+      // remove react-cookie-consent cookie
+      document.cookie = `dgnov3CookieConsent=; Max-Age=0; path=/; domain=${location.hostname}`;
+      disableAnalytics();
+      setConsentGiven(false);
+      toast.push({ type: 'info', title: 'Consent revoked', description: 'Analytics disabled' });
+    } catch (err) {
+      console.warn('revoke consent failed', err);
+    }
+  };
+
   return (
-    <div className="min-h-screen flex flex-col">
-      <Header />
-      <main className="flex-1 bg-white">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <div className="bg-white">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           
           {/* Header */}
           <div className="text-center mb-12">
             <h1 className="text-4xl font-bold text-ink mb-4">Privacy Policy</h1>
             <p className="text-lg text-inkMuted">
-              Effective Date: October 20, 2025 | Last Updated: October 20, 2025
+              Effective Date: {AS_OF} | Last Updated: {AS_OF}
             </p>
           </div>
 
@@ -127,6 +156,19 @@ export default function PrivacyPolicyPage() {
               <p className="text-inkMuted mt-4">
                 You can control cookies through your browser settings, though disabling certain cookies may affect website functionality.
               </p>
+              
+              <div className="mt-6 p-4 border rounded bg-gray-50">
+                <h3 className="text-lg font-medium text-ink mb-2">Manage cookie consent</h3>
+                <p className="text-inkMuted mb-3">Current consent: {consentGiven === null ? 'Unknown' : consentGiven ? 'Accepted' : 'Not accepted'}</p>
+                <div className="flex gap-3">
+                  <button
+                    className="bg-sand text-ink px-4 py-2 rounded"
+                    onClick={handleRevoke}
+                  >
+                    Revoke Consent (disable analytics)
+                  </button>
+                </div>
+              </div>
             </section>
 
             {/* Third-Party Services */}
@@ -182,8 +224,6 @@ export default function PrivacyPolicyPage() {
 
           </div>
         </div>
-      </main>
-      <Footer />
-    </div>
+      </div>
   );
 }

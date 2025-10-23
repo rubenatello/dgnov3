@@ -95,7 +95,6 @@ export default function ArticleView() {
             className="mx-auto rounded max-w-full h-auto"
           />
         </div>
-        
       )}
 
       <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between text-sm text-gray-600">

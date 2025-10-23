@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
-import { searchTags, createOrGetTag } from '../services/tagService';
-import { useAuth } from '../hooks/useAuth';
-import type { Tag } from '../types/models';
+import { searchTags, createOrGetTag } from '../../services/tagService';
+import { useAuth } from '../../hooks/useAuth';
+import type { Tag } from '../../types/models';
 
 interface TagInputProps {
   tags: string[];
