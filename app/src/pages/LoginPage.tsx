@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import SubscribeModal from '../components/modals/SubscribeModal';  
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -10,6 +11,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const { signIn } = useAuth();
   const navigate = useNavigate();
+  const [isSubscribeOpen, setSubscribeOpen] = useState(false);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -109,12 +111,20 @@ export default function LoginPage() {
           </button>
         </form>
 
-        {/* Sign Up Link */}
+        {/* Sign Up Link - Use Subscribe Modal */}
         <div className="text-center text-sm text-inkMuted">
           Don't have an account?{' '}
-          <a href="/signup" className="text-accent hover:text-opacity-80 font-medium">
-            Sign up
-          </a>
+          <>
+            <button
+              type="button"
+              onClick={() => setSubscribeOpen(true)}
+              className="text-accent hover:text-opacity-80 font-medium"
+            >
+              Sign up
+            </button>
+
+            <SubscribeModal open={isSubscribeOpen} onClose={() => setSubscribeOpen(false)} />
+          </>
         </div>
       </div>
     </div>
