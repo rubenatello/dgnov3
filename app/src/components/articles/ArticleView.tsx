@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { getArticleBySlug } from '../services/articleService';
-import { getMediaById } from '../services/mediaService';
-import type { Article } from '../types/models';
+import { getArticleBySlug } from '../../services/articleService';
+import { getMediaById } from '../../services/mediaService';
+import type { Article } from '../../types/models';
 import { formatDistanceToNow, format } from 'date-fns';
 import { Timestamp } from 'firebase/firestore';
-import LoadingScreen from '../components/LoadingScreen';
+import LoadingScreen from '../LoadingScreen';
+import { estimateReadingTime } from '../../utils/helpers';
 
 export default function ArticleView() {
   const { slug } = useParams<{ slug: string }>();
@@ -53,7 +54,7 @@ export default function ArticleView() {
         }
       }
     })();
-  }, [article?.id]);
+  }, [article]);
 
   if (loading) return <LoadingScreen message="Loading article…" />;
   if (error) return <div className="p-8 text-red-600">{error}</div>;
@@ -86,7 +87,6 @@ export default function ArticleView() {
         <h2 className="text-xl text-gray-700 mb-4">{article.subtitle}</h2>
       )}
 
-      {/** Featured image block — prefer featuredImageUrl, fallback to featuredImageId placeholder, Description and Source Credit should be under the image */}
       {(article.featuredImageUrl || article.featuredImageId) && (
         <div className="mb-6 text-center">
           <img
@@ -98,8 +98,9 @@ export default function ArticleView() {
       )}
 
       <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between text-sm text-gray-600">
-        <div className="mb-2 sm:mb-0">
+        <div className="mb-2 sm:mb-0 flex items-center gap-2">
           {article.authorName && <span className="mr-2">By {article.authorName}</span>}
+          <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">{estimateReadingTime(article.content || "")}</span>
         </div>
         <div className="text-right text-sm text-gray-600">
           {publishedAt && (

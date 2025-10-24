@@ -1,10 +1,10 @@
-import { SECTION_MAP } from '../components/SectionMapping';
+import { SECTION_MAP } from '../SectionMapping';
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
-import { db } from '../config/firebase';
-import ArticleCard from '../components/ArticleCard';
-import type { Article as ArticleModel } from '../types/models';
+import { db } from '../../config/firebase';
+import ArticleCard from './ArticleCard';
+import type { Article as ArticleModel } from '../../types/models';
 
 export default function ArticlesSection() {
 	const { section } = useParams<{ section: string }>();

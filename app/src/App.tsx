@@ -8,7 +8,7 @@ import Layout from './components/layout/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
 import { HomePage } from './pages';
 import LoginPage from './pages/LoginPage';
-import ArticleView from './pages/ArticleView';
+import ArticleView from './components/articles/ArticleView';
 import DashboardPage from './pages/dashboard/DashboardPage';
 import MediaPage from './pages/dashboard/MediaPage';
 import ArticlesPage from './pages/dashboard/ArticlesPage';
@@ -17,7 +17,7 @@ import SettingsPage from './pages/dashboard/SettingsPage';
 import AboutPage from './pages/AboutPage';
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 import NotFoundPage from './pages/NotFoundPage';
-import ArticlesSection from './pages/ArticlesSection';
+import ArticlesSection from './components/articles/ArticlesSection';
 
 function App() {
   function RouteChangeTracker() {

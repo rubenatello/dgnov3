@@ -62,9 +62,11 @@ export interface Article {
   coAuthorName?: string;
   status?: ArticleStatus;
   publishedAt?: Timestamp;
-  // When present and in the future, this article is treated as "breaking" until this time
   breakingUntil?: Timestamp | null;
-  // When true at publish time, Cloud Function will set breakingUntil to server time + 3 hours
+  viewCount?: number;
+  likeCount?: number;
+  commentCount?: number;
+  wordCount?: number; 
   breakingRequested?: boolean;
   lastUpdatedAt?: Timestamp;
   lastUpdatedBy?: string;

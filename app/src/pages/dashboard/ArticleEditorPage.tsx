@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import TiptapEditor from '../components/dashboard/TiptapEditor';
-import { createArticle } from '../services/articleService';
-import { generateSlug, validateSummary } from '../utils/helpers';
-import type { ArticleStatus } from '../types/models';
+import TiptapEditor from '../../components/dashboard/TiptapEditor';
+import { createArticle } from '../../services/articleService';
+import { generateSlug, validateSummary } from '../../utils/helpers';
+import type { ArticleStatus } from '../../types/models';
 
 export default function ArticleEditorPage() {
   const [title, setTitle] = useState('');

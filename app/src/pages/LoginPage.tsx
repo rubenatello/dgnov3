@@ -3,6 +3,7 @@ import type { FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import SubscribeModal from '../components/modals/SubscribeModal';  
+import ForgotPasswordModal from '../components/modals/ForgotPasswordModal';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -12,6 +13,7 @@ export default function LoginPage() {
   const { signIn } = useAuth();
   const navigate = useNavigate();
   const [isSubscribeOpen, setSubscribeOpen] = useState(false);
+  const [isForgotPasswordOpen, setForgotPasswordOpen] = useState(false);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -32,9 +34,11 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-bg flex items-center justify-center px-4">
       <div className="max-w-md w-full space-y-8">
-        {/* Logo/Header */}
+        {/* Logo/Header/Link to Home page */}
         <div className="text-center">
-          <img src="/logo.png" alt="DGNO" className="h-16 mx-auto mb-4" />
+          <a href="/">
+            <img src="/logo.png" alt="DGNO" className="h-16 mx-auto mb-4 hover:opacity-80" />
+          </a>
           <h2 className="text-3xl font-heading font-bold text-ink">
             Welcome Back
           </h2>
@@ -88,37 +92,42 @@ export default function LoginPage() {
               <input
                 id="remember-me"
                 type="checkbox"
-                className="h-4 w-4 text-accent focus:ring-accent border-stone rounded"
+                className="h-4 w-4 text-accent focus:ring-accent border-stone rounded cursor-pointer"
               />
-              <label htmlFor="remember-me" className="ml-2 block text-sm text-inkMuted">
+              <label htmlFor="remember-me" className="ml-2 block text-sm text-inkMuted cursor-pointer">
                 Remember me
               </label>
             </div>
-
+            {/* Forgot Password - ForgotPassword Modal */}
             <div className="text-sm">
-              <a href="#" className="text-accent hover:text-opacity-80">
+              <button
+                type="button"
+                onClick={() => setForgotPasswordOpen(true)}
+                className="text-accent hover:text-opacity-80 cursor-pointer font-medium"
+              >
                 Forgot password?
-              </a>
+              </button>
+              <ForgotPasswordModal isOpen={isForgotPasswordOpen} onClose={() => setForgotPasswordOpen(false)} />
             </div>
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-accent text-white py-3 px-4 rounded-lg font-medium hover:bg-opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full bg-accent text-white py-3 px-4 rounded-lg font-medium hover:bg-opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
             {loading ? 'Signing in...' : 'Sign In'}
           </button>
         </form>
 
         {/* Sign Up Link - Use Subscribe Modal */}
-        <div className="text-center text-sm text-inkMuted">
+        <div className="text-center text-sm text-inkMuted cur">
           Don't have an account?{' '}
           <>
             <button
               type="button"
               onClick={() => setSubscribeOpen(true)}
-              className="text-accent hover:text-opacity-80 font-medium"
+              className="text-accent hover:text-opacity-80 font-medium cursor-pointer"
             >
               Sign up
             </button>

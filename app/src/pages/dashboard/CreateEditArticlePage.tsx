@@ -16,6 +16,7 @@ import { getWritersAndEditors } from '../../services/userService';
 import type { StaffUser } from '../../services/userService';
 import { createArticle, updateArticle, publishArticle } from '../../services/articleService';
 import MediaPicker from '../../components/MediaPicker';
+import { estimateReadingTime } from '../../utils/helpers';
 
 
 export default function CreateEditArticlePage() {
@@ -467,6 +468,7 @@ export default function CreateEditArticlePage() {
           </div>
 
           {/* Content Editor */}
+          
           <div>
             <label className="block text-sm font-medium text-ink mb-2">Content</label>
             <div className="border border-stone rounded overflow-hidden">
@@ -475,6 +477,9 @@ export default function CreateEditArticlePage() {
                 onChange={setContent} 
               />
             </div>
+          </div>
+          <div className="text-center text-sm font-bold text-accent mt-1 italic">
+            {estimateReadingTime(content)}
           </div>
 
           {/* Actions */}
