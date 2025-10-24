@@ -1,12 +1,7 @@
 import { Link } from 'react-router-dom';
 import { SECTIONS } from '../../types/models';
 
-interface NavMenuProps {
-	mobileMenuOpen: boolean;
-	setMobileMenuOpen: (open: boolean) => void;
-}
-
-export default function NavMenu({ mobileMenuOpen, setMobileMenuOpen }: NavMenuProps) {
+export default function NavMenu() {
 	// Split sections into primary and secondary for better organization
 	const primarySections = SECTIONS.slice(0, 6); // Politics, Immigration, Legislation, Foreign Affairs, Economy, White House
 	const secondarySections = SECTIONS.slice(6); // Courts, Congress, Human Rights, Environment, Business, Tech, Finance

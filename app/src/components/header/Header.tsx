@@ -5,7 +5,6 @@ import MobileHeader from './MobileHeader';
 import DashboardOverlayButton from '../DashboardOverlayButton';
 
 export default function Header() {
-	const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 	const [isScrolled, setIsScrolled] = useState(false);
 	const [isMobile, setIsMobile] = useState(false);
 
@@ -31,11 +30,7 @@ export default function Header() {
 	}, []);
 
 	// Close mobile menu on resize
-	useEffect(() => {
-		if (!isMobile) {
-			setMobileMenuOpen(false);
-		}
-	}, [isMobile]);
+	// Mobile menu state is managed within MobileHeader component
 
 	// Render mobile header for screens < 1024px
 	if (isMobile) {
@@ -64,10 +59,7 @@ export default function Header() {
 						</div>
 						
 						{/* Desktop Navigation */}
-						<NavMenu 
-							mobileMenuOpen={mobileMenuOpen} 
-							setMobileMenuOpen={setMobileMenuOpen}
-						/>
+						<NavMenu />
 					</div>
 				</div>
 			</header>

@@ -161,8 +161,12 @@ service cloud.firestore {
       // Editors can read all comments
       allow read: if isEditor();
       
-      // Signed-in users can create comments
-      allow create: if isSignedIn();
+      // Signed-in & verified users can create comments (enforce types)
+      allow create: if request.auth != null
+                    && request.auth.token.email_verified == true
+                    && request.resource.data.userId == request.auth.uid
+                    && request.resource.data.articleId is string
+                    && request.resource.data.body is string;
       
       // Users can update/delete their own comments
       allow update, delete: if isOwner(resource.data.userId);
@@ -246,6 +250,17 @@ service cloud.firestore {
       
       // Only backend functions can create donations (via webhook)
       // No direct user writes
+    }
+    // Subscriber profiles
+    match /subscribers/{userId} {
+      allow read: if true; // public can read subscriber metadata if desired
+      allow create: if request.auth != null && request.auth.uid == userId;
+      allow update, delete: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Default deny for anything not matched above
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }
