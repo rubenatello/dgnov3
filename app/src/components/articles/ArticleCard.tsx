@@ -48,7 +48,7 @@ export default function ArticleCard({ article, variant = 'compact' }: ArticleCar
       <Link to={`/article/${article.slug}`} className="block group relative">
         <article className="relative">
           {article.featuredImageUrl ? (
-            <div className="relative w-full h-64 sm:h-80 md:h-96 overflow-hidden">
+            <div className="relative w-full h-64 sm:h-80 md:h-96 overflow-hidden brightness-60">
               <img 
                 src={article.featuredImageUrl} 
                 alt={article.title} 
@@ -67,11 +67,11 @@ export default function ArticleCard({ article, variant = 'compact' }: ArticleCar
             </span>
           )}
           <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6 text-white">
-            <h1 className="font-heading font-bold text-2xl sm:text-3xl md:text-4xl mb-2 group-hover:text-accent-light leading-tight">
+            <h1 className="font-heading font-bold text-2xl text-shadow-lg/30 sm:text-3xl md:text-4xl mb-2 group-hover:text-accent-light leading-tight">
               {article.title}
             </h1>
             {article.summary && (
-              <p className="text-base sm:text-lg mb-3 opacity-90 line-clamp-2">
+              <p className="text-base sm:text-lg mb-3 opacity-90 line-clamp-2 text-shadow-lg/20">
                 {article.summary}
               </p>
             )}
