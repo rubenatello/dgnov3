@@ -30,7 +30,7 @@ export default function ArticleAccordion({
       </div>
       
       <div className="space-y-0">
-        {visibleArticles.map((article, index) => (
+        {visibleArticles.map((article) => (
           <ArticleCard 
             key={article.id} 
             article={article} 

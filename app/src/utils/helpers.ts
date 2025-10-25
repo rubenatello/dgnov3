@@ -1,3 +1,5 @@
+import type { Article } from "../types/models";
+
 /**
  * Get the featured article (breaking > highest viewCount > most recent)
  */
@@ -37,7 +39,7 @@ export function getFeaturedArticle(articles: Article[]): Article | undefined {
  * Get top stories (excluding featured, prioritizing recent and high engagement)
  */
 export function getTopStories(articles: Article[], featured?: Article, count = 4): Article[] {
-  const filtered = articles.filter(a => a.id !== featured?.id);
+  const filtered = articles.filter(a => (a.id ?? "") !== (featured?.id ?? ""));
   
   // Sort by engagement score: (viewCount * 0.7) + (recency score * 0.3)
   const scored = filtered.map(article => {
@@ -60,7 +62,7 @@ export function getTopStories(articles: Article[], featured?: Article, count = 4
  * Get latest articles (most recent, excluding featured and top stories)
  */
 export function getLatestArticles(articles: Article[], excludeIds: string[] = [], count = 5): Article[] {
-  const filtered = articles.filter(a => !excludeIds.includes(a.id));
+  const filtered = articles.filter(a => !excludeIds.includes(a.id ?? ""));
   
   return filtered
     .sort((a, b) => {
@@ -75,13 +77,12 @@ export function getLatestArticles(articles: Article[], excludeIds: string[] = []
  * Get sidebar articles (trending by engagement)
  */
 export function getSidebarArticles(articles: Article[], excludeIds: string[] = [], count = 5): Article[] {
-  const filtered = articles.filter(a => !excludeIds.includes(a.id));
+  const filtered = articles.filter(a => !excludeIds.includes(a.id ?? ""));
   
   return filtered
     .sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0))
     .slice(0, count);
 }
-import type { Article } from "src/types/models";
 
 /**
  * Generate a URL-friendly slug from a title
