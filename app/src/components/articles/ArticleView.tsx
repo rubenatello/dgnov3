@@ -7,6 +7,7 @@ import { formatDistanceToNow, format } from 'date-fns';
 import { Timestamp } from 'firebase/firestore';
 import LoadingScreen from '../LoadingScreen';
 import { estimateReadingTime } from '../../utils/helpers';
+import { HydrateEmbeds } from '../embeds/article-embed';
 
 export default function ArticleView() {
   const { slug } = useParams<{ slug: string }>();
@@ -120,6 +121,8 @@ export default function ArticleView() {
       )}
 
       <div className="prose max-w-none mx-auto article-content" dangerouslySetInnerHTML={{ __html: article.content || '' }} />
+      {/* Hydrate embeds after content is rendered */}
+      <HydrateEmbeds deps={article?.content ? [article.content] : undefined} />
 
       <div className="mt-8">
         <Link to="/" className="text-accent hover:underline">← Back to home</Link>
