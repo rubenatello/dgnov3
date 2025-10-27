@@ -1,6 +1,7 @@
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { useEffect } from 'react';
+import EmbedPost from '@/components/tiptap-node/embed-post/embed-post-extension';
 
 interface TiptapEditorProps {
   content?: string;
@@ -10,7 +11,7 @@ interface TiptapEditorProps {
 
 export default function TiptapEditor({ content, onChange, editable = true }: TiptapEditorProps) {
   const editor = useEditor({
-    extensions: [StarterKit],
+    extensions: [StarterKit, EmbedPost],
     content: content || '<p>Start writing...</p>',
     editable,
     onUpdate: ({ editor }) => {
@@ -33,7 +34,35 @@ export default function TiptapEditor({ content, onChange, editable = true }: Tip
   return (
     <div className="border border-stone rounded-lg overflow-hidden bg-paper">
       {editable && (
-        <div className="border-b border-stone bg-stone/30 p-2 flex gap-2 flex-wrap">
+  <div className="border-b border-stone bg-stone/30 p-2 flex gap-2 flex-wrap">
+          <button
+            title="Embed post"
+            onClick={() => {
+              const url = window.prompt('Paste X post URL to embed:');
+              if (!url) return;
+              // Parse X post URL
+              const match = url.match(/x.com\/(\w+)\/status\/(\d+)/);
+              if (!match) {
+                alert('Invalid X post URL.');
+                return;
+              }
+              const username = match[1];
+              const postId = match[2];
+              editor.chain().focus().insertContent({
+                type: 'embedPost',
+                attrs: {
+                  postId,
+                  username,
+                  displayName: '',
+                  provider: 'x',
+                  url,
+                }
+              }).run();
+            }}
+            className="px-3 py-1 rounded hover:bg-accent/20 transition bg-paper"
+          >
+            <span style={{fontWeight: 'bold', fontSize: '1.2em'}}>&lt;&gt;</span>
+          </button>
           <button
             onClick={() => editor.chain().focus().toggleBold().run()}
             className={`px-3 py-1 rounded hover:bg-accent/20 transition ${

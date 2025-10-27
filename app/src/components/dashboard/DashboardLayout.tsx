@@ -27,7 +27,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               {/* Logo */}
             <div className="flex-shrink-1">
               <a href="/" className="flex items-center gap-4">
-                 <img src="/logo.png" alt="DGNO" className="h-12 invert" />
+                 <img src="/logo.png" alt="DGNO" className="h-12 invert hover:opacity-80 transition-opacity" />
               </a>
             </div>
               <a href="/" className="text-lg font-heading font-bold hover:text-accent transition-colors">

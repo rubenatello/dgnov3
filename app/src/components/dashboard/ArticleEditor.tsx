@@ -4,24 +4,24 @@ import { EditorContent, EditorContext, useEditor } from '@tiptap/react'
 
 // --- Tiptap Core Extensions ---
 import { StarterKit } from '@tiptap/starter-kit'
-// NOTE: we keep ImageUploadNode for uploads, but we don't need the base Image node anymore
 import { TaskItem, TaskList } from '@tiptap/extension-list'
 import { TextAlign } from '@tiptap/extension-text-align'
 import { Typography } from '@tiptap/extension-typography'
 import { Highlight } from '@tiptap/extension-highlight'
-// removed Subscript/Superscript — not needed for toolbar
 import { Placeholder } from '@tiptap/extension-placeholder'
-// Selection lives in @tiptap/extension-selection if you want the latest;
-// leaving as your original import path if that’s how your project is set.
 import { Selection } from '@tiptap/extensions'
 
-// --- Custom node ---
+// --- Custom nodes ---
 import { ArticleFigure } from '@/components/tiptap-node/article-figure/article-figure-extension'
 import '@/components/tiptap-node/article-figure/article-figure.scss'
+import EmbedPost from '@/components/tiptap-node/embed-post/embed-post-extension'
+import '@/components/tiptap-node/embed-post/embed-post.scss'
+import EmbedCode from '@/components/tiptap-node/embed-code/embed-code-extension'
+import '@/components/tiptap-node/embed-code/embed-code.scss'
 
 // --- UI Primitives ---
 import { Button } from '@/components/tiptap-ui-primitive/button'
-import { Spacer } from '@/components/tiptap-ui-primitive/spacer'
+
 import {
   Toolbar,
   ToolbarGroup,
@@ -45,6 +45,7 @@ import MediaPicker from '../MediaPicker'
 import { ImagePlusIcon } from '@/components/tiptap-icons/image-plus-icon'
 import { ListDropdownMenu } from '@/components/tiptap-ui/list-dropdown-menu'
 import { BlockquoteButton } from '@/components/tiptap-ui/blockquote-button'
+import { CodeBlockButton } from '@/components/tiptap-ui/code-block-button'
 import {
   ColorHighlightPopover,
   ColorHighlightPopoverContent,
@@ -63,6 +64,9 @@ import { UndoRedoButton } from '@/components/tiptap-ui/undo-redo-button'
 import { ArrowLeftIcon } from '@/components/tiptap-icons/arrow-left-icon'
 import { HighlighterIcon } from '@/components/tiptap-icons/highlighter-icon'
 import { LinkIcon } from '@/components/tiptap-icons/link-icon'
+import { XIcon } from '@/components/tiptap-icons/x-icon'
+import { EmbedIcon } from '@/components/tiptap-icons/embed-icon'
+
 
 // --- Hooks ---
 import { useIsMobile } from '@/hooks/use-mobile'
@@ -75,6 +79,7 @@ import { handleImageUpload, MAX_FILE_SIZE } from '@/lib/tiptap-utils'
 // --- Styles ---
 import '@/components/tiptap-templates/simple/simple-editor.scss'
 import './ArticleEditor.scss'
+
 
 interface ArticleEditorProps {
   content: string
@@ -90,6 +95,8 @@ const MainToolbarContent = ({
   onSizeMedium,
   onSizeLarge,
   onWidthAuto,
+  onEmbedPost,
+  onEmbedCode,
 }: {
   onHighlighterClick: () => void
   onLinkClick: () => void
@@ -99,11 +106,11 @@ const MainToolbarContent = ({
   onSizeMedium: () => void
   onSizeLarge: () => void
   onWidthAuto: () => void
+  onEmbedPost: () => void
+  onEmbedCode: () => void
 }) => {
   return (
     <>
-      <Spacer />
-
       <ToolbarGroup>
         <UndoRedoButton action="undo" />
         <UndoRedoButton action="redo" />
@@ -122,11 +129,17 @@ const MainToolbarContent = ({
       <ToolbarGroup>
         <MarkButton type="bold" />
         <MarkButton type="italic" />
-        <MarkButton type="strike" />
   {/* inline code removed */}
         <MarkButton type="underline" />
         {!isMobile ? <ColorHighlightPopover /> : <ColorHighlightPopoverButton onClick={onHighlighterClick} />}
         {!isMobile ? <LinkPopover /> : <LinkButton onClick={onLinkClick} />}
+      </ToolbarGroup>
+
+      <ToolbarSeparator />
+
+      { /* Code Block Added */}
+      <ToolbarGroup>
+        <CodeBlockButton />
       </ToolbarGroup>
 
       <ToolbarSeparator />
@@ -172,7 +185,28 @@ const MainToolbarContent = ({
         </Button>
       </ToolbarGroup>
 
-      <Spacer />
+      <ToolbarSeparator />
+
+      {/* Embed buttons */}
+      <ToolbarGroup>
+        <Button 
+          data-style="ghost" 
+          title="Embed X Post (URL)" 
+          onClick={onEmbedPost}
+          data-size="small"
+        >
+          <XIcon className="tiptap-button-icon" />
+        </Button>
+        <Button 
+          data-style="ghost" 
+          title="Embed Code (Twitter, Instagram, etc.)" 
+          onClick={onEmbedCode}
+          data-size="small"
+        >
+          <EmbedIcon className="tiptap-button-icon" />
+        </Button>
+      </ToolbarGroup>
+  
     </>
   )
 }
@@ -247,6 +281,12 @@ export function ArticleEditor({ content, onChange }: ArticleEditorProps) {
 
       // 👇 Our custom figure node with non-editable caption
       ArticleFigure,
+      
+      // 👇 Our custom embed post node
+      EmbedPost,
+      
+      // 👇 Our custom embed code node
+      EmbedCode,
     ],
     content: content || '<p></p>',
     onUpdate: ({ editor }) => {
@@ -274,6 +314,22 @@ export function ArticleEditor({ content, onChange }: ArticleEditorProps) {
         width: null, // user can drag to set width later
       })
       .run()
+  }
+
+  // embed post handler
+  const handleEmbedPost = () => {
+    const url = prompt('Enter X post URL:')
+    if (url && editor) {
+      editor.commands.setEmbedPost({ url })
+    }
+  }
+
+  // embed code handler  
+  const handleEmbedCode = () => {
+    const code = prompt('Paste your embed code (Twitter, Instagram, etc.):')
+    if (code && editor) {
+      editor.commands.setEmbedCode({ code })
+    }
   }
 
   // toolbar helpers target the selected ArticleFigure
@@ -318,6 +374,8 @@ export function ArticleEditor({ content, onChange }: ArticleEditorProps) {
               onSizeMedium={() => setSize('medium')}
               onSizeLarge={() => setSize('large')}
               onWidthAuto={setWidthAuto}
+              onEmbedPost={handleEmbedPost}
+              onEmbedCode={handleEmbedCode}
             />
           ) : (
             <MobileToolbarContent
