@@ -18,7 +18,7 @@ import AboutPage from './pages/AboutPage';
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 import NotFoundPage from './pages/NotFoundPage';
 import ArticlesSection from './components/articles/ArticlesSection';
-import ArticlesByDate from './utils/ArticlesByDate';
+import ArticlesByDate from './components/articles/ArticlesByDate';
 
 function App() {
   function RouteChangeTracker() {
