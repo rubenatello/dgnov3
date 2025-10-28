@@ -62,6 +62,14 @@
         { "fieldPath": "status", "order": "ASCENDING" },
         { "fieldPath": "breakingUntil", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "articles",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "publishedAt", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

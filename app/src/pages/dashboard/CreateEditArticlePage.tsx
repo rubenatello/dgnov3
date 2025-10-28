@@ -39,6 +39,8 @@ export default function CreateEditArticlePage() {
   const [originalTags, setOriginalTags] = useState<string[]>([]);
   const [featuredImageId, setFeaturedImageId] = useState<string | undefined>(undefined);
   const [featuredImageUrl, setFeaturedImageUrl] = useState<string | undefined>(undefined);
+  const [featuredImageDescription, setFeaturedImageDescription] = useState<string | undefined>(undefined);
+  const [featuredImageSourceCredit, setFeaturedImageSourceCredit] = useState<string | undefined>(undefined);
   const [isBreaking, setIsBreaking] = useState<boolean>(false);
   const [staffUsers, setStaffUsers] = useState<StaffUser[]>([]);
   const [authorId, setAuthorId] = useState<string | undefined>(undefined);
@@ -159,6 +161,8 @@ export default function CreateEditArticlePage() {
         setOriginalTags(data.tags || []);
         setFeaturedImageId(data.featuredImageId || undefined);
         setFeaturedImageUrl(data.featuredImageUrl || undefined);
+        setFeaturedImageDescription(data.featuredImageDescription || undefined);
+        setFeaturedImageSourceCredit(data.featuredImageSourceCredit || undefined);
         setDraftId(articleId);
         setArticleStatus(data.status as ArticleStatus | undefined);
         setAuthorId(data.authorId || undefined);
@@ -210,6 +214,8 @@ export default function CreateEditArticlePage() {
         createdAt: isEditing ? (await getDoc(doc(db, 'articles', id!))).data()?.createdAt || now : now,
         featuredImageId,
         featuredImageUrl,
+        featuredImageDescription,
+        featuredImageSourceCredit
       };
       // If publishing, always set breakingRequested explicitly
       if (saveStatus === 'published') {
@@ -343,6 +349,8 @@ export default function CreateEditArticlePage() {
           onSelect={(m) => { 
             setFeaturedImageId(m.id); 
             setFeaturedImageUrl(m.url); 
+            setFeaturedImageDescription(m.description);
+            setFeaturedImageSourceCredit(m.sourceCredit);
             setShowMediaPicker(false); 
           }}
         />

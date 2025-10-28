@@ -18,6 +18,7 @@ import AboutPage from './pages/AboutPage';
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 import NotFoundPage from './pages/NotFoundPage';
 import ArticlesSection from './components/articles/ArticlesSection';
+import ArticlesByDate from './utils/ArticlesByDate';
 
 function App() {
   function RouteChangeTracker() {
@@ -46,6 +47,7 @@ function App() {
             <Route path="/articles/:section" element={<ArticlesSection />} />
             {/* Optionally support date-prefixed slugs: /article/yyyy/mm/dd/slug */}
             <Route path="/article/:yyyy/:mm/:dd/:slug" element={<ArticleView />} />
+            <Route path="article/:year/:month/:day" element={<ArticlesByDate />} />
             {/* Informational pages that should include site chrome */}
             <Route path="/about" element={<AboutPage />} />
             <Route path="/privacy" element={<PrivacyPolicyPage />} />

@@ -16,5 +16,10 @@ export const SECTION_MAP: Record<string, string> = {
 	tech: 'Tech',
 	finance: 'Finance',
     'trump-presidency': 'Trump Presidency',
-    'data-analysis': 'Data Analysis'
+    'data-analysis': 'Data Analysis',
+	opinion: 'Opinion',
+	'fact-check': 'Fact Check',
+	health: 'Health',
+	science: 'Science',
+	sports: 'Sports'
 };

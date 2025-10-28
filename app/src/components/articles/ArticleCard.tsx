@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { Timestamp } from 'firebase/firestore';
 import type { Article } from '../../types/models';
 import { estimateReadingTime } from '../../utils/helpers';
+import { getArticleUrl} from './getArticleUrl';
 
 function getRelativeTime(dateString: string | Date | Timestamp | undefined): string {
   if (dateString === undefined || dateString === null) return '';
@@ -41,11 +42,15 @@ export default function ArticleCard({ article, variant = 'compact' }: ArticleCar
       : _breakingUntil ? new Date(String(_breakingUntil)) : null;
   const isBreaking = breakingUntil ? breakingUntil.getTime() > Date.now() : false;
   const readingTime = estimateReadingTime(article.content || "");
+  const isExclusive = Array.isArray(article.tags) && article.tags.some(tag =>
+    typeof tag === 'string' &&
+    ['exclusive', 'Exclusive', 'Exclusive.'].includes(tag.trim())
+  );
 
   // Featured: Large hero card
   if (variant === 'featured') {
     return (
-      <Link to={`/article/${article.slug}`} className="block group relative">
+      <Link to={getArticleUrl(article)} className="block group relative">
         <article className="relative">
           {article.featuredImageUrl ? (
             <div className="relative w-full h-64 sm:h-80 md:h-96 overflow-hidden brightness-60">
@@ -66,6 +71,11 @@ export default function ArticleCard({ article, variant = 'compact' }: ArticleCar
               BREAKING
             </span>
           )}
+          {isExclusive && (
+            <span className="absolute top-4 right-4 bg-accent text-white text-sm font-bold px-3 py-1 z-10">
+              EXCLUSIVE
+            </span>
+          )}
           <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6 text-white">
             <h1 className="font-heading font-bold text-2xl text-shadow-lg/30 sm:text-3xl md:text-4xl mb-2 group-hover:text-accent-light leading-tight">
               {article.title}
@@ -76,6 +86,8 @@ export default function ArticleCard({ article, variant = 'compact' }: ArticleCar
               </p>
             )}
             <div className="flex items-center gap-3 text-sm opacity-80">
+              <span>By {article.authorName}</span>
+              <span>•</span>
               <span>{getRelativeTime(publishedAt)}</span>
               <span>•</span>
               <span>{readingTime}</span>
@@ -89,7 +101,7 @@ export default function ArticleCard({ article, variant = 'compact' }: ArticleCar
   // Secondary: Medium horizontal layout
   if (variant === 'secondary') {
     return (
-      <Link to={`/article/${article.slug}`} className="block group">
+      <Link to={getArticleUrl(article)} className="block group">
         <article className="border-b border-gray-200 pb-4 mb-4 last:border-b-0">
           <div className="flex gap-4 sm:gap-6">
             {article.featuredImageUrl ? (
@@ -111,6 +123,11 @@ export default function ArticleCard({ article, variant = 'compact' }: ArticleCar
                   BREAKING
                 </span>
               )}
+              {isExclusive && (
+                <span className="inline-block bg-black text-white text-xs font-bold px-2 py-1 mb-2">
+                  EXCLUSIVE
+                </span>
+              )}
               <h2 className="font-heading font-bold text-lg sm:text-xl mb-2 group-hover:text-accent leading-tight">
                 {article.title}
               </h2>
@@ -119,7 +136,9 @@ export default function ArticleCard({ article, variant = 'compact' }: ArticleCar
                   {article.summary}
                 </p>
               )}
-              <div className="flex items-center gap-2 text-xs sm:text-sm text-sand">
+              <div className="flex items-center gap-1 text-xs sm:text-xs text-sand">
+                <span>By {article.authorName}</span>
+                <span>•</span>
                 <span>{getRelativeTime(publishedAt)}</span>
                 <span>•</span>
                 <span>{readingTime}</span>
@@ -134,17 +153,24 @@ export default function ArticleCard({ article, variant = 'compact' }: ArticleCar
   // List: Simple text-only layout
   if (variant === 'list') {
     return (
-      <Link to={`/article/${article.slug}`} className="block group">
+      <Link to={getArticleUrl(article)} className="block group">
         <article className="border-b border-gray-200 py-3 last:border-b-0">
           {isBreaking && (
             <span className="inline-block bg-red-600 text-white text-xs font-bold px-2 py-1 mb-2">
               BREAKING
             </span>
           )}
+          {isExclusive && (
+            <span className="inline-block bg-black text-white text-xs font-bold px-2 py-1 mb-2">
+              EXCLUSIVE
+            </span>
+          )}
           <h3 className="font-heading font-semibold text-base sm:text-lg mb-1 group-hover:text-accent leading-tight">
             {article.title}
           </h3>
           <div className="flex items-center gap-2 text-xs text-sand">
+            <span>By {article.authorName}</span>
+            <span>•</span>
             <span>{getRelativeTime(publishedAt)}</span>
             <span>•</span>
             <span>{readingTime}</span>
@@ -156,7 +182,7 @@ export default function ArticleCard({ article, variant = 'compact' }: ArticleCar
 
   // Compact: Small card for sidebar
   return (
-    <Link to={`/article/${article.slug}`} className="block group">
+    <Link to={getArticleUrl(article)} className="block group">
       <article className="border-b border-gray-200 pb-3 mb-3 last:border-b-0">
         <div className="flex gap-3">
           {article.featuredImageUrl ? (
@@ -176,6 +202,11 @@ export default function ArticleCard({ article, variant = 'compact' }: ArticleCar
             {isBreaking && (
               <span className="inline-block bg-red-600 text-white text-xs font-bold px-2 py-1 mb-1">
                 BREAKING
+              </span>
+            )}
+            {isExclusive && (
+              <span className="inline-block bg-black text-white text-xs font-bold px-2 py-1 mb-1">
+                EXCLUSIVE
               </span>
             )}
             <h3 className="font-heading font-semibold text-sm sm:text-base mb-1 group-hover:text-accent leading-tight line-clamp-2">

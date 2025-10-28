@@ -21,6 +21,11 @@ export const SECTIONS = [
   'Business',
   'Tech',
   'Finance',
+  'Opinion',
+  'Sports',
+  'Fact-Check',
+  'Health',
+  'Science'
   
 ] as const;
 
@@ -54,6 +59,8 @@ export interface Article {
   content?: string; // Tiptap HTML content
   featuredImageId?: string;
   featuredImageUrl?: string;
+  featuredImageDescription?: string;
+  featuredImageSourceCredit?: string;
   section?: string;
   tags?: string[];
   authorId?: string;

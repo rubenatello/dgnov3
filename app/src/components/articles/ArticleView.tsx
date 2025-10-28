@@ -16,6 +16,7 @@ export default function ArticleView() {
   const [error, setError] = useState<string | null>(null);
   const [resolvedImageUrl, setResolvedImageUrl] = useState<string | null>(null);
 
+
   useEffect(() => {
     if (!slug) return;
     setLoading(true);
@@ -95,8 +96,8 @@ export default function ArticleView() {
             alt={article.title}
             className="mx-auto rounded max-w-full h-auto"
           />
-        </div>
-      )}
+          </div>
+        )}
 
       <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between text-sm text-gray-600">
         <div className="mb-2 sm:mb-0 flex items-center gap-2">
