@@ -15,6 +15,7 @@ export default function ArticleView() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [resolvedImageUrl, setResolvedImageUrl] = useState<string | null>(null);
+  const tags = article?.tags ?? [];
 
 
   useEffect(() => {
@@ -122,11 +123,35 @@ export default function ArticleView() {
       )}
 
       <div className="prose max-w-none mx-auto article-content" dangerouslySetInnerHTML={{ __html: article.content || '' }} />
+      
       {/* Hydrate embeds after content is rendered */}
       <HydrateEmbeds deps={article?.content ? [article.content] : undefined} />
 
-      <div className="mt-8">
-        <Link to="/" className="text-accent hover:underline">← Back to home</Link>
+      {tags.length > 0 && (
+        <div className="mt-8">
+          <strong className="block text-xs font-bold tracking-wide mb-1 uppercase text-gray-700">
+            FILED UNDER:
+          </strong>
+          <div className="text-xs font-regular text-gray-800 flex flex-wrap gap-x-2 gap-y-1 narrow italic">
+            {tags.map((tag, idx) => (
+              <span key={tag} className="text-gray-500 uppercase">
+                {tag}{idx < tags.length - 1 ? ',' : ''}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="mt-8 flex flex-row items-center justify-between">
+         <Link to="/" className="text-accent hover:underline">← Back to home</Link>
+        <button
+          type="button"
+          className="text-accent hover:underline"
+          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+        >
+          ↑ Back to Top
+        </button>
+       
       </div>
     </article>
   );

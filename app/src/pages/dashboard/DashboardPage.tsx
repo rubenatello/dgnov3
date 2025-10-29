@@ -1,4 +1,7 @@
 
+import { useEffect, useState } from 'react';
+import {collection, query, where, getCountFromServer} from 'firebase/firestore';
+import { db } from '../../config/firebase';
 import { useAuth } from '../../hooks/useAuth';
 import DashboardLayout from '../../components/dashboard/DashboardLayout';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -14,6 +17,37 @@ import {
 
 export default function DashboardPage() {
   const { userData, isStaff } = useAuth();
+  const [publishedCount, setPublishedCount] = useState<number>(0);
+  const [draftCount, setDraftCount] = useState<number>(0);
+
+  useEffect(() => {
+    async function fetchPublishedCount() {
+      if (!userData?.displayName) return;
+      const q = query(
+        collection(db, 'articles'),
+        where('authorName', '==', userData.displayName),
+        where('status', '==', 'published')
+      );
+      const snapshot = await getCountFromServer(q);
+      setPublishedCount(snapshot.data().count);
+    }
+
+    fetchPublishedCount();
+  }, [userData?.displayName]);
+
+  useEffect(() => {
+  async function fetchDraftCount() {
+    if (!userData?.displayName) return;
+    const q = query(
+      collection(db, 'articles'),
+      where('authorName', '==', userData.displayName),
+      where('status', '==', 'draft')
+    );
+    const snapshot = await getCountFromServer(q);
+    setDraftCount(snapshot.data().count);
+  }
+  fetchDraftCount();
+}, [userData?.displayName]);
 
   return (
     <DashboardLayout>
@@ -49,19 +83,23 @@ export default function DashboardPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-inkMuted mb-1">Draft Articles</p>
-                    <p className="text-2xl font-bold text-ink">0</p>
+                    <p className="text-2xl font-bold text-ink">
+                      {draftCount !== null ? draftCount : '...'}
+                    </p>
                   </div>
                   <div className="text-4xl">
                     <FontAwesomeIcon icon={faFileAlt} className="w-8 h-8 text-accent" />
                   </div>
                 </div>
               </div>
-
+              { /* Count of my published articles */}
               <div className="bg-white rounded-lg border border-stone p-6">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-inkMuted mb-1">Published</p>
-                    <p className="text-2xl font-bold text-ink">0</p>
+                    <p className="text-2xl font-bold text-ink">
+                      {publishedCount !== null ? publishedCount : '...'}
+                    </p>
                   </div>
                   <div className="text-4xl">
                     <FontAwesomeIcon icon={faRocket} className="w-8 h-8 text-accent" />

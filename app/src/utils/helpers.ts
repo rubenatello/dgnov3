@@ -1,3 +1,4 @@
+
 import type { Article } from "../types/models";
 
 /**
@@ -183,4 +184,23 @@ export function getTrumpPresidencyArticles(articles: Article[]): Article[] {
       keywords.some(kw => tag.toLowerCase().includes(kw.toLowerCase()))
     )
   );
+}
+
+/**
+ * Generate a URL-friendly slug from a tag
+ * Example: "Human Rights" => "human-rights"
+ */
+export function slugifyTag(tag: string): string {
+  return tag
+    .toLowerCase()
+    .replace(/[^\w\s-]/g, '')      // Remove special characters
+    .replace(/\s+/g, '-')          // Replace spaces with hyphens
+    .replace(/--+/g, '-')          // Replace multiple hyphens with single
+    .replace(/^-+|-+$/g, '');      // Trim leading/trailing hyphens
+}
+
+export function unslugifyTag(slug: string): string {
+  return slug
+    .replace(/-/g, ' ')
+    .replace(/\b\w/g, c => c.toUpperCase()); // Capitalize each word
 }
