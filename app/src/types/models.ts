@@ -41,6 +41,8 @@ export interface User {
   profileImageUrl?: string; // Alternative field name for profile images
   website?: string;
   twitter?: string;
+  blueSky?: string;
+  instagram?: string;
   linkedin?: string;
   roles: UserRole[]; // Can have multiple roles
   isStaff: boolean; // true if user has writer/editor/admin/dev/superuser

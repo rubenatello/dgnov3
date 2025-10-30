@@ -135,7 +135,8 @@ export default function ArticleView() {
           <div className="text-xs font-regular text-gray-800 flex flex-wrap gap-x-2 gap-y-1 narrow italic">
             {tags.map((tag, idx) => (
               <span key={tag} className="text-gray-500 uppercase">
-                {tag}{idx < tags.length - 1 ? ',' : ''}
+                {tag.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
+                {idx < tags.length - 1 ? ',' : ''}
               </span>
             ))}
           </div>
