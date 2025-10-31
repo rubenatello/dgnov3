@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { getArticleBySlug } from '../../services/articleService';
 import { getMediaById } from '../../services/mediaService';
-import type { Article } from '../../types/models';
+import { getUserById } from '../../services/userService';
+import type { Article, User } from '../../types/models';
 import { formatDistanceToNow, format } from 'date-fns';
 import { Timestamp } from 'firebase/firestore';
 import LoadingScreen from '../LoadingScreen';
@@ -12,6 +13,7 @@ import { HydrateEmbeds } from '../embeds/article-embed';
 export default function ArticleView() {
   const { slug } = useParams<{ slug: string }>();
   const [article, setArticle] = useState<Article | null>(null);
+  const [author, setAuthor] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [resolvedImageUrl, setResolvedImageUrl] = useState<string | null>(null);
@@ -59,6 +61,14 @@ export default function ArticleView() {
     })();
   }, [article]);
 
+  useEffect(() => {
+  if (!article?.authorId || typeof article.authorId !== 'string') return;
+  (async () => {
+    const author = await getUserById(article.authorId!);
+    setAuthor(author);
+  })();
+}, [article?.authorId]);
+
   if (loading) return <LoadingScreen message="Loading article…" />;
   if (error) return <div className="p-8 text-red-600">{error}</div>;
   if (!article) return <div className="p-8">No article</div>;
@@ -91,17 +101,51 @@ export default function ArticleView() {
       )}
 
       {(article.featuredImageUrl || article.featuredImageId) && (
-        <div className="mb-6 text-center">
-          <img
-            src={article.featuredImageUrl || resolvedImageUrl || '/default-image.png'}
-            alt={article.title}
-            className="mx-auto rounded max-w-full h-auto"
-          />
+  <div className="mb-6 text-center relative group">
+    <img
+      src={article.featuredImageUrl || resolvedImageUrl || '/default-image.png'}
+      alt={article.title}
+      className="mx-auto max-w-full h-auto transition duration-300 group-hover:brightness-75 group-hover:scale-100"
+      style={{ display: 'block' }}
+    />
+    {(article.featuredImageDescription || article.featuredImageSourceCredit) && (
+      <div className="absolute inset-0 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-t from-black/70 via-black/40 to-transparent rounded">
+        {article.featuredImageDescription && (
+          <div className="text-white text-base font-semibold drop-shadow-lg mb-2 px-6">
+            {article.featuredImageDescription}
           </div>
         )}
+        {article.featuredImageSourceCredit && (
+          <div className="text-white text-xs drop-shadow-lg px-4">
+            Source: {article.featuredImageSourceCredit}
+          </div>
+        )}
+      </div>
+    )}
+  </div>
+)}
 
       <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between text-sm text-gray-600">
         <div className="mb-2 sm:mb-0 flex items-center gap-2">
+          {author?.profileImageUrl ? (
+    <img
+      src={author.profileImageUrl}
+      alt={author.displayName || 'Author avatar'}
+      className="w-12 h-12 rounded-full object-cover"
+      onError={(e) => {
+        // Hide broken image and show initials
+        e.currentTarget.style.display = 'none';
+        const initials = e.currentTarget.nextElementSibling as HTMLElement;
+        if (initials) initials.style.display = 'flex';
+      }}
+    />
+  ) : (
+    <div className="w-8 h-8 rounded-full bg-gray-400 flex items-center justify-center text-white text-xs font-bold">
+      {author?.displayName
+        ? author.displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+        : '??'}
+    </div>
+  )}
           {article.authorName && <span className="mr-2">By {article.authorName}</span>}
           <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">{estimateReadingTime(article.content || "")}</span>
         </div>

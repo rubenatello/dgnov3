@@ -88,3 +88,9 @@ export async function updateUserProfile(userId: string, data: Partial<User>): Pr
     throw error;
   }
 }
+
+export async function getUserById(userId: string): Promise<User | null> {
+  const docRef = doc(db, 'users', userId);
+  const docSnap = await getDoc(docRef);
+  return docSnap.exists() ? (docSnap.data() as User) : null;
+}
