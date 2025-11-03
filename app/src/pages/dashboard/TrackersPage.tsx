@@ -7,6 +7,7 @@ import { useAuth } from '../../hooks/useAuth';
 import type { Tracker } from '../../types/models';
 import { getTrackers, updateTracker, deleteTracker, getIncidents } from '../../services/trackerService';
 import { downloadTrackerCSV, downloadAllTrackersCSV } from '../../utils/helpers';
+import { formatDate } from '../../utils/dateUtils';
 
 export default function TrackersPage() {
   const { isEditor, isAdmin } = useAuth();
@@ -149,7 +150,7 @@ export default function TrackersPage() {
                       </span>
                     </td>
                     <td className="border border-gray-300 px-4 py-2">
-                      {tracker.updatedAt?.toDate().toLocaleDateString()}
+                      {formatDate(tracker.updatedAt)}
                     </td>
                     <td className="border border-gray-300 px-4 py-2">
                       <div className="flex gap-2">

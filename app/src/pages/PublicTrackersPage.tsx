@@ -5,6 +5,7 @@ import { faMapMarkerAlt, faCalendarAlt, faChartBar, faDownload } from '@fortawes
 import { getAllTrackers, getIncidents } from '../services/trackerService';
 import type { Tracker } from '../types/models';
 import { downloadAllTrackersCSV } from '../utils/helpers';
+import { getYear } from '../utils/dateUtils';
 
 export default function PublicTrackersPage() {
   const [trackers, setTrackers] = useState<Tracker[]>([]);
@@ -94,7 +95,7 @@ export default function PublicTrackersPage() {
                 </div>
                 <div className="flex items-center gap-1">
                   <FontAwesomeIcon icon={faCalendarAlt} />
-                  <span>Since {tracker.createdAt?.toDate().getFullYear()}</span>
+                  <span>Since {getYear(tracker.createdAt) || 'Unknown'}</span>
                 </div>
               </div>
 

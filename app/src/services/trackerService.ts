@@ -2,13 +2,35 @@ import { db } from '../config/firebase';
 import { collection, doc, getDoc, getDocs, addDoc, updateDoc, deleteDoc, query, where, orderBy, limit, Timestamp } from 'firebase/firestore';
 import type { Tracker, TrackerIncident } from '../types/models';
 
+// Helper function to remove undefined values from an object before saving to Firestore
+function removeUndefinedFields(obj: Record<string, unknown>): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (value !== undefined) {
+      if (Array.isArray(value)) {
+        result[key] = value.map(item => 
+          typeof item === 'object' && item !== null 
+            ? removeUndefinedFields(item as Record<string, unknown>)
+            : item
+        );
+      } else if (typeof value === 'object' && value !== null) {
+        result[key] = removeUndefinedFields(value as Record<string, unknown>);
+      } else {
+        result[key] = value;
+      }
+    }
+  }
+  return result;
+}
+
 // Tracker CRUD operations
 export async function createTracker(tracker: Omit<Tracker, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
-  const docRef = await addDoc(collection(db, 'trackers'), {
+  const cleanedTracker = removeUndefinedFields({
     ...tracker,
     createdAt: Timestamp.fromDate(new Date()),
     updatedAt: Timestamp.fromDate(new Date()),
   });
+  const docRef = await addDoc(collection(db, 'trackers'), cleanedTracker);
   return docRef.id;
 }
 
@@ -38,10 +60,11 @@ export async function getAllTrackers(): Promise<Tracker[]> {
 }
 
 export async function updateTracker(id: string, updates: Partial<Tracker>): Promise<void> {
-  await updateDoc(doc(db, 'trackers', id), { 
+  const cleanedUpdates = removeUndefinedFields({ 
     ...updates, 
     updatedAt: Timestamp.fromDate(new Date()) 
   });
+  await updateDoc(doc(db, 'trackers', id), cleanedUpdates);
 }
 
 export async function deleteTracker(id: string): Promise<void> {
@@ -50,11 +73,12 @@ export async function deleteTracker(id: string): Promise<void> {
 
 // TrackerIncident CRUD operations
 export async function addIncident(trackerId: string, incident: Omit<TrackerIncident, 'id' | 'createdAt'>): Promise<string> {
-  const docRef = await addDoc(collection(db, 'trackerIncidents'), {
+  const cleanedIncident = removeUndefinedFields({
     ...incident,
     trackerId,
     createdAt: Timestamp.fromDate(new Date()),
   });
+  const docRef = await addDoc(collection(db, 'trackerIncidents'), cleanedIncident);
   
   // Update tracker's incident count and updatedAt
   const incidentsCount = await getIncidentCount(trackerId);
@@ -91,10 +115,11 @@ export async function getIncidentCount(trackerId: string): Promise<number> {
 }
 
 export async function updateIncident(id: string, updates: Partial<TrackerIncident>): Promise<void> {
-  await updateDoc(doc(db, 'trackerIncidents', id), {
+  const cleanedUpdates = removeUndefinedFields({
     ...updates,
     updatedAt: Timestamp.fromDate(new Date()),
   });
+  await updateDoc(doc(db, 'trackerIncidents', id), cleanedUpdates);
 }
 
 export async function deleteIncident(id: string): Promise<void> {

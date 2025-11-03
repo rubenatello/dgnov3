@@ -113,6 +113,27 @@ export default function CreateEditTrackerPage() {
     }
   }, [trackerData.name, isEditing]);
 
+  // Helper function to remove undefined values from an object recursively
+  function removeUndefinedFields(obj: Record<string, unknown>): Record<string, unknown> {
+    const result: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(obj)) {
+      if (value !== undefined) {
+        if (Array.isArray(value)) {
+          result[key] = value.map(item => 
+            typeof item === 'object' && item !== null 
+              ? removeUndefinedFields(item as Record<string, unknown>)
+              : item
+          );
+        } else if (typeof value === 'object' && value !== null) {
+          result[key] = removeUndefinedFields(value as Record<string, unknown>);
+        } else {
+          result[key] = value;
+        }
+      }
+    }
+    return result;
+  }
+
   async function handleSaveTracker(e: React.FormEvent) {
     e.preventDefault();
     if (!trackerData.name?.trim()) {
@@ -122,11 +143,39 @@ export default function CreateEditTrackerPage() {
 
     setSaving(true);
     try {
+      // Clean custom fields to remove undefined values
+      const cleanedCustomFields = (trackerData.customFields || []).map(field => {
+        const cleanedField = removeUndefinedFields({
+          id: field.id || `field_${Date.now()}_${Math.random()}`,
+          name: field.name || '',
+          type: field.type || 'text',
+          required: field.required ?? false,
+          placeholder: field.placeholder || '',
+          options: Array.isArray(field.options) ? field.options.filter(opt => opt !== undefined && opt !== null && opt !== '') : [],
+          maxLength: field.maxLength || undefined,
+          order: field.order ?? 0,
+        });
+        return cleanedField;
+      });
+
+      // Clean the tracker data to remove undefined values
+      const cleanedTrackerData = removeUndefinedFields({
+        ...trackerData,
+        name: trackerData.name?.trim() || '',
+        description: trackerData.description?.trim() || '',
+        slug: trackerData.slug?.trim() || '',
+        isActive: trackerData.isActive ?? true,
+        createdBy: userData?.id || '',
+        incidentCount: trackerData.incidentCount || 0,
+        useCustomFields: trackerData.useCustomFields ?? false,
+        customFields: cleanedCustomFields,
+      });
+
       if (isEditing && id) {
-        await updateTracker(id, trackerData);
+        await updateTracker(id, cleanedTrackerData);
         alert('Tracker updated successfully!');
       } else {
-        const newId = await createTracker(trackerData as Omit<Tracker, 'id' | 'createdAt' | 'updatedAt'>);
+        const newId = await createTracker(cleanedTrackerData as Omit<Tracker, 'id' | 'createdAt' | 'updatedAt'>);
         alert('Tracker created successfully!');
         navigate(`/dashboard/trackers/${newId}/edit`);
       }
@@ -145,7 +194,23 @@ export default function CreateEditTrackerPage() {
     }
 
     try {
-      await addIncident(id, newIncident as Omit<TrackerIncident, 'id' | 'createdAt'>);
+      // Clean the incident data to remove undefined values
+      const cleanedIncidentData = removeUndefinedFields({
+        ...newIncident,
+        dateOfOccurrence: newIncident.dateOfOccurrence || Timestamp.fromDate(new Date()),
+        location: `${newIncident.city?.trim() || ''}, ${newIncident.state?.trim() || ''}`,
+        city: newIncident.city?.trim() || '',
+        state: newIncident.state?.trim() || '',
+        description: newIncident.description?.trim() || '',
+        bodyCamAvailable: newIncident.bodyCamAvailable ?? false,
+        bodyCamVideoId: newIncident.bodyCamVideoId?.trim() || '',
+        bodyCamVideoUrl: newIncident.bodyCamVideoUrl?.trim() || '',
+        createdBy: userData?.id || '',
+        status: newIncident.status || 'active',
+        customData: newIncident.customData || {},
+      });
+
+      await addIncident(id, cleanedIncidentData as Omit<TrackerIncident, 'id' | 'createdAt'>);
       setNewIncident({
         dateOfOccurrence: Timestamp.fromDate(new Date()),
         location: '',
@@ -195,7 +260,9 @@ export default function CreateEditTrackerPage() {
         customData: customIncidentData,
       };
 
-      await addIncident(id, incidentData);
+      // Clean the incident data to remove undefined values
+      const cleanedIncidentData = removeUndefinedFields(incidentData);
+      await addIncident(id, cleanedIncidentData as Omit<TrackerIncident, 'id' | 'createdAt'>);
       setCustomIncidentData({});
       
       // Refresh incidents and tracker count
@@ -212,7 +279,9 @@ export default function CreateEditTrackerPage() {
 
   async function handleUpdateIncident(incidentId: string, updates: Partial<TrackerIncident>) {
     try {
-      await updateIncident(incidentId, { ...updates, updatedBy: userData?.id });
+      // Clean the updates to remove undefined values
+      const cleanedUpdates = removeUndefinedFields({ ...updates, updatedBy: userData?.id || '' });
+      await updateIncident(incidentId, cleanedUpdates);
       if (id) loadIncidents(id);
     } catch (error) {
       console.error('Error updating incident:', error);
