@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPlus, faEdit, faTrash, faEye, faToggleOn, faToggleOff } from '@fortawesome/free-solid-svg-icons';
+import { faPlus, faEdit, faTrash, faEye, faToggleOn, faToggleOff, faDownload } from '@fortawesome/free-solid-svg-icons';
 import DashboardLayout from '../../components/dashboard/DashboardLayout';
 import { useAuth } from '../../hooks/useAuth';
 import type { Tracker } from '../../types/models';
-import { getTrackers, updateTracker, deleteTracker } from '../../services/trackerService';
+import { getTrackers, updateTracker, deleteTracker, getIncidents } from '../../services/trackerService';
+import { downloadTrackerCSV, downloadAllTrackersCSV } from '../../utils/helpers';
 
 export default function TrackersPage() {
   const { isEditor, isAdmin } = useAuth();
@@ -49,19 +50,47 @@ export default function TrackersPage() {
     }
   }
 
+  async function handleDownloadTrackerCSV(tracker: Tracker) {
+    try {
+      const incidents = await getIncidents(tracker.id!);
+      downloadTrackerCSV(tracker, incidents);
+    } catch (error) {
+      console.error('Error downloading tracker CSV:', error);
+    }
+  }
+
+  async function handleDownloadAllCSV() {
+    try {
+      await downloadAllTrackersCSV(trackers, getIncidents);
+    } catch (error) {
+      console.error('Error downloading all trackers CSV:', error);
+    }
+  }
+
   return (
     <DashboardLayout>
       <div className="p-6">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-bold">Trackers</h1>
-          {(isEditor() || isAdmin()) && (
-            <button
-              className="bg-accent text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-opacity-90"
-              onClick={() => navigate('/dashboard/trackers/create')}
-            >
-              <FontAwesomeIcon icon={faPlus} /> Create Tracker
-            </button>
-          )}
+          <div className="flex gap-3">
+            {trackers.length > 0 && (
+              <button
+                className="bg-green-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-green-700"
+                onClick={handleDownloadAllCSV}
+                title="Download all tracker data as CSV files"
+              >
+                <FontAwesomeIcon icon={faDownload} /> Download All CSV
+              </button>
+            )}
+            {(isEditor() || isAdmin()) && (
+              <button
+                className="bg-accent text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-opacity-90"
+                onClick={() => navigate('/dashboard/trackers/create')}
+              >
+                <FontAwesomeIcon icon={faPlus} /> Create Tracker
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Filters */}
@@ -130,6 +159,13 @@ export default function TrackersPage() {
                           title="View incidents"
                         >
                           <FontAwesomeIcon icon={faEye} />
+                        </button>
+                        <button
+                          className="text-purple-600 hover:text-purple-800"
+                          onClick={() => handleDownloadTrackerCSV(tracker)}
+                          title="Download tracker data as CSV"
+                        >
+                          <FontAwesomeIcon icon={faDownload} />
                         </button>
                         {(isEditor() || isAdmin()) && (
                           <>

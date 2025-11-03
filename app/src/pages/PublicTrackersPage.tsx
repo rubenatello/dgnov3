@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faMapMarkerAlt, faCalendarAlt, faChartBar } from '@fortawesome/free-solid-svg-icons';
-import { getAllTrackers } from '../services/trackerService';
+import { faMapMarkerAlt, faCalendarAlt, faChartBar, faDownload } from '@fortawesome/free-solid-svg-icons';
+import { getAllTrackers, getIncidents } from '../services/trackerService';
 import type { Tracker } from '../types/models';
+import { downloadAllTrackersCSV } from '../utils/helpers';
 
 export default function PublicTrackersPage() {
   const [trackers, setTrackers] = useState<Tracker[]>([]);
@@ -22,6 +23,14 @@ export default function PublicTrackersPage() {
       console.error('Error loading trackers:', error);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleDownloadAllCSV() {
+    try {
+      await downloadAllTrackersCSV(trackers, getIncidents);
+    } catch (error) {
+      console.error('Error downloading all trackers CSV:', error);
     }
   }
 
@@ -47,6 +56,18 @@ export default function PublicTrackersPage() {
             Comprehensive tracking and analysis of critical incidents across the United States. 
             Each tracker provides detailed data, geographic analysis, and statistical insights.
           </p>
+          {trackers.length > 0 && (
+            <div className="mt-6">
+              <button
+                onClick={handleDownloadAllCSV}
+                className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 flex items-center gap-2 mx-auto"
+                title="Download all tracker data as CSV files"
+              >
+                <FontAwesomeIcon icon={faDownload} />
+                Download All Data (CSV)
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Trackers Grid */}

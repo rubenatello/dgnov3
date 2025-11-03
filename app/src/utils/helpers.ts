@@ -204,3 +204,215 @@ export function unslugifyTag(slug: string): string {
     .replace(/-/g, ' ')
     .replace(/\b\w/g, c => c.toUpperCase()); // Capitalize each word
 }
+
+// ========================================
+// CSV Export Functions for Trackers
+// ========================================
+
+import type { Tracker, TrackerIncident, TrackerField } from '../types/models';
+
+/**
+ * Convert tracker incidents to CSV and download
+ * Handles both legacy and custom field trackers automatically
+ */
+export function downloadTrackerCSV(tracker: Tracker, incidents: TrackerIncident[]): void {
+  if (!tracker || !incidents.length) {
+    alert('No data to export');
+    return;
+  }
+
+  const csvContent = generateTrackerCSV(tracker, incidents);
+  const fileName = `${tracker.slug || 'tracker'}-incidents-${formatDateForFilename(new Date())}.csv`;
+  
+  downloadCSVFile(csvContent, fileName);
+}
+
+/**
+ * Generate CSV content from tracker data
+ * Automatically detects legacy vs custom field format
+ */
+export function generateTrackerCSV(tracker: Tracker, incidents: TrackerIncident[]): string {
+  if (!incidents.length) return '';
+  
+  // Determine if this is a custom fields tracker
+  const isCustomTracker = tracker.useCustomFields && tracker.customFields?.length;
+  
+  if (isCustomTracker) {
+    return generateCustomFieldsCSV(tracker.customFields!, incidents);
+  } else {
+    return generateLegacyFieldsCSV(incidents);
+  }
+}
+
+/**
+ * Generate CSV for trackers with custom fields
+ */
+function generateCustomFieldsCSV(fields: TrackerField[], incidents: TrackerIncident[]): string {
+  // Sort fields by order for consistent column arrangement
+  const sortedFields = [...fields].sort((a, b) => a.order - b.order);
+  
+  // Create header row
+  const headers = sortedFields.map(field => escapeCSVField(field.name));
+  const headerRow = headers.join(',');
+  
+  // Create data rows
+  const dataRows = incidents.map(incident => {
+    const values = sortedFields.map(field => {
+      const value = incident.customData?.[field.id] || '';
+      return escapeCSVField(formatFieldValue(field, value));
+    });
+    return values.join(',');
+  });
+  
+  return [headerRow, ...dataRows].join('\n');
+}
+
+/**
+ * Generate CSV for legacy trackers (standard fields)
+ */
+function generateLegacyFieldsCSV(incidents: TrackerIncident[]): string {
+  const headers = [
+    'Date',
+    'Location', 
+    'City',
+    'State',
+    'Description',
+    'Body Cam Available',
+    'Video Available',
+    'Created Date'
+  ];
+  const headerRow = headers.map(h => escapeCSVField(h)).join(',');
+  
+  const dataRows = incidents.map(incident => {
+    const values = [
+      formatDateValue(incident.dateOfOccurrence),
+      incident.location || '',
+      incident.city || '',
+      incident.state || '',
+      incident.description || '',
+      incident.bodyCamAvailable ? 'Yes' : 'No',
+      incident.bodyCamVideoId ? 'Yes' : 'No',
+      formatDateValue(incident.createdAt)
+    ];
+    return values.map(v => escapeCSVField(v)).join(',');
+  });
+  
+  return [headerRow, ...dataRows].join('\n');
+}
+
+/**
+ * Format field values based on field type
+ */
+function formatFieldValue(field: TrackerField, value: string | number | boolean | Date): string {
+  if (!value && value !== 0 && value !== false) return '';
+  
+  switch (field.type) {
+    case 'date':
+      return formatDateValue(value);
+    case 'checkbox':
+      return value ? 'Yes' : 'No';
+    case 'url':
+      return String(value);
+    case 'number':
+      return String(value);
+    default:
+      return String(value);
+  }
+}
+
+/**
+ * Format date values consistently
+ */
+function formatDateValue(dateValue: unknown): string {
+  if (!dateValue) return '';
+  
+  try {
+    let date: Date;
+    if (dateValue instanceof Date) {
+      date = dateValue;
+    } else if (typeof dateValue === 'object' && dateValue !== null && 'toDate' in dateValue) {
+      // Firestore Timestamp
+      date = (dateValue as { toDate: () => Date }).toDate();
+    } else {
+      date = new Date(String(dateValue));
+    }
+    
+    // Format as YYYY-MM-DD for CSV consistency
+    return date.toISOString().split('T')[0];
+  } catch {
+    return String(dateValue);
+  }
+}
+
+/**
+ * Escape CSV field values (handle commas, quotes, newlines)
+ */
+function escapeCSVField(value: string): string {
+  const stringValue = String(value || '');
+  
+  // If the value contains comma, quote, or newline, wrap in quotes and escape quotes
+  if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
+    return `"${stringValue.replace(/"/g, '""')}"`;
+  }
+  
+  return stringValue;
+}
+
+/**
+ * Format date for filename (YYYY-MM-DD)
+ */
+function formatDateForFilename(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+/**
+ * Download CSV content as file
+ */
+function downloadCSVFile(csvContent: string, fileName: string): void {
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  
+  if (link.download !== undefined) {
+    // Modern browsers
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', fileName);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  } else {
+    // Fallback for older browsers
+    alert('CSV download not supported in this browser');
+  }
+}
+
+/**
+ * Download multiple trackers as separate CSV files (bulk export)
+ */
+export async function downloadAllTrackersCSV(trackers: Tracker[], getIncidents: (trackerId: string) => Promise<TrackerIncident[]>): Promise<void> {
+  if (!trackers.length) {
+    alert('No trackers to export');
+    return;
+  }
+  
+  try {
+    for (const tracker of trackers) {
+      if (!tracker.id) continue;
+      
+      const incidents = await getIncidents(tracker.id);
+      if (incidents.length > 0) {
+        downloadTrackerCSV(tracker, incidents);
+        // Small delay between downloads to prevent browser blocking
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+    }
+  } catch (error) {
+    console.error('Error during bulk export:', error);
+    alert('Error during bulk export. Some files may not have downloaded.');
+  }
+}

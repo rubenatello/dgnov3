@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faMapMarkerAlt, faCalendarAlt, faChartBar, faVideo, faCheck, faTimes } from '@fortawesome/free-solid-svg-icons';
+import { faMapMarkerAlt, faCalendarAlt, faChartBar, faVideo, faCheck, faTimes, faDownload } from '@fortawesome/free-solid-svg-icons';
 import { getAllTrackers, getIncidents } from '../services/trackerService';
 import type { Tracker, TrackerIncident } from '../types/models';
 import USStateMap from '../components/USStateMap';
 import ExpandableDescription from '../components/ExpandableDescription';
+import { downloadTrackerCSV } from '../utils/helpers';
 
 // US State data for map visualization
 const US_STATES = {
@@ -275,13 +276,23 @@ export default function PublicTrackerDetailPage() {
         {/* Incidents Data Table */}
         <div className="bg-white rounded-lg shadow">
           <div className="p-6 border-b">
-            <h2 className="text-xl font-semibold flex items-center gap-2">
-              <FontAwesomeIcon icon={faChartBar} />
-              Incident Details
-              <span className="text-base font-normal text-gray-500">
-                ({filteredIncidents.length} incidents)
-              </span>
-            </h2>
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-semibold flex items-center gap-2">
+                <FontAwesomeIcon icon={faChartBar} />
+                Incident Details
+                <span className="text-base font-normal text-gray-500">
+                  ({filteredIncidents.length} incidents)
+                </span>
+              </h2>
+              <button
+                onClick={() => tracker && downloadTrackerCSV(tracker, incidents)}
+                className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 flex items-center gap-2"
+                title="Download tracker data as CSV"
+              >
+                <FontAwesomeIcon icon={faDownload} />
+                Download CSV
+              </button>
+            </div>
           </div>
           
           <div className="overflow-x-auto">
