@@ -178,6 +178,15 @@ export default function MobileHeader() {
 												<span>{section}</span>
 											</Link>
 										))}
+										
+										{/* Trackers link */}
+										<Link
+											to="/trackers"
+											className="flex items-center px-3 py-3 text-base font-medium text-ink hover:text-accent hover:bg-white/80 rounded-lg transition-all duration-200 active:bg-white"
+											onClick={() => setMobileMenuOpen(false)}
+										>
+											<span>Trackers</span>
+										</Link>
 									</nav>
 								</div>
 

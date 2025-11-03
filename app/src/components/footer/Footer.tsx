@@ -33,6 +33,11 @@ export default function Footer() {
                 </a>
               </li>
               <li>
+                <a href="/trackers" className="text-white hover:text-accent transition-colors">
+                  Incident Trackers
+                </a>
+              </li>
+              <li>
                 <a href="/contact" className="text-white hover:text-accent transition-colors">
                   Contact
                 </a>
