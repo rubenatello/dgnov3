@@ -6,9 +6,10 @@ export interface MediaPickerProps {
 	isOpen?: boolean;
 	onClose?: () => void;
 	onSelect?: (media: Media) => void;
+	filterType?: 'image' | 'video' | 'all'; // Add filter option
 }
 
-export default function MediaPicker({ isOpen = false, onClose, onSelect }: MediaPickerProps) {
+export default function MediaPicker({ isOpen = false, onClose, onSelect, filterType = 'all' }: MediaPickerProps) {
 	const [tab, setTab] = useState<'gallery' | 'upload'>('gallery');
 	const [media, setMedia] = useState<Media[]>([]);
 	const [loading, setLoading] = useState(false);
@@ -24,6 +25,19 @@ export default function MediaPicker({ isOpen = false, onClose, onSelect }: Media
 	const [uploading, setUploading] = useState(false);
 	const [error, setError] = useState('');
 
+	const loadMedia = React.useCallback(async () => {
+		setLoading(true);
+		try {
+			const all = await getAllMedia(filterType === 'all' ? undefined : filterType);
+			setMedia(all.reverse());
+		} catch (err) {
+			console.error('Error loading media:', err);
+			setMedia([]);
+		} finally {
+			setLoading(false);
+		}
+	}, [filterType]);
+
 	useEffect(() => {
 		if (!isOpen) return;
 		loadMedia();
@@ -35,20 +49,7 @@ export default function MediaPicker({ isOpen = false, onClose, onSelect }: Media
 		setAlt('');
 		setSourceCredit('');
 		setError('');
-	}, [isOpen, tab]);
-
-	async function loadMedia() {
-		setLoading(true);
-		try {
-			const all = await getAllMedia('image');
-			setMedia(all.reverse());
-		} catch (err) {
-			console.error('Error loading media:', err);
-			setMedia([]);
-		} finally {
-			setLoading(false);
-		}
-	}
+	}, [isOpen, tab, loadMedia]);
 
 	const filtered = media.filter(m =>
 		m.title?.toLowerCase().includes(search.toLowerCase()) ||
@@ -75,7 +76,7 @@ export default function MediaPicker({ isOpen = false, onClose, onSelect }: Media
 						// Use JS Date for client-side timestamp; backend may normalize to Firestore Timestamp
 					uploadedAt: new Date(),
 						uploadedBy: 'system',
-						type: 'image',
+						type: file?.type.startsWith('video') ? 'video' : 'image',
 						usageCount: 0,
 					lastUpdated: new Date(),
 					};
@@ -121,7 +122,16 @@ export default function MediaPicker({ isOpen = false, onClose, onSelect }: Media
 								<div className="grid grid-cols-4 gap-3">
 									{filtered.map(m => (
 										<button key={m.id} onClick={() => { if (onSelect) onSelect(m); if (onClose) onClose(); }} className="border rounded overflow-hidden text-left hover:shadow">
-											<img src={m.url} alt={m.alt || m.title} className="w-full h-32 object-cover" />
+											{m.type === 'video' ? (
+												<div className="w-full h-32 bg-gray-100 flex items-center justify-center">
+													<div className="text-center">
+														<div className="text-2xl mb-1">🎥</div>
+														<div className="text-xs text-gray-600">Video</div>
+													</div>
+												</div>
+											) : (
+												<img src={m.url} alt={m.alt || m.title} className="w-full h-32 object-cover" />
+											)}
 											<div className="p-2 text-sm">
 												<div className="font-medium truncate">{m.title}</div>
 												<div className="text-xs text-inkMuted truncate">{m.sourceCredit}</div>

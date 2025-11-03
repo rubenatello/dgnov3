@@ -3,3 +3,5 @@
 
 export { default as HomePage } from '../components/home/HomePage';
 export { default as ArticleEditorPage } from './dashboard/ArticleEditorPage';
+export { default as PublicTrackersPage } from './PublicTrackersPage';
+export { default as PublicTrackerDetailPage } from './PublicTrackerDetailPage';

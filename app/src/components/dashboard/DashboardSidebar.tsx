@@ -11,6 +11,8 @@ import {
   faBookmark,
   faChevronLeft,
   faChevronRight,
+  faBolt,
+  faClipboardList,
   type IconDefinition
 } from '@fortawesome/free-solid-svg-icons';
 
@@ -30,6 +32,8 @@ export default function DashboardSidebar() {
     { name: 'Dashboard', icon: faChartBar, path: '/dashboard' },
     { name: 'Create Article', icon: faPenNib, path: '/dashboard/articles/create' },
     { name: 'Manage Articles', icon: faFileAlt, path: '/dashboard/articles' },
+    { name: 'Live Articles', icon: faBolt, path: '/dashboard/live-articles' },
+    { name: 'Trackers', icon: faClipboardList, path: '/dashboard/trackers' },
     { name: 'Media Library', icon: faPhotoFilm, path: '/dashboard/media' },
     { name: 'Analytics', icon: faChartLine, path: '/dashboard/analytics' },
   ];

@@ -258,6 +258,91 @@ service cloud.firestore {
       allow update, delete: if request.auth != null && request.auth.uid == userId;
     }
 
+    // Live Articles collection
+    match /liveArticles/{liveArticleId} {
+      // Anyone can read open live articles
+      allow read: if resource.data.status == 'open';
+      
+      // Writers, editors, admins can read all live articles
+      allow read: if isSignedIn() && isWriter();
+      
+      // Writers can create live articles
+      allow create: if isWriter() && request.resource.data.authorId == request.auth.uid;
+      
+      // Writers can update their own live articles, editors/admins can update any
+      allow update: if (
+        isEditor() ||
+        (isWriter() && request.auth.uid == resource.data.authorId)
+      );
+      
+      // Only editors/admins can delete or close live articles
+      allow delete: if isEditor();
+      
+      // Threads subcollection (for updates)
+      match /threads/{threadId} {
+        // Anyone can read threads on open live articles
+        allow read: if get(/databases/$(database)/documents/liveArticles/$(liveArticleId)).data.status == 'open';
+        
+        // Writers/editors can read all threads
+        allow read: if isSignedIn() && isWriter();
+        
+        // Writers can add threads to their own live articles
+        allow create: if isWriter() && request.auth.uid == request.resource.data.authorId &&
+          get(/databases/$(database)/documents/liveArticles/$(liveArticleId)).data.status == 'open';
+        
+        // Writers can update their own threads, editors can update any
+        allow update: if (
+          isEditor() ||
+          (isWriter() && request.auth.uid == resource.data.authorId)
+        );
+        
+        // Only editors can delete threads
+        allow delete: if isEditor();
+      }
+    }
+
+    // Trackers collection
+    match /trackers/{trackerId} {
+      // Anyone can read active trackers (for public viewing)
+      allow read: if resource.data.isActive == true;
+      
+      // Writers, editors, admins can read all trackers
+      allow read: if isSignedIn() && isWriter();
+      
+      // Writers can create trackers
+      allow create: if isWriter() && request.resource.data.createdBy == request.auth.uid;
+      
+      // Writers can update their own trackers, editors/admins can update any
+      allow update: if (
+        isEditor() ||
+        (isWriter() && request.auth.uid == resource.data.createdBy)
+      );
+      
+      // Only editors/admins can delete trackers
+      allow delete: if isEditor();
+    }
+
+    // Tracker Incidents collection
+    match /trackerIncidents/{incidentId} {
+      // Anyone can read incidents for active trackers
+      allow read: if resource.data.status == 'active';
+      
+      // Writers, editors, admins can read all incidents
+      allow read: if isSignedIn() && isWriter();
+      
+      // Writers can create incidents
+      allow create: if isWriter() && request.resource.data.createdBy == request.auth.uid;
+      
+      // Writers can update their own incidents, editors/admins can update any
+      allow update: if (
+        isEditor() ||
+        (isWriter() && request.auth.uid == resource.data.createdBy)
+      );
+      
+      // Only editors/admins can delete incidents
+      allow delete: if isEditor();
+    }
+
     // Default deny for anything not matched above
     match /{document=**} {
       allow read, write: if false;

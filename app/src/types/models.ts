@@ -82,6 +82,45 @@ export interface Article {
   createdAt?: Timestamp;
 }
 
+export interface LiveArticle {
+  id?: string;
+  title: string;
+  slug: string; // URL-safe slug for the live article
+  subtitle?: string;
+  summary?: string; // Brief intro (max 300 chars)
+  initialContent?: string; // Initial body text (optional, if not using threads for everything)
+  featuredImageUrl?: string;
+  featuredImageId?: string;
+  featuredImageDescription?: string;
+  featuredImageSourceCredit?: string;
+  section?: Section; // From your SECTIONS list
+  tags?: string[]; // Array of tag slugs
+  authorId?: string; // Main author who started the live article
+  authorName?: string;
+  coAuthorId?: string; // Optional co-author
+  coAuthorName?: string;
+  status: 'open' | 'closed'; // 'open' for active updates, 'closed' when done
+  createdAt: Timestamp;
+  updatedAt: Timestamp; // Last update (either initial or latest thread)
+  closedAt?: Timestamp; // Timestamp when closed (if status is 'closed')
+  viewCount?: number;
+  likeCount?: number;
+  commentCount?: number; // For overall comments on the live article
+  threads: LiveThread[]; // Array of threaded updates (see below)
+}
+
+// New interface for individual threads/updates
+export interface LiveThread {
+  id?: string; // Unique ID for the thread (e.g., auto-generated)
+  body: string; // Text content of the update (max 500 chars?)
+  images?: Media[]; // Array of images attached to this thread
+  authorId: string; // Who added this thread
+  authorName: string;
+  createdAt: Timestamp;
+  editedAt?: Timestamp; // If editable
+  status?: 'active' | 'hidden'; // Optional: allow hiding threads
+}
+
 // Media/Image interface
 export interface Media {
   id?: string;
@@ -162,4 +201,36 @@ export interface Tag {
   createdAt?: Timestamp;
   createdBy?: string; // User ID who created the tag
   lastUsed?: Timestamp; // Last time used in an article
+}
+
+// Tracker interface - for tracking specific types of incidents/events
+export interface Tracker {
+  id?: string;
+  name: string; // e.g., "ICE/CBP Involved Shootings 2025"
+  slug: string; // URL-safe version
+  description?: string; // What this tracker monitors
+  createdAt: Timestamp;
+  createdBy: string; // User ID who created the tracker
+  updatedAt: Timestamp;
+  isActive: boolean; // Can be disabled without deleting
+  incidentCount?: number; // Total incidents tracked
+}
+
+// TrackerIncident interface - individual incidents within a tracker
+export interface TrackerIncident {
+  id?: string;
+  trackerId: string; // References the parent tracker
+  dateOfOccurrence: Timestamp; // When the incident happened
+  location: string; // "Street, City, State" - long form text (legacy field)
+  city?: string; // City name (structured field)
+  state?: string; // State abbreviation (structured field)
+  description: string; // Long form description of the event
+  bodyCamAvailable: boolean; // Y/N if body cam footage exists
+  bodyCamVideoId?: string; // Optional reference to Media object for video file
+  bodyCamVideoUrl?: string; // Direct URL if uploaded elsewhere
+  createdAt: Timestamp;
+  createdBy: string; // User ID who added this incident
+  updatedAt?: Timestamp;
+  updatedBy?: string; // User ID who last updated
+  status: 'active' | 'hidden'; // For moderation
 }

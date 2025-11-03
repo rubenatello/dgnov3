@@ -20,6 +20,11 @@ import NotFoundPage from './pages/NotFoundPage';
 import ArticlesSection from './components/articles/ArticlesSection';
 import ArticlesByDate from './components/articles/ArticlesByDate';
 import AnalyticsPage from './pages/dashboard/AnalyticsPage';
+import TrackersPage from './pages/dashboard/TrackersPage';
+import CreateEditTrackerPage from './pages/dashboard/CreateEditTrackerPage';
+import PublicTrackersPage from './pages/PublicTrackersPage';
+import PublicTrackerDetailPage from './pages/PublicTrackerDetailPage';
+
 
 function App() {
   function RouteChangeTracker() {
@@ -49,6 +54,9 @@ function App() {
             {/* Optionally support date-prefixed slugs: /article/yyyy/mm/dd/slug */}
             <Route path="/article/:yyyy/:mm/:dd/:slug" element={<ArticleView />} />
             <Route path="/article/:year/:month/:day" element={<ArticlesByDate />} />
+            {/* Tracker public views */}
+            <Route path="/trackers" element={<PublicTrackersPage />} />
+            <Route path="/tracker/:slug" element={<PublicTrackerDetailPage />} />
             {/* Informational pages that should include site chrome */}
             <Route path="/about" element={<AboutPage />} />
             <Route path="/privacy" element={<PrivacyPolicyPage />} />
@@ -124,6 +132,34 @@ function App() {
               </ProtectedRoute>
             }
           />
+
+          <Route
+            path="/dashboard/trackers"
+            element={
+              <ProtectedRoute requireStaff>
+                <TrackersPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/dashboard/trackers/create"
+            element={
+              <ProtectedRoute requireStaff>
+                <CreateEditTrackerPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/dashboard/trackers/:id/edit"
+            element={
+              <ProtectedRoute requireStaff>
+                <CreateEditTrackerPage />
+              </ProtectedRoute>
+            }
+          />
+
 
           {/* Login and dashboard remain outside the Layout */}
         </Routes>

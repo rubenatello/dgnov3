@@ -14,7 +14,7 @@ export default function AboutPage() {
           <div className="text-center mb-12">
             <h1 className="text-4xl font-bold text-ink mb-4">About DGNO</h1>
             <p className="text-xl text-inkMuted leading-relaxed max-w-3xl mx-auto">
-              Independent journalism for a connected world. We deliver the news that matters, 
+              Independent journalism and data for a connected world. We deliver the news that matters, 
               with integrity, accuracy, and a commitment to serving our community.
             </p>
           </div>
