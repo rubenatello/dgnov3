@@ -126,7 +126,7 @@ export default function TrackersPage() {
                       <div className="flex gap-2">
                         <button
                           className="text-blue-600 hover:text-blue-800"
-                          onClick={() => navigate(`/dashboard/trackers/${tracker.id}`)}
+                          onClick={() => navigate(`/tracker/${tracker.slug}`)}
                           title="View incidents"
                         >
                           <FontAwesomeIcon icon={faEye} />

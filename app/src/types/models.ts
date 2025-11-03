@@ -25,7 +25,8 @@ export const SECTIONS = [
   'Sports',
   'Fact-Check',
   'Health',
-  'Science'
+  'Science',
+  'Trackers',
   
 ] as const;
 
@@ -203,6 +204,18 @@ export interface Tag {
   lastUsed?: Timestamp; // Last time used in an article
 }
 
+// Custom field definition for dynamic tracker forms
+export interface TrackerField {
+  id: string; // Unique field identifier
+  name: string; // Display name
+  type: 'text' | 'textarea' | 'date' | 'select' | 'url' | 'file' | 'checkbox' | 'number';
+  required: boolean;
+  placeholder?: string;
+  options?: string[]; // For select/dropdown fields
+  maxLength?: number; // For text fields
+  order: number; // Display order in form
+}
+
 // Tracker interface - for tracking specific types of incidents/events
 export interface Tracker {
   id?: string;
@@ -214,12 +227,16 @@ export interface Tracker {
   updatedAt: Timestamp;
   isActive: boolean; // Can be disabled without deleting
   incidentCount?: number; // Total incidents tracked
+  // NEW: Custom fields support
+  useCustomFields?: boolean; // Flag to enable custom fields
+  customFields?: TrackerField[]; // Dynamic field definitions
 }
 
 // TrackerIncident interface - individual incidents within a tracker
 export interface TrackerIncident {
   id?: string;
   trackerId: string; // References the parent tracker
+  // LEGACY FIELDS (kept for backward compatibility)
   dateOfOccurrence: Timestamp; // When the incident happened
   location: string; // "Street, City, State" - long form text (legacy field)
   city?: string; // City name (structured field)
@@ -233,4 +250,6 @@ export interface TrackerIncident {
   updatedAt?: Timestamp;
   updatedBy?: string; // User ID who last updated
   status: 'active' | 'hidden'; // For moderation
+  // NEW: Custom field data
+  customData?: Record<string, string | number | boolean | Date>; // Dynamic field values based on tracker's customFields
 }

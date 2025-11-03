@@ -10,6 +10,9 @@ import type { Tracker, TrackerIncident, Media } from '../../types/models';
 import { createTracker, getTracker, updateTracker } from '../../services/trackerService';
 import { US_STATES } from '../../utils/states';
 import { addIncident, getIncidents, updateIncident, deleteIncident } from '../../services/trackerService';
+import FieldBuilder from '../../components/tracker/FieldBuilder';
+import DynamicForm from '../../components/tracker/DynamicForm';
+import DynamicTable from '../../components/tracker/DynamicTable';
 
 function generateSlug(name: string): string {
   return name
@@ -33,6 +36,8 @@ export default function CreateEditTrackerPage() {
     isActive: true,
     createdBy: userData?.id || '',
     incidentCount: 0,
+    useCustomFields: false,
+    customFields: [],
   });
 
   // Incidents state
@@ -55,6 +60,9 @@ export default function CreateEditTrackerPage() {
   const [saving, setSaving] = useState(false);
   const [showMediaPicker, setShowMediaPicker] = useState(false);
   const [mediaPickerFor, setMediaPickerFor] = useState<'new' | string>('new');
+  
+  // Custom fields state
+  const [customIncidentData, setCustomIncidentData] = useState<Record<string, string | number | boolean | Date>>({});
 
   // Define callback functions first
   const loadTracker = useCallback(async (trackerId: string) => {
@@ -160,6 +168,48 @@ export default function CreateEditTrackerPage() {
     }
   }
 
+  // Custom field incident handler
+  async function handleAddCustomIncident() {
+    if (!id || !trackerData.customFields?.length) return;
+
+    // Validate required fields
+    const requiredFields = trackerData.customFields.filter(field => field.required);
+    for (const field of requiredFields) {
+      if (!customIncidentData[field.id]) {
+        alert(`${field.name} is required.`);
+        return;
+      }
+    }
+
+    try {
+      const incidentData: Omit<TrackerIncident, 'id' | 'createdAt'> = {
+        trackerId: id,
+        // Legacy fields (required by interface, but not used in custom mode)
+        dateOfOccurrence: Timestamp.fromDate(new Date()),
+        location: '',
+        description: 'Custom field incident',
+        bodyCamAvailable: false,
+        createdBy: userData?.id || '',
+        status: 'active',
+        // Custom data
+        customData: customIncidentData,
+      };
+
+      await addIncident(id, incidentData);
+      setCustomIncidentData({});
+      
+      // Refresh incidents and tracker count
+      loadIncidents(id);
+      const updatedTracker = await getTracker(id);
+      if (updatedTracker) {
+        setTrackerData(updatedTracker);
+      }
+    } catch (error) {
+      console.error('Error adding custom incident:', error);
+      alert('Failed to add incident.');
+    }
+  }
+
   async function handleUpdateIncident(incidentId: string, updates: Partial<TrackerIncident>) {
     try {
       await updateIncident(incidentId, { ...updates, updatedBy: userData?.id });
@@ -201,6 +251,33 @@ export default function CreateEditTrackerPage() {
     } catch (error) {
       console.error('Error saving incident edit:', error);
       alert('Failed to save incident changes.');
+    }
+  }
+
+  // Custom field incident edit handlers
+  async function handleCustomIncidentEdit(incidentId: string, customData: Record<string, string | number | boolean | Date>) {
+    try {
+      await updateIncident(incidentId, { customData, updatedBy: userData?.id });
+      loadIncidents(id!);
+    } catch (error) {
+      console.error('Error updating custom incident:', error);
+      alert('Failed to update incident.');
+    }
+  }
+
+  async function handleCustomIncidentDelete(incidentId: string) {
+    try {
+      await deleteIncident(incidentId);
+      if (id) {
+        loadIncidents(id);
+        const updatedTracker = await getTracker(id);
+        if (updatedTracker) {
+          setTrackerData(updatedTracker);
+        }
+      }
+    } catch (error) {
+      console.error('Error deleting incident:', error);
+      alert('Failed to delete incident.');
     }
   }
 
@@ -282,6 +359,32 @@ export default function CreateEditTrackerPage() {
                 rows={3}
               />
             </div>
+            {/* Custom Fields Toggle */}
+            <div className="border-t pt-4">
+              <label className="flex items-center gap-2 mb-4">
+                <input
+                  type="checkbox"
+                  checked={trackerData.useCustomFields || false}
+                  onChange={(e) => setTrackerData({ 
+                    ...trackerData, 
+                    useCustomFields: e.target.checked,
+                    customFields: e.target.checked ? (trackerData.customFields || []) : []
+                  })}
+                />
+                <span className="text-sm font-medium">Use Custom Fields</span>
+                <span className="text-xs text-gray-500">
+                  (Design your own incident form instead of using the standard fields)
+                </span>
+              </label>
+
+              {trackerData.useCustomFields && (
+                <FieldBuilder
+                  fields={trackerData.customFields || []}
+                  onChange={(fields) => setTrackerData({ ...trackerData, customFields: fields })}
+                />
+              )}
+            </div>
+
             <div className="flex items-center gap-4">
               <label className="flex items-center gap-2">
                 <input
@@ -312,9 +415,34 @@ export default function CreateEditTrackerPage() {
               </h2>
             </div>
 
-            {/* Add New Incident Form */}
-            <div className="border rounded p-4 mb-4 bg-gray-50">
-              <h3 className="font-medium mb-3">Add New Incident</h3>
+            {/* Conditional Rendering: Custom Fields vs Legacy Form */}
+            {trackerData.useCustomFields && trackerData.customFields?.length ? (
+              <>
+                {/* Custom Fields Form */}
+                <div className="border rounded p-4 mb-4 bg-gray-50">
+                  <h3 className="font-medium mb-3">Add New Incident</h3>
+                  <DynamicForm
+                    fields={trackerData.customFields}
+                    data={customIncidentData}
+                    onChange={setCustomIncidentData}
+                    onSubmit={handleAddCustomIncident}
+                    submitLabel="Add Incident"
+                  />
+                </div>
+
+                {/* Custom Fields Table */}
+                <DynamicTable
+                  fields={trackerData.customFields}
+                  incidents={incidents}
+                  onEdit={handleCustomIncidentEdit}
+                  onDelete={handleCustomIncidentDelete}
+                />
+              </>
+            ) : (
+              <>
+                {/* Legacy Add New Incident Form */}
+                <div className="border rounded p-4 mb-4 bg-gray-50">
+                  <h3 className="font-medium mb-3">Add New Incident</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3 mb-3">
                 <div>
                   <label className="block text-sm font-medium mb-1">Date *</label>
@@ -575,6 +703,8 @@ export default function CreateEditTrackerPage() {
                 </tbody>
               </table>
             </div>
+              </>
+            )}
           </div>
         )}
 
