@@ -8,13 +8,15 @@ import type { Tracker } from '../../types/models';
 import { getTrackers, updateTracker, deleteTracker, getIncidents } from '../../services/trackerService';
 import { downloadTrackerCSV, downloadAllTrackersCSV } from '../../utils/helpers';
 import { formatDate } from '../../utils/dateUtils';
+import { hasDownloadAccess } from '../../services/subscriptionService';
 
 export default function TrackersPage() {
-  const { isEditor, isAdmin } = useAuth();
+  const { isEditor, isAdmin, userData } = useAuth();
   const navigate = useNavigate();
   const [trackers, setTrackers] = useState<Tracker[]>([]);
   const [loading, setLoading] = useState(true);
   const [showInactive, setShowInactive] = useState(false);
+  const [canDownload, setCanDownload] = useState(false);
 
   const fetchTrackers = useCallback(async () => {
     setLoading(true);
@@ -27,6 +29,19 @@ export default function TrackersPage() {
       setLoading(false);
     }
   }, [showInactive]);
+
+  // Check download access on component mount and when user data changes
+  useEffect(() => {
+    async function checkDownloadAccess() {
+      if (userData?.id) {
+        const access = await hasDownloadAccess(userData.id, userData.roles);
+        setCanDownload(access);
+      } else {
+        setCanDownload(false);
+      }
+    }
+    checkDownloadAccess();
+  }, [userData]);
 
   useEffect(() => {
     fetchTrackers();
@@ -52,6 +67,11 @@ export default function TrackersPage() {
   }
 
   async function handleDownloadTrackerCSV(tracker: Tracker) {
+    if (!canDownload) {
+      alert('CSV downloads are available to subscribers only. Please subscribe to access this feature.');
+      return;
+    }
+    
     try {
       const incidents = await getIncidents(tracker.id!);
       downloadTrackerCSV(tracker, incidents);
@@ -61,6 +81,11 @@ export default function TrackersPage() {
   }
 
   async function handleDownloadAllCSV() {
+    if (!canDownload) {
+      alert('CSV downloads are available to subscribers only. Please subscribe to access this feature.');
+      return;
+    }
+    
     try {
       await downloadAllTrackersCSV(trackers, getIncidents);
     } catch (error) {
@@ -76,11 +101,16 @@ export default function TrackersPage() {
           <div className="flex gap-3">
             {trackers.length > 0 && (
               <button
-                className="bg-green-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-green-700"
+                className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
+                  canDownload 
+                    ? 'bg-green-600 text-white hover:bg-green-700' 
+                    : 'bg-gray-400 text-gray-700 cursor-not-allowed'
+                }`}
                 onClick={handleDownloadAllCSV}
-                title="Download all tracker data as CSV files"
+                title={canDownload ? "Download all tracker data as CSV files" : "Subscriber feature - CSV downloads available to subscribers only"}
               >
-                <FontAwesomeIcon icon={faDownload} /> Download All CSV
+                <FontAwesomeIcon icon={faDownload} /> 
+                {canDownload ? 'Download All CSV' : 'Download All CSV (Subscribers Only)'}
               </button>
             )}
             {(isEditor() || isAdmin()) && (
@@ -162,9 +192,13 @@ export default function TrackersPage() {
                           <FontAwesomeIcon icon={faEye} />
                         </button>
                         <button
-                          className="text-purple-600 hover:text-purple-800"
+                          className={`${
+                            canDownload 
+                              ? 'text-purple-600 hover:text-purple-800' 
+                              : 'text-gray-400 cursor-not-allowed'
+                          }`}
                           onClick={() => handleDownloadTrackerCSV(tracker)}
-                          title="Download tracker data as CSV"
+                          title={canDownload ? "Download tracker data as CSV" : "Subscriber feature - CSV downloads available to subscribers only"}
                         >
                           <FontAwesomeIcon icon={faDownload} />
                         </button>

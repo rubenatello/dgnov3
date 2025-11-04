@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faMapMarkerAlt, faCalendarAlt, faChartBar, faDownload } from '@fortawesome/free-solid-svg-icons';
-import { getAllTrackers, getIncidents } from '../services/trackerService';
+import { faMapMarkerAlt, faCalendarAlt, faChartBar } from '@fortawesome/free-solid-svg-icons';
+import { getActiveTrackers, getIncidents } from '../services/trackerService';
 import type { Tracker } from '../types/models';
 import { downloadAllTrackersCSV } from '../utils/helpers';
 import { getYear } from '../utils/dateUtils';
+import SubscriberDownloadButton from '../components/SubscriberDownloadButton';
 
 export default function PublicTrackersPage() {
   const [trackers, setTrackers] = useState<Tracker[]>([]);
@@ -17,7 +18,7 @@ export default function PublicTrackersPage() {
 
   async function loadTrackers() {
     try {
-      const allTrackers = await getAllTrackers();
+      const allTrackers = await getActiveTrackers();
       // Only show active trackers to public
       setTrackers(allTrackers.filter((tracker: Tracker) => tracker.isActive));
     } catch (error) {
@@ -59,14 +60,11 @@ export default function PublicTrackersPage() {
           </p>
           {trackers.length > 0 && (
             <div className="mt-6">
-              <button
-                onClick={handleDownloadAllCSV}
-                className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 flex items-center gap-2 mx-auto"
-                title="Download all tracker data as CSV files"
-              >
-                <FontAwesomeIcon icon={faDownload} />
-                Download All Data (CSV)
-              </button>
+              <SubscriberDownloadButton
+                onDownload={handleDownloadAllCSV}
+                label="Download All Data (CSV)"
+                className="mx-auto px-6 py-3 text-lg"
+              />
             </div>
           )}
         </div>

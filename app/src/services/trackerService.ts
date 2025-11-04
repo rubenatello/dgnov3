@@ -59,6 +59,17 @@ export async function getAllTrackers(): Promise<Tracker[]> {
   return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Tracker));
 }
 
+// Public function for guests - only gets active trackers
+export async function getActiveTrackers(): Promise<Tracker[]> {
+  const q = query(
+    collection(db, 'trackers'),
+    where('isActive', '==', true),
+    orderBy('updatedAt', 'desc')
+  );
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Tracker));
+}
+
 export async function updateTracker(id: string, updates: Partial<Tracker>): Promise<void> {
   const cleanedUpdates = removeUndefinedFields({ 
     ...updates, 

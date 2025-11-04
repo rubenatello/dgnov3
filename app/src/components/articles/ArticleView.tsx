@@ -3,15 +3,19 @@ import { useParams, Link } from 'react-router-dom';
 import { getArticleBySlug } from '../../services/articleService';
 import { getMediaById } from '../../services/mediaService';
 import { getUserById } from '../../services/userService';
+import { trackArticleView } from '../../services/analyticsService';
 import type { Article, User } from '../../types/models';
 import { formatDistanceToNow, format } from 'date-fns';
 import { Timestamp } from 'firebase/firestore';
 import LoadingScreen from '../LoadingScreen';
 import { estimateReadingTime } from '../../utils/helpers';
 import { HydrateEmbeds } from '../embeds/article-embed';
+import LikeButton from './LikeButton';
+import { useAuth } from '../../hooks/useAuth';
 
 export default function ArticleView() {
   const { slug } = useParams<{ slug: string }>();
+  const { userData } = useAuth();
   const [article, setArticle] = useState<Article | null>(null);
   const [author, setAuthor] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -32,6 +36,10 @@ export default function ArticleView() {
           setError('Article not found');
         } else {
           setArticle(a);
+          // Track article view
+          if (a.id) {
+            trackArticleView(a.id, userData?.id);
+          }
         }
       })
       .catch(err => setError(String(err)))
@@ -41,7 +49,7 @@ export default function ArticleView() {
         if (remaining > 0) await new Promise(r => setTimeout(r, remaining));
         setLoading(false);
       });
-  }, [slug]);
+  }, [slug, userData?.id]);
 
   // If the article references a media ID but no explicit URL, resolve it once.
   useEffect(() => {
@@ -187,16 +195,32 @@ export default function ArticleView() {
         </div>
       )}
 
-      <div className="mt-8 flex flex-row items-center justify-between">
-         <Link to="/" className="text-accent hover:underline">← Back to home</Link>
-        <button
-          type="button"
-          className="text-accent hover:underline"
-          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-        >
-          ↑ Back to Top
-        </button>
-       
+      {/* Article engagement section */}
+      <div className="mt-8 pt-6 border-t border-gray-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          {article.id && (
+            <LikeButton 
+              articleId={article.id} 
+              initialLikeCount={article.likeCount || 0}
+            />
+          )}
+          <div className="flex items-center gap-2 text-sm text-gray-500">
+            <span>👁 {article.viewCount || 0} views</span>
+            {article.commentCount !== undefined && (
+              <span>💬 {article.commentCount} comments</span>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center gap-4">
+          <Link to="/" className="text-accent hover:underline">← Back to home</Link>
+          <button
+            type="button"
+            className="text-accent hover:underline"
+            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          >
+            ↑ Back to Top
+          </button>
+        </div>
       </div>
     </article>
   );

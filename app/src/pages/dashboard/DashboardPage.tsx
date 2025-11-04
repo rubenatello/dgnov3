@@ -4,6 +4,7 @@ import {collection, query, where, getCountFromServer} from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { useAuth } from '../../hooks/useAuth';
 import DashboardLayout from '../../components/dashboard/DashboardLayout';
+import AnalyticsSetupPanel from '../../components/dashboard/AnalyticsSetupPanel';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faUser,
@@ -109,6 +110,13 @@ export default function DashboardPage() {
             </>
           )}
         </div>
+
+        {/* Analytics Setup Panel - Only for staff */}
+        {isStaff() && (
+          <div className="mb-8">
+            <AnalyticsSetupPanel />
+          </div>
+        )}
 
         {/* Getting Started */}
         <div className="bg-white rounded-lg border border-stone p-6">

@@ -188,6 +188,15 @@ service cloud.firestore {
       allow delete: if isOwner(resource.data.userId);
     }
 
+    // Article Views collection (for analytics)
+    match /articleViews/{viewId} {
+      // Only signed-in users can read view data (for analytics)
+      allow read: if isSignedIn();
+      
+      // Anyone can create view records (for tracking)
+      allow create: if true;
+    }
+
     // Bookmarks collection
     match /bookmarks/{userId}/{articleId} {
       // Users can only access their own bookmarks
@@ -303,10 +312,10 @@ service cloud.firestore {
 
     // Trackers collection
     match /trackers/{trackerId} {
-      // Anyone can read active trackers (for public viewing)
-      allow read: if resource.data.isActive == true;
+      // Anyone (including guests) can read active trackers for public viewing
+      allow read: if resource != null && resource.data.isActive == true;
       
-      // Writers, editors, admins can read all trackers
+      // Writers, editors, admins can read all trackers (active and inactive)
       allow read: if isSignedIn() && isWriter();
       
       // Writers can create trackers
@@ -324,8 +333,9 @@ service cloud.firestore {
 
     // Tracker Incidents collection
     match /trackerIncidents/{incidentId} {
-      // Anyone can read incidents for active trackers
-      allow read: if resource.data.status == 'active';
+      // Anyone (including guests) can read active incidents from active trackers
+      allow read: if resource != null && resource.data.status == 'active' && 
+        get(/databases/$(database)/documents/trackers/$(resource.data.trackerId)).data.isActive == true;
       
       // Writers, editors, admins can read all incidents
       allow read: if isSignedIn() && isWriter();

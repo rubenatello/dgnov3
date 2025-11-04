@@ -1,13 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faMapMarkerAlt, faCalendarAlt, faChartBar, faVideo, faCheck, faTimes, faDownload } from '@fortawesome/free-solid-svg-icons';
-import { getAllTrackers, getIncidents } from '../services/trackerService';
+import { faMapMarkerAlt, faCalendarAlt, faChartBar, faVideo, faCheck, faTimes } from '@fortawesome/free-solid-svg-icons';
+import { getActiveTrackers, getIncidents } from '../services/trackerService';
 import type { Tracker, TrackerIncident } from '../types/models';
 import USStateMap from '../components/USStateMap';
 import ExpandableDescription from '../components/ExpandableDescription';
 import { downloadTrackerCSV } from '../utils/helpers';
 import { formatDate } from '../utils/dateUtils';
+import SubscriberDownloadButton from '../components/SubscriberDownloadButton';
 
 // US State data for map visualization
 const US_STATES = {
@@ -154,7 +155,7 @@ export default function PublicTrackerDetailPage() {
   const loadTrackerData = useCallback(async () => {
     try {
       // Find tracker by slug
-      const allTrackers = await getAllTrackers();
+      const allTrackers = await getActiveTrackers();
       const foundTracker = allTrackers.find(t => t.slug === slug && t.isActive);
       
       if (!foundTracker) {
@@ -508,14 +509,11 @@ export default function PublicTrackerDetailPage() {
                   ({filteredIncidents.length} incidents)
                 </span>
               </h2>
-              <button
-                onClick={() => tracker && downloadTrackerCSV(tracker, incidents)}
-                className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 flex items-center gap-2"
-                title="Download tracker data as CSV"
-              >
-                <FontAwesomeIcon icon={faDownload} />
-                Download CSV
-              </button>
+              <SubscriberDownloadButton
+                onDownload={() => tracker && downloadTrackerCSV(tracker, incidents)}
+                label="Download CSV"
+                className="px-4 py-2"
+              />
             </div>
           </div>
           
