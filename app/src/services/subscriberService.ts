@@ -55,11 +55,35 @@ export async function getSubscriberData(userId: string): Promise<SubscriberData 
   }
 }
 
-// Check if user can download CSV (subscribers only)
+// Check if user is staff member
+export async function isStaffMember(userId: string): Promise<boolean> {
+  try {
+    const userDoc = await getDoc(doc(db, 'users', userId));
+    
+    if (!userDoc.exists()) {
+      return false;
+    }
+    
+    const userData = userDoc.data();
+    return userData.isStaff === true;
+  } catch (error) {
+    console.error('Error checking staff status:', error);
+    return false;
+  }
+}
+
+// Check if user can download CSV (subscribers or staff members)
 export async function canDownloadCSV(userId?: string): Promise<boolean> {
   if (!userId) {
     return false; // Not logged in
   }
   
+  // Check if user is staff first (faster check)
+  const isStaff = await isStaffMember(userId);
+  if (isStaff) {
+    return true;
+  }
+  
+  // If not staff, check if they're an active subscriber
   return await isActiveSubscriber(userId);
 }
