@@ -6,22 +6,29 @@ import { doc, updateDoc, increment, serverTimestamp, setDoc, getDoc, collection,
 // Track article view
 export async function trackArticleView(articleId: string, userId?: string) {
   try {
-    // Increment the view count on the article
-    const articleRef = doc(db, 'articles', articleId);
-    await updateDoc(articleRef, {
-      viewCount: increment(1),
-      lastViewedAt: serverTimestamp()
+    // Always track individual view record (this works for both guests and authenticated users)
+    const viewId = `${articleId}_${userId || 'guest'}_${Date.now()}`;
+    await setDoc(doc(db, 'articleViews', viewId), {
+      articleId,
+      userId: userId || null,
+      viewedAt: serverTimestamp(),
+      timestamp: new Date(),
+      isGuest: !userId
     });
 
-    // Track individual view record for detailed analytics (optional)
+    // Only try to increment the article's view count if user is authenticated
+    // (guests can't update articles collection, only create articleViews records)
     if (userId) {
-      const viewId = `${articleId}_${userId}_${Date.now()}`;
-      await setDoc(doc(db, 'articleViews', viewId), {
-        articleId,
-        userId,
-        viewedAt: serverTimestamp(),
-        timestamp: new Date()
-      });
+      try {
+        const articleRef = doc(db, 'articles', articleId);
+        await updateDoc(articleRef, {
+          viewCount: increment(1),
+          lastViewedAt: serverTimestamp()
+        });
+      } catch (updateError) {
+        console.warn('Could not update article view count (user may not have permission):', updateError);
+        // Don't throw - the view was still tracked in articleViews
+      }
     }
 
     console.log('Article view tracked successfully');
