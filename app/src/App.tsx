@@ -31,29 +31,17 @@ function App() {
     const location = useLocation();
     
     useEffect(() => {
-      // Track page view with a small delay to ensure gtag is loaded
-      const trackPage = () => {
-        try {
-          const path = location.pathname + location.search;
-          console.log('Tracking page view:', path);
-          if (isAnalyticsEnabled()) {
-            trackPageView(path);
-          } else {
-            console.warn('Analytics not enabled yet, retrying in 1s...');
-            // Retry once after 1 second if analytics isn't ready
-            setTimeout(() => {
-              if (isAnalyticsEnabled()) {
-                console.log('Retry tracking page view:', path);
-                trackPageView(path);
-              }
-            }, 1000);
-          }
-        } catch (err) {
-          console.warn('RouteChangeTracker error', err);
+      const path = location.pathname + location.search;
+      console.log('Route changed to:', path);
+      
+      // Small delay to ensure the page has rendered
+      setTimeout(() => {
+        if (isAnalyticsEnabled()) {
+          trackPageView(path);
+        } else {
+          console.warn('Analytics not ready for route:', path);
         }
-      };
-
-      trackPage();
+      }, 100);
     }, [location]);
     
     return null;

@@ -7,20 +7,16 @@ declare global {
   }
 }
 
-function ensureDataLayer() {
-  if (!window.dataLayer) window.dataLayer = [];
-}
-
-function createGtagStub() {
-  ensureDataLayer();
-  window.gtag = function (...rest: unknown[]) {
-    if (!window.dataLayer) window.dataLayer = [];
-    window.dataLayer.push(rest);
+// Initialize dataLayer and gtag function immediately
+function initializeGtag() {
+  window.dataLayer = window.dataLayer || [];
+  window.gtag = function(...args: unknown[]) {
+    window.dataLayer!.push(args);
   };
 }
 
 function scriptElementExists() {
-  return !!document.querySelector(`script[src*="${GA_ID}"]`);
+  return !!document.querySelector(`script[src*="googletagmanager.com/gtag/js"]`);
 }
 
 export async function enableAnalytics(): Promise<void> {
@@ -29,74 +25,47 @@ export async function enableAnalytics(): Promise<void> {
     return;
   }
   
-  if (scriptElementExists() && typeof window.gtag === 'function') {
+  if (scriptElementExists()) {
     console.log('Analytics: Already initialized');
     return;
   }
 
-  console.log('Analytics: Initializing Google Analytics');
-  createGtagStub();
+  console.log('Analytics: Initializing Google Analytics with ID:', GA_ID);
+  
+  // Initialize gtag function immediately
+  initializeGtag();
 
   return new Promise((resolve, reject) => {
-    if (!scriptElementExists()) {
-      const s = document.createElement('script');
-      s.async = true;
-      s.src = `https://www.googletagmanager.com/gtag/js?id=${GA_ID}`;
-      s.onload = () => {
-        try {
-          console.log('Analytics: Script loaded, configuring gtag');
-          window.gtag?.('js', new Date());
-          
-          // Set default consent
-          window.gtag?.('consent', 'default', {
-            analytics_storage: 'granted',
-            ad_storage: 'denied',
-            functionality_storage: 'granted',
-            personalization_storage: 'denied',
-            security_storage: 'granted'
-          });
-          
-          window.gtag?.('config', GA_ID, { 
-            anonymize_ip: true,
-            send_page_view: false // We'll handle page views manually
-          });
-          console.log('Analytics: Configuration complete');
-          resolve();
-        } catch (err) {
-          console.warn('Analytics: gtag init error', err);
-          reject(err);
-        }
-      };
-      s.onerror = () => {
-        console.error('Analytics: Failed to load gtag script');
-        reject(new Error('Failed to load gtag script'));
-      };
-      document.head.appendChild(s);
-    } else {
+    const script = document.createElement('script');
+    script.async = true;
+    script.src = `https://www.googletagmanager.com/gtag/js?id=${GA_ID}`;
+    
+    script.onload = () => {
       try {
-        console.log('Analytics: Script exists, configuring gtag');
-        window.gtag?.('js', new Date());
+        console.log('Analytics: Script loaded, configuring gtag');
         
-        // Set default consent
-        window.gtag?.('consent', 'default', {
-          analytics_storage: 'granted',
-          ad_storage: 'denied',
-          functionality_storage: 'granted',
-          personalization_storage: 'denied',
-          security_storage: 'granted'
+        // Initialize gtag with current timestamp
+        window.gtag!('js', new Date());
+        
+        // Configure GA with your measurement ID
+        window.gtag!('config', GA_ID, {
+          send_page_view: false // We'll send page views manually
         });
         
-        window.gtag?.('config', GA_ID, { 
-          anonymize_ip: true,
-          send_page_view: false
-        });
         console.log('Analytics: Configuration complete');
         resolve();
       } catch (err) {
-        console.warn('Analytics: gtag config error', err);
+        console.error('Analytics: Configuration failed', err);
         reject(err);
       }
-    }
+    };
+    
+    script.onerror = (err) => {
+      console.error('Analytics: Failed to load gtag script', err);
+      reject(new Error('Failed to load gtag script'));
+    };
+    
+    document.head.appendChild(script);
   });
 }
 
@@ -135,17 +104,18 @@ export function trackPageView(path?: string) {
       console.warn('Analytics: gtag not available for page view');
       return;
     }
-    const pagePath = path ?? location.pathname;
+    
+    const pagePath = path ?? window.location.pathname;
     console.log('Analytics: Tracking page view for:', pagePath);
     
-    // Send page view event
+    // Send page view event using the standard method
     window.gtag('event', 'page_view', {
       page_path: pagePath,
       page_location: window.location.href,
       page_title: document.title
     });
   } catch (err) {
-    console.warn('Analytics: trackPageView error', err);
+    console.error('Analytics: trackPageView error', err);
   }
 }
 
@@ -170,7 +140,7 @@ export function disableAnalytics(): void {
 }
 
 export function isAnalyticsEnabled(): boolean {
-  return typeof window !== 'undefined' && typeof window.gtag === 'function' && scriptElementExists();
+  return typeof window !== 'undefined' && typeof window.gtag === 'function';
 }
 
 // Send initial page view - call this after analytics is initialized
