@@ -29,14 +29,33 @@ import PublicTrackerDetailPage from './pages/PublicTrackerDetailPage';
 function App() {
   function RouteChangeTracker() {
     const location = useLocation();
+    
     useEffect(() => {
-      try {
-        if (isAnalyticsEnabled()) trackPageView(location.pathname + location.search);
-      } catch (err) {
-        // non-fatal
-        console.warn('RouteChangeTracker error', err);
-      }
+      // Track page view with a small delay to ensure gtag is loaded
+      const trackPage = () => {
+        try {
+          const path = location.pathname + location.search;
+          console.log('Tracking page view:', path);
+          if (isAnalyticsEnabled()) {
+            trackPageView(path);
+          } else {
+            console.warn('Analytics not enabled yet, retrying in 1s...');
+            // Retry once after 1 second if analytics isn't ready
+            setTimeout(() => {
+              if (isAnalyticsEnabled()) {
+                console.log('Retry tracking page view:', path);
+                trackPageView(path);
+              }
+            }, 1000);
+          }
+        } catch (err) {
+          console.warn('RouteChangeTracker error', err);
+        }
+      };
+
+      trackPage();
     }, [location]);
+    
     return null;
   }
   return (
