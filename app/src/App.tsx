@@ -24,6 +24,7 @@ import TrackersPage from './pages/dashboard/TrackersPage';
 import CreateEditTrackerPage from './pages/dashboard/CreateEditTrackerPage';
 import PublicTrackersPage from './pages/PublicTrackersPage';
 import PublicTrackerDetailPage from './pages/PublicTrackerDetailPage';
+import ReportsPage from './pages/ReportsPage';
 
 
 function App() {
@@ -64,6 +65,8 @@ function App() {
             {/* Tracker public views */}
             <Route path="/trackers" element={<PublicTrackersPage />} />
             <Route path="/tracker/:slug" element={<PublicTrackerDetailPage />} />
+            {/* Reports page */}
+            <Route path="/reports" element={<ReportsPage />} />
             {/* Informational pages that should include site chrome */}
             <Route path="/about" element={<AboutPage />} />
             <Route path="/privacy" element={<PrivacyPolicyPage />} />

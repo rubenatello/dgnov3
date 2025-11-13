@@ -30,6 +30,14 @@ export default function NavMenu() {
 						Trackers
 					</Link>
 					
+					{/* Reports link */}
+					<Link
+						to="/reports"
+						className="text-md font-medium text-inkMuted hover:text-accent hover:underline decoration-blue-100 decoration-2 underline-offset-8 px-4 py-2 rounded-md transition-all duration-200"
+					>
+						Reports
+					</Link>
+					
 					{/* More dropdown for secondary sections */}
 					<div className="relative group">
 						<button className="text-md font-medium text-inkMuted hover:text-accent px-4 py-2 rounded-md transition-all duration-200 flex items-center">

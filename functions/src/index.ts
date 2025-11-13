@@ -224,6 +224,66 @@ export const decrementSubscriberCount = functions
     }
   });
 
+/**
+ * BLS API Proxy Function
+ * Proxies requests to the Bureau of Labor Statistics API to avoid CORS issues
+ * in the frontend. Accepts the same payload as the BLS API v2.0.
+ */
+export const blsProxy = functions
+  .runWith({
+    memory: "256MB",
+    timeoutSeconds: 30,
+  })
+  .https
+  .onRequest(async (req, res) => {
+    // Enable CORS
+    res.set("Access-Control-Allow-Origin", "*");
+    res.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    res.set("Access-Control-Allow-Headers", "Content-Type");
+
+    // Handle preflight OPTIONS request
+    if (req.method === "OPTIONS") {
+      res.status(200).send();
+      return;
+    }
+
+    // Only allow POST requests (BLS API requirement for multiple series)
+    if (req.method !== "POST") {
+      res.status(405).json({error: "Method not allowed. Use POST."});
+      return;
+    }
+
+    try {
+      console.log("Proxying BLS API request:", req.body);
+
+      const blsResponse = await fetch(
+        "https://api.bls.gov/publicAPI/v2/timeseries/data/",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(req.body),
+        }
+      );
+
+      if (!blsResponse.ok) {
+        throw new Error(`BLS API returned ${blsResponse.status}: ${blsResponse.statusText}`);
+      }
+
+      const data = await blsResponse.json();
+      console.log("BLS API response status:", data.status);
+
+      res.json(data);
+    } catch (error) {
+      console.error("BLS Proxy Error:", error);
+      res.status(500).json({
+        error: "Failed to fetch data from BLS API",
+        message: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  });
+
 // Note: Contact sync to SendGrid Marketing API is intentionally omitted here
 // to avoid requiring the @sendgrid/client dependency. For production-grade
 // mailing lists we recommend running a separate sync process (server-side)

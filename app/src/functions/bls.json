@@ -1,0 +1,4 @@
+{
+  "_comment": "This file is no longer used. Data is now fetched directly from the BLS API.",
+  "_note": "You can delete this file if you want, it's kept here as a reference for the expected data structure"
+}
