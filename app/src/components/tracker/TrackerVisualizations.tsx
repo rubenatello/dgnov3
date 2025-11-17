@@ -20,6 +20,32 @@ const CHART_COLORS = [
 ];
 
 export default function TrackerVisualizations({ tracker, incidents, yearFilter }: TrackerVisualizationsProps) {
+  // Helper function to get field value from incident (supports both custom and legacy fields)
+  const getFieldValue = (incident: TrackerIncident, fieldId: string) => {
+    // First check custom data
+    if (incident.customData?.[fieldId] !== undefined) {
+      return incident.customData[fieldId];
+    }
+    
+    // Fallback to legacy fields
+    switch (fieldId) {
+      case 'dateOfOccurrence':
+        return incident.dateOfOccurrence?.toDate();
+      case 'location':
+        return incident.location;
+      case 'city':
+        return incident.city;
+      case 'state':
+        return incident.state;
+      case 'description':
+        return incident.description;
+      case 'bodyCamAvailable':
+        return incident.bodyCamAvailable;
+      default:
+        return undefined;
+    }
+  };
+
   // Filter and sort incidents by year if specified, always sort chronologically
   const filteredIncidents = useMemo(() => {
     let filtered = incidents;
@@ -103,32 +129,6 @@ export default function TrackerVisualizations({ tracker, incidents, yearFilter }
       return dateA.getTime() - dateB.getTime(); // Oldest first
     });
   }, [incidents, yearFilter, tracker.customFields]);
-
-  // Helper function to get field value from incident (supports both custom and legacy fields)
-  const getFieldValue = (incident: TrackerIncident, fieldId: string) => {
-    // First check custom data
-    if (incident.customData?.[fieldId] !== undefined) {
-      return incident.customData[fieldId];
-    }
-    
-    // Fallback to legacy fields
-    switch (fieldId) {
-      case 'dateOfOccurrence':
-        return incident.dateOfOccurrence?.toDate();
-      case 'location':
-        return incident.location;
-      case 'city':
-        return incident.city;
-      case 'state':
-        return incident.state;
-      case 'description':
-        return incident.description;
-      case 'bodyCamAvailable':
-        return incident.bodyCamAvailable;
-      default:
-        return undefined;
-    }
-  };
 
   // Calculate KPI values
   const calculateKPIValue = (kpi: TrackerKPI): string => {
