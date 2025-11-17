@@ -79,7 +79,16 @@ export default function DynamicForm({
           <div className="relative">
             <input
               type="date"
-              value={value instanceof Date ? value.toISOString().split('T')[0] : value as string}
+              value={(() => {
+                if (value instanceof Date) {
+                  // Convert Date to YYYY-MM-DD without timezone issues
+                  const year = value.getFullYear();
+                  const month = String(value.getMonth() + 1).padStart(2, '0');
+                  const day = String(value.getDate()).padStart(2, '0');
+                  return `${year}-${month}-${day}`;
+                }
+                return value as string;
+              })()}
               onChange={(e) => updateValue(field.id, e.target.value)}
               {...commonProps}
             />

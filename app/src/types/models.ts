@@ -216,6 +216,30 @@ export interface TrackerField {
   order: number; // Display order in form
 }
 
+// KPI Card configuration for trackers
+export interface TrackerKPI {
+  id: string; // Unique identifier
+  title: string; // Display title like "Total Boat Strikes"
+  fieldId: string; // Which custom field to calculate from
+  calculation: 'sum' | 'count' | 'average' | 'percentage'; // How to calculate the value
+  color?: string; // Color theme (e.g., "blue", "red", "green")
+  format?: 'number' | 'percentage' | 'currency'; // How to display the result
+  order: number; // Display order
+}
+
+// Chart configuration for trackers
+export interface TrackerChart {
+  id: string; // Unique identifier
+  title: string; // Chart title like "Incidents by Month"
+  type: 'bar' | 'line' | 'pie' | 'area'; // Chart type
+  xAxisField?: string; // Field to use for X-axis (usually date)
+  yAxisField?: string; // Field to calculate for Y-axis
+  groupByField?: string; // Field to group data by
+  calculation: 'sum' | 'count' | 'average'; // How to calculate values
+  timeGrouping?: 'month' | 'quarter' | 'year'; // For date-based grouping
+  order: number; // Display order
+}
+
 // Tracker interface - for tracking specific types of incidents/events
 export interface Tracker {
   id?: string;
@@ -230,6 +254,9 @@ export interface Tracker {
   // NEW: Custom fields support
   useCustomFields?: boolean; // Flag to enable custom fields
   customFields?: TrackerField[]; // Dynamic field definitions
+  // NEW: Visualization configuration
+  kpiCards?: TrackerKPI[]; // KPI cards to display
+  charts?: TrackerChart[]; // Charts to display
 }
 
 // TrackerIncident interface - individual incidents within a tracker

@@ -13,6 +13,7 @@ import { addIncident, getIncidents, updateIncident, deleteIncident } from '../..
 import FieldBuilder from '../../components/tracker/FieldBuilder';
 import DynamicForm from '../../components/tracker/DynamicForm';
 import DynamicTable from '../../components/tracker/DynamicTable';
+import VisualizationBuilder from '../../components/tracker/VisualizationBuilder';
 
 function generateSlug(name: string): string {
   return name
@@ -38,6 +39,8 @@ export default function CreateEditTrackerPage() {
     incidentCount: 0,
     useCustomFields: false,
     customFields: [],
+    kpiCards: [],
+    charts: [],
   });
 
   // Incidents state
@@ -447,10 +450,49 @@ export default function CreateEditTrackerPage() {
               </label>
 
               {trackerData.useCustomFields && (
-                <FieldBuilder
-                  fields={trackerData.customFields || []}
-                  onChange={(fields) => setTrackerData({ ...trackerData, customFields: fields })}
-                />
+                <>
+                  <FieldBuilder
+                    fields={trackerData.customFields || []}
+                    onChange={(fields) => setTrackerData({ ...trackerData, customFields: fields })}
+                  />
+                  
+                  {/* Visualization Builder */}
+                  {trackerData.customFields && trackerData.customFields.length > 0 && (
+                    <div className="mt-6">
+                      <VisualizationBuilder
+                        customFields={trackerData.customFields}
+                        kpiCards={trackerData.kpiCards || []}
+                        charts={trackerData.charts || []}
+                        onKPICardsChange={(kpiCards) => setTrackerData({ ...trackerData, kpiCards })}
+                        onChartsChange={(charts) => setTrackerData({ ...trackerData, charts })}
+                      />
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* Visualization Builder for Legacy Trackers */}
+              {!trackerData.useCustomFields && (
+                <div className="mt-6 border-t pt-6">
+                  <h3 className="text-lg font-semibold mb-4">Configure Visualizations</h3>
+                  <p className="text-sm text-gray-600 mb-4">
+                    Create custom KPI cards and charts using your tracker's standard fields.
+                  </p>
+                  <VisualizationBuilder
+                    customFields={[
+                      { id: 'dateOfOccurrence', name: 'Date of Occurrence', type: 'date', required: true, order: 0 },
+                      { id: 'location', name: 'Location', type: 'text', required: true, order: 1 },
+                      { id: 'city', name: 'City', type: 'text', required: true, order: 2 },
+                      { id: 'state', name: 'State', type: 'text', required: true, order: 3 },
+                      { id: 'description', name: 'Description', type: 'textarea', required: true, order: 4 },
+                      { id: 'bodyCamAvailable', name: 'Body Cam Available', type: 'checkbox', required: false, order: 5 },
+                    ]}
+                    kpiCards={trackerData.kpiCards || []}
+                    charts={trackerData.charts || []}
+                    onKPICardsChange={(kpiCards) => setTrackerData({ ...trackerData, kpiCards })}
+                    onChartsChange={(charts) => setTrackerData({ ...trackerData, charts })}
+                  />
+                </div>
               )}
             </div>
 
@@ -491,7 +533,7 @@ export default function CreateEditTrackerPage() {
                 <div className="border rounded p-4 mb-4 bg-gray-50">
                   <h3 className="font-medium mb-3">Add New Incident</h3>
                   <DynamicForm
-                    fields={trackerData.customFields}
+                    fields={trackerData.customFields || []}
                     data={customIncidentData}
                     onChange={setCustomIncidentData}
                     onSubmit={handleAddCustomIncident}
@@ -501,7 +543,7 @@ export default function CreateEditTrackerPage() {
 
                 {/* Custom Fields Table */}
                 <DynamicTable
-                  fields={trackerData.customFields}
+                  fields={trackerData.customFields || []}
                   incidents={incidents}
                   onEdit={handleCustomIncidentEdit}
                   onDelete={handleCustomIncidentDelete}
@@ -517,11 +559,24 @@ export default function CreateEditTrackerPage() {
                   <label className="block text-sm font-medium mb-1">Date *</label>
                   <input
                     type="date"
-                    value={newIncident.dateOfOccurrence?.toDate().toISOString().split('T')[0] || ''}
-                    onChange={(e) => setNewIncident({ 
-                      ...newIncident, 
-                      dateOfOccurrence: Timestamp.fromDate(new Date(e.target.value + 'T12:00:00')) 
-                    })}
+                    value={(() => {
+                      const date = newIncident.dateOfOccurrence?.toDate();
+                      if (date) {
+                        const year = date.getFullYear();
+                        const month = String(date.getMonth() + 1).padStart(2, '0');
+                        const day = String(date.getDate()).padStart(2, '0');
+                        return `${year}-${month}-${day}`;
+                      }
+                      return '';
+                    })()}
+                    onChange={(e) => {
+                      const [year, month, day] = e.target.value.split('-').map(Number);
+                      const date = new Date(year, month - 1, day, 12, 0, 0); // Create date at noon local time
+                      setNewIncident({ 
+                        ...newIncident, 
+                        dateOfOccurrence: Timestamp.fromDate(date)
+                      });
+                    }}
                     className="w-full border rounded px-3 py-2 text-sm"
                     required
                   />
@@ -639,7 +694,16 @@ export default function CreateEditTrackerPage() {
                           {isEditing ? (
                             <input
                               type="date"
-                              defaultValue={incident.dateOfOccurrence?.toDate().toISOString().split('T')[0]}
+                              defaultValue={(() => {
+                                const date = incident.dateOfOccurrence?.toDate();
+                                if (date) {
+                                  const year = date.getFullYear();
+                                  const month = String(date.getMonth() + 1).padStart(2, '0');
+                                  const day = String(date.getDate()).padStart(2, '0');
+                                  return `${year}-${month}-${day}`;
+                                }
+                                return '';
+                              })()}
                               className="w-full border rounded px-2 py-1 text-xs"
                               onBlur={(e) => {
                                 if (e.target.value) {
