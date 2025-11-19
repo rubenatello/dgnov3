@@ -2,13 +2,20 @@
 import { useState } from 'react'
 import DonationModal from '../components/modals/DonationModal'
 import SubscribeModal from '../components/modals/SubscribeModal'
+import SEOHead from '../components/SEOHead'
 
 export default function AboutPage() {
   const [isDonationOpen, setDonationOpen] = useState(false)
   const [isSubscribeOpen, setSubscribeOpen] = useState(false)
   return (
     <div className="bg-white">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <SEOHead
+        title="About DGNO - Independent, Pro-Democracy News"
+        description="Learn about DGNO's mission to deliver independent journalism with integrity. Our commitment to democracy, anti-corruption reporting, and community service."
+        url="https://dgno.us/about"
+      />
+      <main>
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           
           {/* Hero Section */}
           <div className="text-center mb-12">
@@ -160,6 +167,7 @@ export default function AboutPage() {
           <SubscribeModal open={isSubscribeOpen} onClose={() => setSubscribeOpen(false)} />
           
         </div>
-      </div>
+      </main>
+    </div>
   );
 }

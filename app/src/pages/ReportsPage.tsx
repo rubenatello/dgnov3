@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import SEOHead from '../components/SEOHead';
 
 type ChartType = 'line' | 'bar';
 
@@ -187,6 +188,11 @@ const ReportsPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <SEOHead
+        title="BLS Jobs Report - Economic Data & Analysis | DGNO"
+        description="Interactive Bureau of Labor Statistics employment data visualization. Track unemployment rates, job growth, labor participation, wages, and economic trends over time."
+        url="https://dgno.us/reports"
+      />
       <div className="max-w-7xl mx-auto px-4 py-8">
         {/* Header */}
         <div className="mb-8">

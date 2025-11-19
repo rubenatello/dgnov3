@@ -7,6 +7,7 @@ import type { Tracker } from '../types/models';
 import { downloadAllTrackersCSV } from '../utils/helpers';
 import { getYear } from '../utils/dateUtils';
 import SubscriberDownloadButton from '../components/SubscriberDownloadButton';
+import SEOHead from '../components/SEOHead';
 
 export default function PublicTrackersPage() {
   const [trackers, setTrackers] = useState<Tracker[]>([]);
@@ -48,6 +49,11 @@ export default function PublicTrackersPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <SEOHead
+        title="Incident Trackers - DGNO"
+        description="Comprehensive tracking and analysis of critical incidents across the United States. Geographic analysis, temporal tracking, and detailed data with statistical insights."
+        url="https://dgno.us/trackers"
+      />
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="text-center mb-12">

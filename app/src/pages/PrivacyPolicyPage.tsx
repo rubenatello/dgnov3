@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { disableAnalytics } from '../lib/analytics';
 import useToast from '../hooks/useToast';
+import SEOHead from '../components/SEOHead';
 
 const AS_OF = 'October 23, 2025';
 
@@ -34,6 +35,11 @@ export default function PrivacyPolicyPage() {
 
   return (
     <div className="bg-white">
+      <SEOHead
+        title="Privacy Policy - DGNO"
+        description="DGNO's privacy policy explains how we collect, use, and protect your personal information. Learn about cookies, data sharing, and your privacy rights."
+        url="https://dgno.us/privacy"
+      />
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           
           {/* Header */}
