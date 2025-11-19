@@ -16,7 +16,7 @@ const Layout: React.FC = () => {
       {!isArticlePage && (
         <SEOHead
           title="DGNO - Independent, Pro-Democracy and Anti-Corruption News"
-          description="Independent journalism focused on democracy, anti-corruption investigations, and accountability. Breaking news, in-depth analysis, and tracker data on government transparency."
+          description="Politics • Immigration • Legislation • Foreign Affairs • Economy • White House • Courts • Congress • Human Rights • Environment • Business • Tech • Finance • Opinion • Sports • Fact-Check • Health • Science • Trackers"
           url={`https://dgno.us${location.pathname}`}
         />
       )}
