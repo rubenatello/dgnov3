@@ -12,6 +12,7 @@ import { estimateReadingTime } from '../../utils/helpers';
 import { HydrateEmbeds } from '../embeds/article-embed';
 import LikeButton from './LikeButton';
 import { useAuth } from '../../hooks/useAuth';
+import SEOHead from '../SEOHead';
 
 export default function ArticleView() {
   const { slug } = useParams<{ slug: string }>();
@@ -101,8 +102,21 @@ export default function ArticleView() {
     : null;
 
   return (
-    <article className="max-w-4xl mx-auto p-6">
-      <h1 className="text-3xl font-bold mb-2">{article.title}</h1>
+    <>
+      <SEOHead
+        title={`${article.title} | DGNO`}
+        description={article.summary || article.subtitle || `${article.title} - Independent journalism from DGNO`}
+        image={article.featuredImageUrl || resolvedImageUrl || 'https://dgno.us/og-image.png'}
+        url={`https://dgno.us/article/${slug}`}
+        type="article"
+        publishedTime={publishedAt?.toISOString()}
+        modifiedTime={lastUpdatedAt?.toISOString()}
+        author={article.authorName || author?.displayName || 'DGNO Editorial Team'}
+        section={article.section}
+        tags={tags}
+      />
+      <article className="max-w-4xl mx-auto p-6">
+        <h1 className="text-3xl font-bold mb-2">{article.title}</h1>
 
       {article.subtitle && (
         <h2 className="text-xl text-gray-700 mb-4">{article.subtitle}</h2>
@@ -223,5 +237,6 @@ export default function ArticleView() {
         </div>
       </div>
     </article>
+    </>
   );
 }

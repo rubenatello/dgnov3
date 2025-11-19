@@ -49,7 +49,10 @@ export async function enableAnalytics(): Promise<void> {
         
         // Configure GA with your measurement ID
         window.gtag!('config', GA_ID, {
-          send_page_view: false // We'll send page views manually
+          send_page_view: false, // We'll send page views manually
+          debug_mode: true, // Enable debug mode for better visibility
+          page_title: document.title,
+          page_location: window.location.href
         });
         
         console.log('Analytics: Configuration complete');
@@ -87,11 +90,43 @@ export function trackEvent(action: string, params?: Record<string, unknown>) {
       console.warn('Analytics: gtag not available for event:', action);
       return;
     }
-    console.log('Analytics: Tracking event:', action, params);
-    window.gtag('event', action, params || {});
+    
+    const enhancedParams = {
+      ...params,
+      send_to: GA_ID,
+      timestamp_micros: Date.now() * 1000
+    };
+    
+    console.log('Analytics: Tracking event:', action, enhancedParams);
+    window.gtag('event', action, enhancedParams);
   } catch (err) {
     console.warn('Analytics: trackEvent error', err);
   }
+}
+
+// Add specific tracking functions for better analytics
+export function trackArticleView(articleId: string, articleTitle: string) {
+  trackEvent('article_view', {
+    article_id: articleId,
+    article_title: articleTitle,
+    content_type: 'article'
+  });
+}
+
+export function trackArticleLike(articleId: string, articleTitle: string) {
+  trackEvent('article_like', {
+    article_id: articleId,
+    article_title: articleTitle,
+    engagement_type: 'like'
+  });
+}
+
+export function trackTrackerView(trackerId: string, trackerName: string) {
+  trackEvent('tracker_view', {
+    tracker_id: trackerId,
+    tracker_name: trackerName,
+    content_type: 'tracker'
+  });
 }
 
 export function trackSearchEvent(term: string, resultsCount: number) {
@@ -108,10 +143,18 @@ export function trackPageView(path?: string) {
     const pagePath = path ?? window.location.pathname;
     console.log('Analytics: Tracking page view for:', pagePath);
     
-    // Send page view event using the standard method
+    // Send page view event using the standard method with enhanced data
     window.gtag('event', 'page_view', {
       page_path: pagePath,
       page_location: window.location.href,
+      page_title: document.title,
+      page_referrer: document.referrer || '(direct)',
+      send_to: GA_ID
+    });
+    
+    // Also send as a config update for better tracking
+    window.gtag('config', GA_ID, {
+      page_path: pagePath,
       page_title: document.title
     });
   } catch (err) {
