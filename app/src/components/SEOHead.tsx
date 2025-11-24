@@ -16,7 +16,7 @@ interface SEOHeadProps {
 export default function SEOHead({
   title = 'DGNO - Independent, Pro-Democracy and Anti-Corruption News',
   description = 'Politics • Immigration • Legislation • Foreign Affairs • Economy • White House • Courts • Congress • Human Rights • Environment • Business • Tech • Finance • Opinion • Sports • Fact-Check • Health • Science • Trackers',
-  image = 'https://dgno.us/og-image.png',
+  image = 'https://dgno.us/favicon.png',
   url = 'https://dgno.us/',
   type = 'website',
   publishedTime,
@@ -138,7 +138,7 @@ export default function SEOHead({
           "url": "https://dgno.us",
           "logo": {
             "@type": "ImageObject",
-            "url": "https://dgno.us/og-image.png"
+            "url": "https://dgno.us/favicon.png"
           }
         },
         "mainEntityOfPage": {

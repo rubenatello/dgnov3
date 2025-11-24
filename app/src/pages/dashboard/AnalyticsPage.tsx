@@ -476,7 +476,7 @@ export default function AnalyticsPage() {
                     <tr key={index} className="hover:bg-gray-50">
                       <td className="px-3 py-4 text-sm text-gray-900 max-w-xs">
                         <Link 
-                          to={`/articles/${article.slug}`} 
+                          to={`/article/${article.slug}`} 
                           className="text-blue-600 hover:text-blue-800 hover:underline truncate block"
                           title={article.title}
                         >

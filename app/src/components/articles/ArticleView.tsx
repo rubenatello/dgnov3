@@ -111,7 +111,7 @@ export default function ArticleView() {
       <SEOHead
         title={`${article.title} | DGNO`}
         description={article.summary || article.subtitle || `${article.title} - Independent journalism from DGNO`}
-        image={article.featuredImageUrl || resolvedImageUrl || 'https://dgno.us/og-image.png'}
+        image={article.featuredImageUrl || resolvedImageUrl || 'https://dgno.us/favicon.png'}
         url={canonicalUrl}
         type="article"
         publishedTime={publishedAt?.toISOString()}
