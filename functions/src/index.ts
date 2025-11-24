@@ -284,6 +284,164 @@ export const blsProxy = functions
     }
   });
 
+/**
+ * Generate and serve dynamic sitemap for SEO
+ * Accessible at https://your-domain.com/sitemap.xml
+ */
+export const sitemap = functions.https.onRequest(async (req, res) => {
+  try {
+    // Set appropriate headers for XML
+    res.set("Content-Type", "application/xml");
+    res.set("Cache-Control", "public, max-age=3600"); // Cache for 1 hour
+
+    const db = admin.firestore();
+    const articlesRef = db.collection("articles");
+    
+    // Query only published and active articles
+    const snapshot = await articlesRef
+      .where("status", "==", "published")
+      .where("isActive", "==", true)
+      .get();
+
+    const baseUrl = "https://dgno.us";
+    
+    // Start XML sitemap
+    let sitemap = '<?xml version="1.0" encoding="UTF-8"?>\n';
+    sitemap += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n';
+    
+    // Add homepage
+    sitemap += "  <url>\n";
+    sitemap += `    <loc>${baseUrl}/</loc>\n`;
+    sitemap += "    <changefreq>daily</changefreq>\n";
+    sitemap += "    <priority>1.0</priority>\n";
+    sitemap += "  </url>\n";
+    
+    // Add article pages
+    snapshot.forEach((doc) => {
+      const article = doc.data();
+      if (!article.slug) return;
+      
+      const url = `${baseUrl}/article/${article.slug}`;
+      const lastmod = article.lastUpdatedAt 
+        ? new Date(article.lastUpdatedAt.toMillis()).toISOString()
+        : new Date().toISOString();
+      
+      sitemap += "  <url>\n";
+      sitemap += `    <loc>${url}</loc>\n`;
+      sitemap += `    <lastmod>${lastmod}</lastmod>\n`;
+      sitemap += "    <changefreq>weekly</changefreq>\n";
+      sitemap += "    <priority>0.8</priority>\n";
+      sitemap += "  </url>\n";
+    });
+    
+    // Add static pages
+    const staticPages = [
+      { path: "/about", priority: "0.7" },
+      { path: "/privacy", priority: "0.5" },
+      { path: "/trackers", priority: "0.8" },
+      { path: "/reports", priority: "0.8" },
+    ];
+    
+    staticPages.forEach((page) => {
+      sitemap += "  <url>\n";
+      sitemap += `    <loc>${baseUrl}${page.path}</loc>\n`;
+      sitemap += "    <changefreq>monthly</changefreq>\n";
+      sitemap += `    <priority>${page.priority}</priority>\n`;
+      sitemap += "  </url>\n";
+    });
+    
+    sitemap += "</urlset>";
+    
+    res.status(200).send(sitemap);
+  } catch (error) {
+    console.error("Sitemap generation error:", error);
+    res.status(500).send("Error generating sitemap");
+  }
+});
+
+/**
+ * One-time migration function to fix article slugs
+ * Call this HTTPS endpoint once to migrate all article slugs
+ * 
+ * Usage: 
+ * curl -X POST https://us-central1-dgno-675a8.cloudfunctions.net/migrateArticleSlugs
+ * 
+ * For security, you may want to add authentication or remove after running
+ */
+export const migrateArticleSlugs = functions.https.onRequest(async (req, res) => {
+  try {
+    // Optional: Add simple authentication
+    // const authHeader = req.headers.authorization;
+    // if (authHeader !== "Bearer YOUR_SECRET_TOKEN") {
+    //   res.status(401).send("Unauthorized");
+    //   return;
+    // }
+
+    console.log("Starting article slug migration...");
+    
+    const db = admin.firestore();
+    const articlesRef = db.collection("articles");
+    const snapshot = await articlesRef.get();
+    
+    let updated = 0;
+    let skipped = 0;
+    const errors: string[] = [];
+    const updatedArticles: Array<{old: string; new: string; title: string}> = [];
+    
+    for (const docSnap of snapshot.docs) {
+      const article = docSnap.data();
+      const articleId = docSnap.id;
+      
+      // Check if slug needs migration
+      if (article.slug?.startsWith("articles/")) {
+        try {
+          // Remove 'articles/' prefix
+          const oldSlug = article.slug;
+          const newSlug = article.slug.replace("articles/", "");
+          
+          await docSnap.ref.update({
+            slug: newSlug,
+          });
+          
+          updated++;
+          updatedArticles.push({
+            old: oldSlug,
+            new: newSlug,
+            title: article.title || "No title",
+          });
+          console.log(`Migrated: ${oldSlug} -> ${newSlug}`);
+        } catch (error) {
+          errors.push(`${articleId}: ${error}`);
+          console.error(`Error migrating article ${articleId}:`, error);
+        }
+      } else {
+        skipped++;
+      }
+    }
+    
+    const result = {
+      success: true,
+      summary: {
+        total: snapshot.size,
+        updated,
+        skipped,
+        errors: errors.length,
+      },
+      updatedArticles: updatedArticles.slice(0, 10), // Show first 10
+      errors: errors.slice(0, 5), // Show first 5 errors
+    };
+    
+    console.log("Migration complete:", result.summary);
+    res.status(200).json(result);
+  } catch (error) {
+    console.error("Migration failed:", error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+});
+
 // Note: Contact sync to SendGrid Marketing API is intentionally omitted here
 // to avoid requiring the @sendgrid/client dependency. For production-grade
 // mailing lists we recommend running a separate sync process (server-side)

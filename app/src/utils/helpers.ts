@@ -87,7 +87,8 @@ export function getSidebarArticles(articles: Article[], excludeIds: string[] = [
 
 /**
  * Generate a URL-friendly slug from a title
- * Format: articles/YYYY/MM/DD/article-title-here
+ * Format: YYYY/MM/DD/article-title-here (without 'articles/' prefix)
+ * Routes expect /article/:yyyy/:mm/:dd/:slug pattern
  */
 export function generateSlug(title: string, date?: Date): string {
   const publishDate = date || new Date();
@@ -102,7 +103,7 @@ export function generateSlug(title: string, date?: Date): string {
     .replace(/--+/g, '-') // Replace multiple hyphens with single
     .trim();
   
-  return `articles/${year}/${month}/${day}/${titleSlug}`;
+  return `${year}/${month}/${day}/${titleSlug}`;
 }
 
 /**

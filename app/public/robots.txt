@@ -1,0 +1,13 @@
+# Allow all search engines to crawl all content
+User-agent: *
+Allow: /
+
+# Disallow crawling of admin/dashboard areas
+Disallow: /dashboard/
+Disallow: /login
+
+# Sitemap location (update this once sitemap is generated)
+Sitemap: https://dgno.us/sitemap.xml
+
+# Crawl-delay for respectful crawling (optional)
+Crawl-delay: 1

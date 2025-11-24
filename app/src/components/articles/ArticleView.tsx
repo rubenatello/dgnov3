@@ -101,13 +101,18 @@ export default function ArticleView() {
           : new Date(String(_lastVal)))
     : null;
 
+  // Construct canonical URL from article slug
+  const canonicalUrl = article.slug 
+    ? `https://dgno.us/article/${article.slug}`
+    : `https://dgno.us/article/${slug}`;
+
   return (
     <>
       <SEOHead
         title={`${article.title} | DGNO`}
         description={article.summary || article.subtitle || `${article.title} - Independent journalism from DGNO`}
         image={article.featuredImageUrl || resolvedImageUrl || 'https://dgno.us/og-image.png'}
-        url={`https://dgno.us/article/${slug}`}
+        url={canonicalUrl}
         type="article"
         publishedTime={publishedAt?.toISOString()}
         modifiedTime={lastUpdatedAt?.toISOString()}

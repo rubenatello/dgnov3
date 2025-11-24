@@ -11,7 +11,7 @@ export default function AboutPage() {
     <div className="bg-white">
       <SEOHead
         title="About DGNO - Independent, Pro-Democracy News"
-        description="Learn about DGNO's mission to deliver independent journalism with integrity. Our commitment to democracy, anti-corruption reporting, and community service."
+        description="Learn about DGNO's mission to deliver independent journalism and news with integrity. Our commitment to democracy, anti-corruption reporting, and delivering information that calls out the corruption on all sides."
         url="https://dgno.us/about"
       />
       <main>
