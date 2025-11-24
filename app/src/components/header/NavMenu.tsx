@@ -16,7 +16,7 @@ export default function NavMenu() {
 						<Link
 							key={section}
 							to={`/articles/${section.toLowerCase().replace(/\s+/g, '-')}`}
-							className="text-md font-medium text-inkMuted hover:text-accent hover:underline decoration-blue-100 decoration-2 underline-offset-8 px-4 py-2 rounded-md transition-all duration-200"
+							className="text-md font-regular text-inkMuted hover:text-accent hover:underline decoration-blue-100 decoration-2 underline-offset-8 px-2 py-2 rounded-md transition-all duration-200"
 						>
 							{section}
 						</Link>
@@ -25,7 +25,7 @@ export default function NavMenu() {
 					{/* Trackers link */}
 					<Link
 						to="/trackers"
-						className="text-md font-medium text-inkMuted hover:text-accent hover:underline decoration-blue-100 decoration-2 underline-offset-8 px-4 py-2 rounded-md transition-all duration-200"
+						className="text-md font-bold text-accent hover:text-accent hover:underline decoration-blue-100 decoration-2 underline-offset-8 px-2 py-2 rounded-md transition-all duration-200"
 					>
 						Trackers
 					</Link>
@@ -33,7 +33,7 @@ export default function NavMenu() {
 					{/* Reports link */}
 					<Link
 						to="/reports"
-						className="text-md font-medium text-inkMuted hover:text-accent hover:underline decoration-blue-100 decoration-2 underline-offset-8 px-4 py-2 rounded-md transition-all duration-200"
+						className="text-md font-bold text-accent hover:text-accent hover:underline decoration-blue-100 decoration-2 underline-offset-8 px-2 py-2 rounded-md transition-all duration-200"
 					>
 						Reports
 					</Link>
@@ -54,7 +54,7 @@ export default function NavMenu() {
 									<Link
 										key={section}
 										to={`/articles/${section.toLowerCase().replace(/\s+/g, '-')}`}
-										className="block px-4 py-2 text-md text-inkMuted hover:text-accent hover:underline decoration-blue-100 decoration-2 underline-offset-8 transition-colors duration-200"
+										className="block px-4 py-2 text-md font-regular text-inkMuted hover:text-accent hover:underline decoration-blue-100 decoration-2 underline-offset-8 transition-colors duration-200"
 									>
 										{section}
 									</Link>

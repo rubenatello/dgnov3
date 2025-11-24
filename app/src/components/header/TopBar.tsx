@@ -53,7 +53,7 @@ export default function TopBar() {
 							{/* Donate Button */}
 							<button 
 								onClick={() => setDonationModalOpen(true)}
-								className="text-xs lg:text-sm px-3 lg:px-4 py-1.5 bg-accent text-white rounded-full hover:bg-accent/90 hover:shadow-lg transition-all duration-200 font-medium"
+								className="text-xs lg:text-sm px-3 lg:px-4 py-1.5 bg-tracker text-white rounded-full hover:bg-tracker/90 hover:shadow-lg transition-all duration-200 font-medium"
 							>
 								Donate
 							</button>
