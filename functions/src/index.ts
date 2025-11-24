@@ -297,10 +297,10 @@ export const sitemap = functions.https.onRequest(async (req, res) => {
     const db = admin.firestore();
     const articlesRef = db.collection("articles");
     
-    // Query only published and active articles
+    // Query only published articles
+    // Note: Not all articles may have isActive field, so only filter by status
     const snapshot = await articlesRef
       .where("status", "==", "published")
-      .where("isActive", "==", true)
       .get();
 
     const baseUrl = "https://dgno.us";
