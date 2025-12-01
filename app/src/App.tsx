@@ -35,14 +35,9 @@ function App() {
       const path = location.pathname + location.search;
       console.log('Route changed to:', path);
       
-      // Small delay to ensure the page has rendered
-      setTimeout(() => {
-        if (isAnalyticsEnabled()) {
-          trackPageView(path);
-        } else {
-          console.warn('Analytics not ready for route:', path);
-        }
-      }, 100);
+      if (isAnalyticsEnabled()) {
+        trackPageView(path);
+      }
     }, [location]);
     
     return null;

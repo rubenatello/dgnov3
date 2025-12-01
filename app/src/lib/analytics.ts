@@ -7,12 +7,31 @@ declare global {
   }
 }
 
-// Initialize dataLayer and gtag function immediately
-function initializeGtag() {
+// Initialize consent mode and gtag BEFORE any script loads
+// This must be called immediately on page load
+export function initializeConsentMode() {
+  if (typeof window === 'undefined') return;
+  
+  // Initialize dataLayer if not already present
   window.dataLayer = window.dataLayer || [];
-  window.gtag = function(...args: unknown[]) {
-    window.dataLayer!.push(args);
-  };
+  
+  // Create gtag function if not already present
+  if (!window.gtag) {
+    window.gtag = function(...args: unknown[]) {
+      window.dataLayer!.push(args);
+    };
+  }
+  
+  // Set default consent to denied (GDPR compliant)
+  window.gtag('consent', 'default', {
+    'analytics_storage': 'denied',
+    'ad_storage': 'denied',
+    'ad_user_data': 'denied',
+    'ad_personalization': 'denied',
+    'wait_for_update': 500
+  });
+  
+  console.log('Analytics: Consent mode initialized with default denied');
 }
 
 function scriptElementExists() {
@@ -30,10 +49,7 @@ export async function enableAnalytics(): Promise<void> {
     return;
   }
 
-  console.log('Analytics: Initializing Google Analytics with ID:', GA_ID);
-  
-  // Initialize gtag function immediately
-  initializeGtag();
+  console.log('Analytics: Loading Google Analytics script');
 
   return new Promise((resolve, reject) => {
     const script = document.createElement('script');
@@ -49,13 +65,12 @@ export async function enableAnalytics(): Promise<void> {
         
         // Configure GA with your measurement ID
         window.gtag!('config', GA_ID, {
-          send_page_view: false, // We'll send page views manually
-          debug_mode: true, // Enable debug mode for better visibility
-          page_title: document.title,
-          page_location: window.location.href
+          send_page_view: true, // Enable automatic page views
+          cookie_flags: 'SameSite=None;Secure',
+          anonymize_ip: true // Privacy friendly
         });
         
-        console.log('Analytics: Configuration complete');
+        console.log('Analytics: Configuration complete, ready to track');
         resolve();
       } catch (err) {
         console.error('Analytics: Configuration failed', err);
@@ -73,14 +88,26 @@ export async function enableAnalytics(): Promise<void> {
 }
 
 export function updateConsent({ analyticsGranted, adGranted }: { analyticsGranted: boolean; adGranted: boolean; }) {
-  if (typeof window === 'undefined' || !window.gtag) return;
+  if (typeof window === 'undefined' || !window.gtag) {
+    console.warn('Analytics: gtag not available for consent update');
+    return;
+  }
   try {
+    console.log('Analytics: Updating consent -', { analyticsGranted, adGranted });
     window.gtag('consent', 'update', {
-      analytics_storage: analyticsGranted ? 'granted' : 'denied',
-      ad_storage: adGranted ? 'granted' : 'denied',
+      'analytics_storage': analyticsGranted ? 'granted' : 'denied',
+      'ad_storage': adGranted ? 'granted' : 'denied',
+      'ad_user_data': adGranted ? 'granted' : 'denied',
+      'ad_personalization': adGranted ? 'granted' : 'denied'
     });
+    
+    // Send a page view after consent is granted to start tracking
+    if (analyticsGranted) {
+      console.log('Analytics: Consent granted, sending initial page view');
+      trackPageView();
+    }
   } catch (e) {
-    console.warn('updateConsent error', e);
+    console.warn('Analytics: updateConsent error', e);
   }
 }
 
@@ -140,22 +167,14 @@ export function trackPageView(path?: string) {
       return;
     }
     
-    const pagePath = path ?? window.location.pathname;
+    const pagePath = path ?? window.location.pathname + window.location.search;
     console.log('Analytics: Tracking page view for:', pagePath);
     
-    // Send page view event using the standard method with enhanced data
-    window.gtag('event', 'page_view', {
-      page_path: pagePath,
-      page_location: window.location.href,
-      page_title: document.title,
-      page_referrer: document.referrer || '(direct)',
-      send_to: GA_ID
-    });
-    
-    // Also send as a config update for better tracking
+    // Send as config update for proper page view tracking
     window.gtag('config', GA_ID, {
       page_path: pagePath,
-      page_title: document.title
+      page_title: document.title,
+      page_location: window.location.href
     });
   } catch (err) {
     console.error('Analytics: trackPageView error', err);
@@ -186,15 +205,8 @@ export function isAnalyticsEnabled(): boolean {
   return typeof window !== 'undefined' && typeof window.gtag === 'function';
 }
 
-// Send initial page view - call this after analytics is initialized
-export function sendInitialPageView(): void {
-  if (isAnalyticsEnabled()) {
-    console.log('Analytics: Sending initial page view');
-    trackPageView(window.location.pathname + window.location.search);
-  }
-}
-
 export default {
+  initializeConsentMode,
   enableAnalytics,
   disableAnalytics,
   updateConsent,

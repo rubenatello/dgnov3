@@ -1,26 +1,17 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { enableAnalytics } from './lib/analytics.ts'
+import { initializeConsentMode } from './lib/analytics.ts'
 import './index.css'
 import App from './App.tsx'
 
-// Initialize analytics before rendering the app
-enableAnalytics().then(() => {
-  console.log('Google Analytics initialized successfully');
-  
-  // Now render the app
-  createRoot(document.getElementById('root')!).render(
-    <StrictMode>
-      <App />
-    </StrictMode>,
-  );
-}).catch((err) => {
-  console.error('Google Analytics initialization failed:', err);
-  
-  // Still render the app even if analytics fails
-  createRoot(document.getElementById('root')!).render(
-    <StrictMode>
-      <App />
-    </StrictMode>,
-  );
-});
+// Initialize consent mode FIRST (before any tracking)
+// This sets default consent to 'denied' for GDPR compliance
+initializeConsentMode();
+
+// Render the app immediately
+// Analytics script will only load after user gives consent via Cookie Banner
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <App />
+  </StrictMode>,
+);
