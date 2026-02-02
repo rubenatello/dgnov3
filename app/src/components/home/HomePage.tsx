@@ -14,6 +14,8 @@ import {
   getLatestArticles,
   getSidebarArticles,
 } from '../../utils/helpers';
+import SEOHead from '../SEOHead';
+import { SEO_CONFIG } from '../../utils/seoConstants';
 
 export default function HomePage() {
   const [articles, setArticles] = useState<Article[]>([]);
@@ -34,6 +36,25 @@ export default function HomePage() {
     })();
   }, []);
 
+  // Add Organization structured data for homepage
+  useEffect(() => {
+    const existingOrgSchema = document.querySelector('script[type="application/ld+json"][data-schema="organization"]');
+    if (existingOrgSchema) {
+      existingOrgSchema.remove();
+    }
+
+    const script = document.createElement('script');
+    script.type = 'application/ld+json';
+    script.setAttribute('data-schema', 'organization');
+    script.textContent = JSON.stringify(SEO_CONFIG.organization);
+    document.head.appendChild(script);
+
+    return () => {
+      const cleanup = document.querySelector('script[type="application/ld+json"][data-schema="organization"]');
+      if (cleanup) cleanup.remove();
+    };
+  }, []);
+
 
   // Article selection with better logic
   const featured = getFeaturedArticle(articles);
@@ -48,7 +69,16 @@ export default function HomePage() {
   const sidebarArticles = getSidebarArticles(articles, excludeIds, 6);
 
   return (
-    <div className="min-h-screen bg-white">
+    <>
+      <SEOHead
+        title={SEO_CONFIG.defaultTitle}
+        description={SEO_CONFIG.defaultDescription}
+        url={SEO_CONFIG.siteUrl}
+        type="website"
+        tags={SEO_CONFIG.coreKeywords}
+      />
+
+      <div className="min-h-screen bg-white">
       {/* Loading and Error States */}
       {loading && <LoadingScreen message="Loading articles…" />}
       {error && (
@@ -168,6 +198,7 @@ export default function HomePage() {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 }

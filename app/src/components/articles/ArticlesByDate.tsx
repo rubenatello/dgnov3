@@ -6,6 +6,9 @@ import type { Article } from '../../types/models';
 import ArticleCard from './ArticleCard';
 import LoadingScreen from '../LoadingScreen';
 import { useNavigate } from 'react-router-dom';
+import SEOHead from '../SEOHead';
+import { SEO_CONFIG, buildBreadcrumbSchema } from '../../utils/seoConstants';
+import { format } from 'date-fns';
 
 const PAGE_SIZE = 10;
 
@@ -57,9 +60,49 @@ export default function ArticlesByDate() {
     setLoading(false);
   }
 
-  return (
+  // Prepare SEO metadata
+  const dateObj = new Date(Number(year), Number(month) - 1, Number(day));
+  const formattedDate = format(dateObj, 'MMMM d, yyyy');
+  const dateTitle = `News from ${formattedDate} | DGNO`;
+  const dateDescription = `Browse all articles published on ${formattedDate}. Data-driven, independent news coverage from DGNO.`;
+  const dateUrl = `${SEO_CONFIG.siteUrl}/article/${year}/${month}/${day}`;
 
-    <div className="max-w-4xl mx-auto px-4 py-8">
+  // Add breadcrumb schema to page
+  useEffect(() => {
+    const breadcrumbs = buildBreadcrumbSchema([
+      { name: 'Home', url: SEO_CONFIG.siteUrl },
+      { name: 'Archives', url: `${SEO_CONFIG.siteUrl}/article/${year}/${month}/${day}` },
+      { name: formattedDate, url: dateUrl }
+    ]);
+
+    const existingBreadcrumb = document.querySelector('script[type="application/ld+json"][data-schema="breadcrumb"]');
+    if (existingBreadcrumb) {
+      existingBreadcrumb.remove();
+    }
+
+    const script = document.createElement('script');
+    script.type = 'application/ld+json';
+    script.setAttribute('data-schema', 'breadcrumb');
+    script.textContent = JSON.stringify(breadcrumbs);
+    document.head.appendChild(script);
+
+    return () => {
+      const cleanup = document.querySelector('script[type="application/ld+json"][data-schema="breadcrumb"]');
+      if (cleanup) cleanup.remove();
+    };
+  }, [year, month, day, formattedDate, dateUrl]);
+
+  return (
+    <>
+      <SEOHead
+        title={dateTitle}
+        description={dateDescription}
+        url={dateUrl}
+        type="website"
+        tags={SEO_CONFIG.coreKeywords}
+      />
+
+      <div className="max-w-4xl mx-auto px-4 py-8">
        <h1 className="text-center font-heading font-bold text-2xl md:text-4xl mb-8 py-4 bg-gradient-to-r from-accent/10 via-white to-accent/10 rounded shadow italic">
         Articles published on <span className="text-accent">{year}-{month}-{day}</span>
       </h1>
@@ -103,6 +146,7 @@ export default function ArticlesByDate() {
           )}
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 }

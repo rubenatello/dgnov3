@@ -4,6 +4,7 @@ import Header from '../header/Header';
 import Footer from '../footer/Footer';
 import CookieConsentBanner from '../CookieConsentBanner';
 import SEOHead from '../SEOHead';
+import { SEO_CONFIG } from '../../utils/seoConstants';
 
 const Layout: React.FC = () => {
   const location = useLocation();
@@ -15,9 +16,11 @@ const Layout: React.FC = () => {
     <div className="min-h-screen flex flex-col">
       {!isArticlePage && (
         <SEOHead
-          title="DGNO - Independent, Pro-Democracy and Anti-Corruption News"
-          description="Politics • Immigration • Legislation • Foreign Affairs • Economy • White House • Courts • Congress • Human Rights • Environment • Business • Tech • Finance • Opinion • Sports • Fact-Check • Health • Science • Trackers"
+          title={SEO_CONFIG.defaultTitle}
+          description={SEO_CONFIG.defaultDescription}
           url={`https://dgno.us${location.pathname}`}
+          tags={SEO_CONFIG.coreKeywords}
+          includeOrganization={true}
         />
       )}
       <Header />

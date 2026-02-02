@@ -1,6 +1,7 @@
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import type { Article } from '../types/models';
+import { SECTION_MAP } from '../components/SectionMapping';
 
 /**
  * Generate an XML sitemap for all published articles
@@ -49,7 +50,16 @@ export async function generateSitemap(): Promise<string> {
     sitemap += `    <priority>0.8</priority>\n`;
     sitemap += '  </url>\n';
   }
-  
+
+  // Add section pages
+  for (const [slug] of Object.entries(SECTION_MAP)) {
+    sitemap += '  <url>\n';
+    sitemap += `    <loc>${baseUrl}/articles/${slug}</loc>\n`;
+    sitemap += `    <changefreq>daily</changefreq>\n`;
+    sitemap += `    <priority>0.9</priority>\n`;
+    sitemap += '  </url>\n';
+  }
+
   // Add static pages
   const staticPages = [
     { path: '/about', priority: '0.7' },

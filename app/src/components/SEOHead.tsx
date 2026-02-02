@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { buildKeywords, SEO_CONFIG } from '../utils/seoConstants';
 
 interface SEOHeadProps {
   title?: string;
@@ -11,6 +12,7 @@ interface SEOHeadProps {
   author?: string;
   section?: string;
   tags?: string[];
+  includeOrganization?: boolean;
 }
 
 export default function SEOHead({
@@ -23,7 +25,8 @@ export default function SEOHead({
   modifiedTime,
   author,
   section,
-  tags = []
+  tags = [],
+  includeOrganization = false
 }: SEOHeadProps) {
   
   useEffect(() => {
@@ -64,11 +67,9 @@ export default function SEOHead({
     updateMeta('meta[name="title"]', title);
     updateMeta('meta[name="description"]', description);
     
-    // Update keywords if tags are provided
-    if (tags.length > 0) {
-      const keywords = tags.join(', ') + ', independent news, democracy, anti-corruption, government accountability';
-      updateMeta('meta[name="keywords"]', keywords);
-    }
+    // Update keywords - combine article tags with core keywords
+    const keywords = buildKeywords(tags);
+    updateMeta('meta[name="keywords"]', keywords);
     
     // Update Open Graph tags
     updateMeta('meta[property="og:title"]', title);
@@ -76,7 +77,12 @@ export default function SEOHead({
     updateMeta('meta[property="og:image"]', image);
     updateMeta('meta[property="og:url"]', url);
     updateMeta('meta[property="og:type"]', type);
-    
+
+    // Add image dimensions for better social media previews
+    updateMeta('meta[property="og:image:width"]', '1200');
+    updateMeta('meta[property="og:image:height"]', '630');
+    updateMeta('meta[property="og:image:type"]', 'image/png');
+
     // Update Twitter tags
     updateMeta('meta[property="twitter:title"]', title);
     updateMeta('meta[property="twitter:description"]', description);
@@ -154,8 +160,28 @@ export default function SEOHead({
       script.textContent = JSON.stringify(structuredData);
       document.head.appendChild(script);
     }
-    
-  }, [title, description, image, url, type, publishedTime, modifiedTime, author, section, tags]);
+
+    // Add Organization schema if requested
+    if (includeOrganization) {
+      const existingOrgSchema = document.querySelector('script[type="application/ld+json"][data-schema="organization"]');
+      if (existingOrgSchema) {
+        existingOrgSchema.remove();
+      }
+
+      const orgScript = document.createElement('script');
+      orgScript.type = 'application/ld+json';
+      orgScript.setAttribute('data-schema', 'organization');
+      orgScript.textContent = JSON.stringify(SEO_CONFIG.organization);
+      document.head.appendChild(orgScript);
+    }
+
+    // Cleanup function
+    return () => {
+      const orgCleanup = document.querySelector('script[type="application/ld+json"][data-schema="organization"]');
+      if (orgCleanup) orgCleanup.remove();
+    };
+
+  }, [title, description, image, url, type, publishedTime, modifiedTime, author, section, tags, includeOrganization]);
   
   return null; // This component doesn't render anything
 }

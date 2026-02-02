@@ -5,6 +5,8 @@ import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore
 import { db } from '../../config/firebase';
 import ArticleCard from './ArticleCard';
 import type { Article as ArticleModel } from '../../types/models';
+import SEOHead from '../SEOHead';
+import { SEO_CONFIG, buildBreadcrumbSchema } from '../../utils/seoConstants';
 
 export default function ArticlesSection() {
 	const { section } = useParams<{ section: string }>();
@@ -57,8 +59,50 @@ export default function ArticlesSection() {
 			if (section) fetchArticles();
 		}, [section]);
 
+	// Prepare SEO metadata
+	const sectionName = SECTION_MAP[section || ''] || section || 'News';
+	const sectionTitle = `${sectionName} News - Data-Driven Coverage | DGNO`;
+	const sectionDescription = `Latest ${sectionName.toLowerCase()} news and analysis. Data-driven, independent, pro-democracy coverage of ${sectionName.toLowerCase()} issues from DGNO.`;
+	const sectionUrl = `${SEO_CONFIG.siteUrl}/articles/${section}`;
+	const sectionKeywords = [sectionName.toLowerCase(), ...SEO_CONFIG.coreKeywords];
+
+	// Add breadcrumb schema to page
+	useEffect(() => {
+		if (!section) return;
+
+		const breadcrumbs = buildBreadcrumbSchema([
+			{ name: 'Home', url: SEO_CONFIG.siteUrl },
+			{ name: sectionName, url: sectionUrl }
+		]);
+
+		const existingBreadcrumb = document.querySelector('script[type="application/ld+json"][data-schema="breadcrumb"]');
+		if (existingBreadcrumb) {
+			existingBreadcrumb.remove();
+		}
+
+		const script = document.createElement('script');
+		script.type = 'application/ld+json';
+		script.setAttribute('data-schema', 'breadcrumb');
+		script.textContent = JSON.stringify(breadcrumbs);
+		document.head.appendChild(script);
+
+		return () => {
+			const cleanup = document.querySelector('script[type="application/ld+json"][data-schema="breadcrumb"]');
+			if (cleanup) cleanup.remove();
+		};
+	}, [section, sectionName, sectionUrl]);
+
 	return (
-		<main className="max-w-5xl mx-auto px-4 py-8 min-h-[60vh]">
+		<>
+			<SEOHead
+				title={sectionTitle}
+				description={sectionDescription}
+				url={sectionUrl}
+				type="website"
+				tags={sectionKeywords}
+			/>
+
+			<main className="max-w-5xl mx-auto px-4 py-8 min-h-[60vh]">
 			<h1 className="font-heading font-bold text-3xl text-ink mb-6 uppercase ">{SECTION_MAP[section || ''] || section}</h1>
 			{loading ? (
 				<div className="text-inkMuted">Loading articles...</div>
@@ -71,7 +115,8 @@ export default function ArticlesSection() {
 					))}
 				</div>
 			)}
-		</main>
+			</main>
+		</>
 	);
 }
 

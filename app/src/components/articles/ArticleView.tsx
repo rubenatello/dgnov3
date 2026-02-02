@@ -13,6 +13,7 @@ import { HydrateEmbeds } from '../embeds/article-embed';
 import LikeButton from './LikeButton';
 import { useAuth } from '../../hooks/useAuth';
 import SEOHead from '../SEOHead';
+import { SEO_CONFIG, buildBreadcrumbSchema } from '../../utils/seoConstants';
 
 export default function ArticleView() {
   const { slug } = useParams<{ slug: string }>();
@@ -78,6 +79,37 @@ export default function ArticleView() {
   })();
 }, [article?.authorId]);
 
+  // Add breadcrumb structured data
+  useEffect(() => {
+    if (!article) return;
+
+    const canonicalUrl = article.slug
+      ? `https://dgno.us/article/${article.slug}`
+      : `https://dgno.us/article/${slug}`;
+
+    const breadcrumbs = buildBreadcrumbSchema([
+      { name: 'Home', url: SEO_CONFIG.siteUrl },
+      { name: article.section || 'News', url: `${SEO_CONFIG.siteUrl}/articles/${article.section?.toLowerCase().replace(/ /g, '-')}` },
+      { name: article.title, url: canonicalUrl }
+    ]);
+
+    const existingBreadcrumb = document.querySelector('script[type="application/ld+json"][data-schema="breadcrumb"]');
+    if (existingBreadcrumb) {
+      existingBreadcrumb.remove();
+    }
+
+    const script = document.createElement('script');
+    script.type = 'application/ld+json';
+    script.setAttribute('data-schema', 'breadcrumb');
+    script.textContent = JSON.stringify(breadcrumbs);
+    document.head.appendChild(script);
+
+    return () => {
+      const cleanup = document.querySelector('script[type="application/ld+json"][data-schema="breadcrumb"]');
+      if (cleanup) cleanup.remove();
+    };
+  }, [article, slug]);
+
   if (loading) return <LoadingScreen message="Loading article…" />;
   if (error) return <div className="p-8 text-red-600">{error}</div>;
   if (!article) return <div className="p-8">No article</div>;
@@ -102,7 +134,7 @@ export default function ArticleView() {
     : null;
 
   // Construct canonical URL from article slug
-  const canonicalUrl = article.slug 
+  const canonicalUrl = article.slug
     ? `https://dgno.us/article/${article.slug}`
     : `https://dgno.us/article/${slug}`;
 
@@ -131,7 +163,7 @@ export default function ArticleView() {
   <div className="mb-6 text-center relative group">
     <img
       src={article.featuredImageUrl || resolvedImageUrl || '/default-image.png'}
-      alt={article.title}
+      alt={article.featuredImageDescription || article.title}
       className="mx-auto max-w-full h-auto transition duration-300 group-hover:brightness-75 group-hover:scale-100"
       style={{ display: 'block' }}
     />
