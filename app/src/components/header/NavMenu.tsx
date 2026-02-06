@@ -11,12 +11,12 @@ export default function NavMenu() {
 			{/* Desktop Navigation Only - Mobile handled by MobileHeader */}
 			<nav className="flex items-center">
 				{/* Primary sections */}
-				<div className="flex items-center space-x-1">
+				<div className="flex items-center space-x-0.5">
 					{primarySections.map((section) => (
 						<Link
 							key={section}
 							to={`/articles/${section.toLowerCase().replace(/\s+/g, '-')}`}
-							className="text-md font-regular text-inkMuted hover:text-accent hover:underline decoration-blue-100 decoration-2 underline-offset-8 px-2 py-2 rounded-md transition-all duration-200"
+							className="text-sm font-regular text-inkMuted hover:text-accent hover:underline decoration-blue-100 decoration-2 underline-offset-8 px-2 py-1.5 rounded-md transition-all duration-200"
 						>
 							{section}
 						</Link>
@@ -25,7 +25,7 @@ export default function NavMenu() {
 					{/* Trackers link */}
 					<Link
 						to="/trackers"
-						className="text-md font-bold text-accent hover:text-accent hover:underline decoration-blue-100 decoration-2 underline-offset-8 px-2 py-2 rounded-md transition-all duration-200"
+						className="text-sm font-bold text-accent hover:text-accent hover:underline decoration-blue-100 decoration-2 underline-offset-8 px-2 py-1.5 rounded-md transition-all duration-200"
 					>
 						Trackers
 					</Link>
@@ -33,14 +33,22 @@ export default function NavMenu() {
 					{/* Reports link */}
 					<Link
 						to="/reports"
-						className="text-md font-bold text-accent hover:text-accent hover:underline decoration-blue-100 decoration-2 underline-offset-8 px-2 py-2 rounded-md transition-all duration-200"
+						className="text-sm font-bold text-accent hover:text-accent hover:underline decoration-blue-100 decoration-2 underline-offset-8 px-2 py-1.5 rounded-md transition-all duration-200"
 					>
 						Reports
 					</Link>
 					
+					{/* Investigations board link */}
+					<Link
+						to="/investigations/epstein-files"
+						className="text-sm font-bold text-accent hover:text-accent hover:underline decoration-blue-100 decoration-2 underline-offset-8 px-2 py-1.5 rounded-md transition-all duration-200"
+					>
+						Investigations
+					</Link>
+					
 					{/* More dropdown for secondary sections */}
 					<div className="relative group">
-						<button className="text-md font-medium text-inkMuted hover:text-accent px-4 py-2 rounded-md transition-all duration-200 flex items-center">
+						<button className="text-sm font-medium text-inkMuted hover:text-accent px-3 py-1.5 rounded-md transition-all duration-200 flex items-center">
 							More
 							<svg className="ml-1 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 								<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -54,7 +62,7 @@ export default function NavMenu() {
 									<Link
 										key={section}
 										to={`/articles/${section.toLowerCase().replace(/\s+/g, '-')}`}
-										className="block px-4 py-2 text-md font-regular text-inkMuted hover:text-accent hover:underline decoration-blue-100 decoration-2 underline-offset-8 transition-colors duration-200"
+										className="block px-3 py-1.5 text-sm font-regular text-inkMuted hover:text-accent hover:underline decoration-blue-100 decoration-2 underline-offset-8 transition-colors duration-200"
 									>
 										{section}
 									</Link>

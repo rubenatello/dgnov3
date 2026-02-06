@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { FontAwesomeIcon as Icon } from '@fortawesome/react-fontawesome';
-import { faChartLine, faPlay, faCog } from '@fortawesome/free-solid-svg-icons';
+import { faChartLine, faPlay, faCog, faCheck, faExclamationTriangle, faRocket, faDatabase } from '@fortawesome/free-solid-svg-icons';
 import { setupAnalytics, setupDemoData, fullAnalyticsSetup } from '../../utils/analyticsSetup';
 
 export default function AnalyticsSetupPanel() {
@@ -131,93 +131,153 @@ export default function AnalyticsSetupPanel() {
   };
 
   return (
-    <div className="bg-white p-6 rounded-lg shadow">
-      <div className="flex items-center gap-3 mb-4">
-        <Icon icon={faChartLine} className="text-blue-600 text-xl" />
-        <h2 className="text-xl font-semibold">Analytics Setup</h2>
-      </div>
-      
-      <div className="bg-blue-50 border border-blue-200 rounded-md p-4 mb-6">
-        <p className="text-blue-800 font-medium mb-2">📊 Choose Your Analytics Setup:</p>
-        <div className="text-sm text-blue-700 space-y-1">
-          <p><strong>🏁 Clean Setup:</strong> Initialize analytics with 0 counts (for production)</p>
-          <p><strong>🎲 Setup + Demo Data:</strong> Initialize with random counts (for testing)</p>
+    <div className="bg-white rounded-xl border border-stone overflow-hidden">
+      {/* Header */}
+      <div className="px-6 py-4 border-b border-stone bg-gradient-to-r from-blue-50 to-purple-50">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-blue-500 flex items-center justify-center">
+            <Icon icon={faChartLine} className="text-white text-lg" />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold text-ink">Analytics Setup</h2>
+            <p className="text-sm text-inkMuted">Configure tracking for your articles</p>
+          </div>
         </div>
       </div>
 
-      <div className="space-y-3">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+      <div className="p-6 space-y-6">
+        {/* Info Box */}
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+          <div className="flex gap-3">
+            <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
+              <Icon icon={faDatabase} className="text-blue-600 text-sm" />
+            </div>
+            <div>
+              <p className="text-blue-800 font-medium text-sm mb-1">Choose Your Setup Mode</p>
+              <div className="text-xs text-blue-700 space-y-1">
+                <p><strong>🏁 Clean Setup:</strong> Initialize with real 0 counts (production)</p>
+                <p><strong>🎲 Demo Data:</strong> Add random counts for testing</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Main Action Buttons */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <button
             onClick={handleFullSetupClean}
             disabled={isLoading}
-            className="bg-green-600 text-white px-4 py-3 rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-medium"
+            className="group relative overflow-hidden bg-gradient-to-r from-green-500 to-emerald-600 text-white p-5 rounded-xl hover:from-green-600 hover:to-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm hover:shadow-lg"
           >
-            <Icon icon={faChartLine} />
-            {isLoading ? 'Setting Up...' : '🏁 Clean Setup (Production)'}
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                <Icon icon={faRocket} className="text-xl" />
+              </div>
+              <div className="text-left">
+                <p className="font-bold">Clean Setup</p>
+                <p className="text-sm text-white/80">For production use</p>
+              </div>
+            </div>
           </button>
 
           <button
             onClick={handleFullSetupWithDemoData}
             disabled={isLoading}
-            className="bg-orange-600 text-white px-4 py-3 rounded-md hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-medium"
+            className="group relative overflow-hidden bg-gradient-to-r from-orange-500 to-amber-600 text-white p-5 rounded-xl hover:from-orange-600 hover:to-amber-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm hover:shadow-lg"
           >
-            <Icon icon={faPlay} />
-            {isLoading ? 'Setting Up...' : '🎲 Setup + Demo Data'}
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                <Icon icon={faPlay} className="text-xl" />
+              </div>
+              <div className="text-left">
+                <p className="font-bold">Demo Setup</p>
+                <p className="text-sm text-white/80">With sample data</p>
+              </div>
+            </div>
           </button>
         </div>
 
-        <div className="border-t pt-3 mt-4">
-          <p className="text-sm text-gray-600 mb-3 font-medium">Advanced Options:</p>
-          <div className="space-y-2">
+        {/* Advanced Options - Collapsible Style */}
+        <details className="group">
+          <summary className="flex items-center gap-2 cursor-pointer text-sm font-medium text-inkMuted hover:text-ink transition-colors list-none">
+            <Icon icon={faCog} className="group-open:rotate-90 transition-transform" />
+            Advanced Options
+            <div className="flex-1 h-px bg-stone ml-2" />
+          </summary>
+          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
             <button
               onClick={handleInitialize}
               disabled={isLoading}
-              className="w-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm"
+              className="flex items-center gap-3 p-3 bg-stone/30 hover:bg-stone/50 rounded-lg text-sm font-medium text-ink disabled:opacity-50 transition-colors"
             >
-              <Icon icon={faCog} />
-              {isLoading ? 'Initializing...' : 'Initialize Only (No Demo Data)'}
+              <Icon icon={faCog} className="text-inkMuted" />
+              Initialize Only
             </button>
 
             <button
               onClick={handleAddDemoData}
               disabled={isLoading}
-              className="w-full bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm"
+              className="flex items-center gap-3 p-3 bg-stone/30 hover:bg-stone/50 rounded-lg text-sm font-medium text-ink disabled:opacity-50 transition-colors"
             >
-              <Icon icon={faPlay} />
-              {isLoading ? 'Adding Demo Data...' : 'Add Demo Data Only'}
+              <Icon icon={faPlay} className="text-inkMuted" />
+              Add Demo Data Only
             </button>
           </div>
-        </div>
-      </div>
+        </details>
 
-      {result && (
-        <div className={`mt-4 p-3 rounded-md ${
-          result.success 
-            ? 'bg-green-50 text-green-800 border border-green-200' 
-            : 'bg-red-50 text-red-800 border border-red-200'
-        }`}>
-          <p className="text-sm font-medium">
-            {result.success ? '✅ Success!' : '❌ Error'}
-          </p>
-          <p className="text-sm">{result.message}</p>
-          {result.success && (
-            <p className="text-xs mt-2 text-green-600">
-              💡 Visit your Analytics page to see the results!
-            </p>
-          )}
-        </div>
-      )}
+        {/* Result Message */}
+        {result && (
+          <div className={`flex items-start gap-3 p-4 rounded-xl ${
+            result.success 
+              ? 'bg-green-50 border border-green-200' 
+              : 'bg-red-50 border border-red-200'
+          }`}>
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
+              result.success ? 'bg-green-100' : 'bg-red-100'
+            }`}>
+              <Icon 
+                icon={result.success ? faCheck : faExclamationTriangle} 
+                className={result.success ? 'text-green-600' : 'text-red-600'} 
+              />
+            </div>
+            <div>
+              <p className={`font-medium text-sm ${result.success ? 'text-green-800' : 'text-red-800'}`}>
+                {result.success ? 'Success!' : 'Error'}
+              </p>
+              <p className={`text-sm ${result.success ? 'text-green-700' : 'text-red-700'}`}>
+                {result.message}
+              </p>
+              {result.success && (
+                <a href="/dashboard/analytics" className="inline-flex items-center gap-1 text-xs text-green-600 font-medium mt-2 hover:underline">
+                  View Analytics Dashboard →
+                </a>
+              )}
+            </div>
+          </div>
+        )}
 
-      <div className="mt-4 p-3 bg-gray-50 rounded-md">
-        <p className="text-xs text-gray-600">
-          <strong>What this does:</strong>
-        </p>
-        <ul className="text-xs text-gray-600 mt-1 space-y-1">
-          <li>• Initializes viewCount and likeCount fields for existing articles</li>
-          <li>• Enables real-time view tracking when users visit articles</li>
-          <li>• Adds like buttons to articles for user engagement</li>
-          <li>• Populates your analytics dashboard with data</li>
-        </ul>
+        {/* What This Does */}
+        <div className="bg-stone/20 rounded-xl p-4">
+          <p className="text-xs font-medium text-inkMuted mb-2">What this does:</p>
+          <ul className="text-xs text-inkMuted space-y-1.5">
+            <li className="flex items-center gap-2">
+              <span className="w-1 h-1 rounded-full bg-inkMuted" />
+              Initializes viewCount and likeCount fields for existing articles
+            </li>
+            <li className="flex items-center gap-2">
+              <span className="w-1 h-1 rounded-full bg-inkMuted" />
+              Enables real-time view tracking when users visit articles
+            </li>
+            <li className="flex items-center gap-2">
+              <span className="w-1 h-1 rounded-full bg-inkMuted" />
+              Adds like buttons to articles for user engagement
+            </li>
+            <li className="flex items-center gap-2">
+              <span className="w-1 h-1 rounded-full bg-inkMuted" />
+              Populates your analytics dashboard with data
+            </li>
+          </ul>
+        </div>
       </div>
     </div>
   );

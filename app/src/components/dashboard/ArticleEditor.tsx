@@ -357,33 +357,38 @@ export function ArticleEditor({ content, onChange }: ArticleEditorProps) {
   return (
     <div className="article-editor-wrapper">
       <EditorContext.Provider value={{ editor }}>
-        <Toolbar
-          ref={toolbarRef}
-          className="tiptap-toolbar"
-          style={{
-            ...(isMobile ? { bottom: `calc(100% - ${height - rect.y}px)` } : {}),
-          }}
-        >
-          {mobileView === 'main' ? (
-            <MainToolbarContent
-              onHighlighterClick={() => setMobileView('highlighter')}
-              onLinkClick={() => setMobileView('link')}
-              isMobile={isMobile}
-              onAddClick={() => setPickerOpen(true)}
-              onSizeSmall={() => setSize('small')}
-              onSizeMedium={() => setSize('medium')}
-              onSizeLarge={() => setSize('large')}
-              onWidthAuto={setWidthAuto}
-              onEmbedPost={handleEmbedPost}
-              onEmbedCode={handleEmbedCode}
-            />
-          ) : (
-            <MobileToolbarContent
-              type={mobileView === 'highlighter' ? 'highlighter' : 'link'}
-              onBack={() => setMobileView('main')}
-            />
-          )}
-        </Toolbar>
+        {/* Sticky Toolbar Container - Hidden when modal is open */}
+        {!pickerOpen && (
+          <div className="article-editor-toolbar-container">
+            <Toolbar
+              ref={toolbarRef}
+              className="tiptap-toolbar"
+              style={{
+                ...(isMobile ? { bottom: `calc(100% - ${height - rect.y}px)` } : {}),
+              }}
+            >
+              {mobileView === 'main' ? (
+                <MainToolbarContent
+                  onHighlighterClick={() => setMobileView('highlighter')}
+                  onLinkClick={() => setMobileView('link')}
+                  isMobile={isMobile}
+                  onAddClick={() => setPickerOpen(true)}
+                  onSizeSmall={() => setSize('small')}
+                  onSizeMedium={() => setSize('medium')}
+                  onSizeLarge={() => setSize('large')}
+                  onWidthAuto={setWidthAuto}
+                  onEmbedPost={handleEmbedPost}
+                  onEmbedCode={handleEmbedCode}
+                />
+              ) : (
+                <MobileToolbarContent
+                  type={mobileView === 'highlighter' ? 'highlighter' : 'link'}
+                  onBack={() => setMobileView('main')}
+                />
+              )}
+            </Toolbar>
+          </div>
+        )}
 
         {/* Media Picker modal used to select/upload images to insert */}
         <MediaPicker
@@ -392,7 +397,10 @@ export function ArticleEditor({ content, onChange }: ArticleEditorProps) {
           onSelect={(m: Media, size: 'small' | 'medium' | 'large' = 'medium') => handleInsertMedia(m, size)}
         />
 
-        <EditorContent editor={editor} role="presentation" className="article-editor-content" />
+        {/* Scrollable Content Container */}
+        <div className="article-editor-content-container">
+          <EditorContent editor={editor} role="presentation" className="article-editor-content" />
+        </div>
       </EditorContext.Provider>
     </div>
   )

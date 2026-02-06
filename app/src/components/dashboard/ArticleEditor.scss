@@ -88,22 +88,48 @@
   width: 100%;
   margin-left: auto;
   margin-right: auto;
-  max-width: 1200px; /* default max width on desktop */
-  padding-left: 1rem;
-  padding-right: 1rem;
+  max-width: 100%; /* use full width */
+  display: flex;
+  flex-direction: column;
+}
+
+/* Sticky toolbar container */
+.article-editor-toolbar-container {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: white;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+/* Scrollable content area */
+.article-editor-content-container {
+  flex: 1;
+  overflow-y: auto;
+  max-height: 65vh; /* allows scrolling within the editor */
+  min-height: 300px;
 }
 
 @media (min-width: 1400px) {
-  .article-editor-wrapper { max-width: 1400px; }
+  .article-editor-wrapper { max-width: 100%; }
 }
 
 /* Give the editor content area more vertical space by default */
 .article-editor-content {
-  min-height: 240px; /* default taller editing area */
+  min-height: 300px; /* taller editing area */
+  padding: 1rem;
 }
 
 /* Ensure add-media button in toolbar is visible */
 .tiptap-add-media {
   opacity: 1 !important;
   color: inherit;
+}
+
+/* Toolbar styling */
+.article-editor-wrapper .tiptap-toolbar {
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  padding: 0.5rem;
+  background: #fafafa;
 }

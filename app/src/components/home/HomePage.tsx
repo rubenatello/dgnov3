@@ -114,13 +114,14 @@ export default function HomePage() {
             <main className="lg:col-span-3">
               {/* Top Stories */}
               {topStories.length > 0 && (
-                <section className="mb-8 sm:mb-12">
-                  <div className="border-b-2 border-accent pb-2 mb-6">
+                <section className="mb-10 sm:mb-14">
+                  <div className="flex items-center gap-4 border-b-2 border-accent pb-3 mb-6">
                     <h2 className="text-xl sm:text-2xl font-bold text-ink uppercase tracking-wide">
                       Top Stories
                     </h2>
+                    <div className="flex-1 h-px bg-gradient-to-r from-accent/20 to-transparent" />
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     {topStories.map((article) => (
                       <ArticleCard key={article.id} article={article} variant="secondary" />
                     ))}
@@ -161,12 +162,13 @@ export default function HomePage() {
 
             {/* Sidebar */}
             <aside className="lg:col-span-1">
-              <div className="lg:sticky lg:top-8 space-y-8">
+              <div className="lg:sticky lg:top-24 space-y-8">
                 {/* Trending */}
                 {trendingArticles.length > 0 && (
                   <section>
-                    <div className="border-b-2 border-accent pb-2 mb-4">
-                      <h2 className="text-lg font-bold text-ink uppercase tracking-wide">
+                    <div className="flex items-center gap-2 border-b-2 border-accent pb-2 mb-4">
+                      <span className="text-lg">🔥</span>
+                      <h2 className="text-base font-bold text-ink uppercase tracking-wide">
                         Trending
                       </h2>
                     </div>
@@ -181,8 +183,9 @@ export default function HomePage() {
                 {/* Most Read */}
                 {sidebarArticles.length > 0 && (
                   <section>
-                    <div className="border-b-2 border-accent pb-2 mb-4">
-                      <h2 className="text-lg font-bold text-ink uppercase tracking-wide">
+                    <div className="flex items-center gap-2 border-b-2 border-accent pb-2 mb-4">
+                      <span className="text-lg">📈</span>
+                      <h2 className="text-base font-bold text-ink uppercase tracking-wide">
                         Most Read
                       </h2>
                     </div>

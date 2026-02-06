@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { getArticleBySlug } from '../../services/articleService';
+import { getArticleBySlug, getRelatedArticles } from '../../services/articleService';
 import { getMediaById } from '../../services/mediaService';
 import { getUserById } from '../../services/userService';
 import { trackArticleView } from '../../services/analyticsService';
@@ -11,9 +11,14 @@ import LoadingScreen from '../LoadingScreen';
 import { estimateReadingTime } from '../../utils/helpers';
 import { HydrateEmbeds } from '../embeds/article-embed';
 import LikeButton from './LikeButton';
+import BookmarkButton from './BookmarkButton';
+import CommentSection from './CommentSection';
 import { useAuth } from '../../hooks/useAuth';
 import SEOHead from '../SEOHead';
 import { SEO_CONFIG, buildBreadcrumbSchema } from '../../utils/seoConstants';
+import ArticleCard from './ArticleCard';
+import ReadingProgressBar from './ReadingProgressBar';
+import ShareButtons from './ShareButtons';
 
 export default function ArticleView() {
   const { slug } = useParams<{ slug: string }>();
@@ -23,6 +28,7 @@ export default function ArticleView() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [resolvedImageUrl, setResolvedImageUrl] = useState<string | null>(null);
+  const [relatedArticles, setRelatedArticles] = useState<Article[]>([]);
   const tags = article?.tags ?? [];
 
 
@@ -78,6 +84,23 @@ export default function ArticleView() {
     setAuthor(author);
   })();
 }, [article?.authorId]);
+
+  // Fetch related articles based on tags
+  useEffect(() => {
+    if (!article?.id || !article?.tags || article.tags.length === 0) {
+      setRelatedArticles([]);
+      return;
+    }
+    (async () => {
+      try {
+        const related = await getRelatedArticles(article.tags!, article.id!, 5);
+        setRelatedArticles(related);
+      } catch (e) {
+        console.warn('Failed to fetch related articles', e);
+        setRelatedArticles([]);
+      }
+    })();
+  }, [article?.id, article?.tags]);
 
   // Add breadcrumb structured data
   useEffect(() => {
@@ -152,45 +175,62 @@ export default function ArticleView() {
         section={article.section}
         tags={tags}
       />
-      <article className="max-w-4xl mx-auto p-6">
-        <h1 className="text-3xl font-bold mb-2">{article.title}</h1>
+      
+      {/* Reading Progress Bar */}
+      <ReadingProgressBar />
+      
+      {/* Main container with sidebar layout */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
+          
+          {/* Main Article Content */}
+          <article className="lg:col-span-8 xl:col-span-9">
+            {/* Section badge */}
+            {article.section && (
+              <div className="mb-4">
+                <span className="text-xs font-bold uppercase tracking-widest text-accent bg-accent/10 px-3 py-1 rounded-full">
+                  {article.section}
+                </span>
+          </div>
+        )}
+        
+        <h1 className="text-3xl sm:text-4xl lg:text-5xl font-heading font-bold leading-tight text-ink mb-4">{article.title}</h1>
 
       {article.subtitle && (
-        <h2 className="text-xl text-gray-700 mb-4">{article.subtitle}</h2>
+        <h2 className="text-xl sm:text-2xl text-inkMuted font-light mb-6 leading-relaxed">{article.subtitle}</h2>
       )}
 
       {(article.featuredImageUrl || article.featuredImageId) && (
-  <div className="mb-6 text-center relative group">
+  <figure className="mb-8 -mx-4 sm:mx-0 sm:rounded-lg overflow-hidden shadow-lg">
     <img
       src={article.featuredImageUrl || resolvedImageUrl || '/default-image.png'}
       alt={article.featuredImageDescription || article.title}
-      className="mx-auto max-w-full h-auto transition duration-300 group-hover:brightness-75 group-hover:scale-100"
-      style={{ display: 'block' }}
+      className="w-full h-auto object-cover"
     />
     {(article.featuredImageDescription || article.featuredImageSourceCredit) && (
-      <div className="absolute inset-0 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-t from-black/70 via-black/40 to-transparent rounded">
+      <figcaption className="bg-gray-50 px-4 py-3 border-t border-gray-100">
         {article.featuredImageDescription && (
-          <div className="text-white text-base font-semibold drop-shadow-lg mb-2 px-6">
+          <p className="text-sm text-gray-700 leading-relaxed">
             {article.featuredImageDescription}
-          </div>
+          </p>
         )}
         {article.featuredImageSourceCredit && (
-          <div className="text-white text-xs drop-shadow-lg px-4">
-            Source: {article.featuredImageSourceCredit}
-          </div>
+          <p className="text-xs text-gray-500 mt-1">
+            📷 {article.featuredImageSourceCredit}
+          </p>
         )}
-      </div>
+      </figcaption>
     )}
-  </div>
+  </figure>
 )}
 
-      <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between text-sm text-gray-600">
-        <div className="mb-2 sm:mb-0 flex items-center gap-2">
+      <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-6 border-b border-gray-200">
+        <div className="flex items-center gap-3">
           {author?.profileImageUrl ? (
     <img
       src={author.profileImageUrl}
       alt={author.displayName || 'Author avatar'}
-      className="w-12 h-12 rounded-full object-cover"
+      className="w-12 h-12 rounded-full object-cover ring-2 ring-gray-100 shadow-sm"
       onError={(e) => {
         // Hide broken image and show initials
         e.currentTarget.style.display = 'none';
@@ -199,29 +239,33 @@ export default function ArticleView() {
       }}
     />
   ) : (
-    <div className="w-8 h-8 rounded-full bg-gray-400 flex items-center justify-center text-white text-xs font-bold">
+    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-accent to-accent/70 flex items-center justify-center text-white text-sm font-bold ring-2 ring-gray-100 shadow-sm">
       {author?.displayName
         ? author.displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
         : '??'}
     </div>
   )}
-          {article.authorName && <span className="mr-2">By {article.authorName}</span>}
-          <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">{estimateReadingTime(article.content || "")}</span>
+          <div>
+            {article.authorName && <p className="font-semibold text-ink">By {article.authorName}</p>}
+            <div className="flex items-center gap-2 text-xs text-gray-500">
+              <span className="bg-accent/10 text-accent font-medium px-2 py-0.5 rounded">{estimateReadingTime(article.content || "")}</span>
+            </div>
+          </div>
         </div>
-        <div className="text-right text-sm text-gray-600">
+        <div className="text-right text-sm">
           {publishedAt && (
-            <div className="">{format(publishedAt, 'MMMM d, yyyy h:mm a')}</div>
+            <div className="text-ink font-medium">{format(publishedAt, 'MMMM d, yyyy')}</div>
           )}
           {lastUpdatedAt && (
-            <div className="text-xs text-gray-500">(last updated {formatDistanceToNow(lastUpdatedAt, { addSuffix: true })})</div>
+            <div className="text-xs text-gray-500 mt-1">Updated {formatDistanceToNow(lastUpdatedAt, { addSuffix: true })}</div>
           )}
         </div>
       </div>
 
       {article.summary && (
-        <div className="mb-6 p-4 bg-gray-100 border border-gray-200 rounded">
-          <strong className="block text-sm text-gray-600 mb-1">Summary:</strong>
-          <p className="text-gray-800">{article.summary}</p>
+        <div className="mb-8 p-5 bg-gradient-to-r from-gray-50 to-gray-100/50 border-l-4 border-accent rounded-r-lg">
+          <strong className="block text-xs font-bold text-accent uppercase tracking-wide mb-2">Key Points</strong>
+          <p className="text-gray-800 leading-relaxed text-lg">{article.summary}</p>
         </div>
       )}
 
@@ -231,15 +275,14 @@ export default function ArticleView() {
       <HydrateEmbeds deps={article?.content ? [article.content] : undefined} />
 
       {tags.length > 0 && (
-        <div className="mt-8">
-          <strong className="block text-xs font-bold tracking-wide mb-1 uppercase text-gray-700">
-            FILED UNDER:
+        <div className="mt-10 pt-6 border-t border-gray-200">
+          <strong className="block text-xs font-bold tracking-widest mb-3 uppercase text-gray-500">
+            Filed Under
           </strong>
-          <div className="text-xs font-regular text-gray-800 flex flex-wrap gap-x-2 gap-y-1 narrow italic">
-            {tags.map((tag, idx) => (
-              <span key={tag} className="text-gray-500 uppercase">
+          <div className="flex flex-wrap gap-2">
+            {tags.map((tag) => (
+              <span key={tag} className="text-xs font-medium text-gray-600 bg-gray-100 hover:bg-accent hover:text-white px-3 py-1.5 rounded-full transition-colors duration-200 cursor-pointer">
                 {tag.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
-                {idx < tags.length - 1 ? ',' : ''}
               </span>
             ))}
           </div>
@@ -247,33 +290,100 @@ export default function ArticleView() {
       )}
 
       {/* Article engagement section */}
-      <div className="mt-8 pt-6 border-t border-gray-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          {article.id && (
-            <LikeButton 
-              articleId={article.id} 
-              initialLikeCount={article.likeCount || 0}
-            />
-          )}
-          <div className="flex items-center gap-2 text-sm text-gray-500">
-            <span>👁 {article.viewCount || 0} views</span>
-            {article.commentCount !== undefined && (
-              <span>💬 {article.commentCount} comments</span>
-            )}
+      <div className="mt-10 pt-6 border-t border-gray-200">
+        <div className="flex flex-col gap-6">
+          {/* Stats row */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              {article.id && (
+                <LikeButton 
+                  articleId={article.id} 
+                  initialLikeCount={article.likeCount || 0}
+                />
+              )}
+              {article.id && (
+                <BookmarkButton articleId={article.id} />
+              )}
+              <div className="flex items-center gap-3 text-sm text-gray-500">
+                <span className="flex items-center gap-1.5 bg-gray-100 px-3 py-1.5 rounded-full">
+                  <span>👁</span> {article.viewCount || 0} views
+                </span>
+                {article.commentCount !== undefined && article.commentCount > 0 && (
+                  <span className="flex items-center gap-1.5 bg-gray-100 px-3 py-1.5 rounded-full">
+                    <span>💬</span> {article.commentCount} comments
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <Link to="/" className="text-sm font-medium text-accent hover:text-accent/80 flex items-center gap-1 transition-colors">
+                <span>←</span> Back to home
+              </Link>
+              <button
+                type="button"
+                className="text-sm font-medium text-gray-500 hover:text-accent flex items-center gap-1 transition-colors"
+                onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+              >
+                <span>↑</span> Top
+              </button>
+            </div>
           </div>
-        </div>
-        <div className="flex items-center gap-4">
-          <Link to="/" className="text-accent hover:underline">← Back to home</Link>
-          <button
-            type="button"
-            className="text-accent hover:underline"
-            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-          >
-            ↑ Back to Top
-          </button>
+          
+          {/* Share buttons row */}
+          <ShareButtons 
+            title={article.title}
+            url={canonicalUrl}
+            summary={article.summary}
+          />
         </div>
       </div>
+
+      {/* Related Articles - Mobile Only (shown below article) */}
+      {relatedArticles.length > 0 && (
+        <div className="mt-10 pt-6 border-t border-gray-200 lg:hidden">
+          <div className="flex items-center gap-2 mb-4">
+            <span className="text-lg">📖</span>
+            <h3 className="text-lg font-bold text-ink uppercase tracking-wide">You Might Also Like</h3>
+          </div>
+          <div className="space-y-0">
+            {relatedArticles.map((relatedArticle) => (
+              <ArticleCard key={relatedArticle.id} article={relatedArticle} variant="list" />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Comments Section */}
+      {article.id && (
+        <CommentSection 
+          articleId={article.id} 
+          articleAuthorId={article.authorId}
+        />
+      )}
     </article>
+
+    {/* Sidebar - Desktop Only */}
+    <aside className="hidden lg:block lg:col-span-4 xl:col-span-3">
+      <div className="sticky top-24 space-y-8">
+        {/* Related Articles */}
+        {relatedArticles.length > 0 && (
+          <section>
+            <div className="flex items-center gap-2 border-b-2 border-accent pb-2 mb-4">
+              <span className="text-lg">📖</span>
+              <h3 className="text-base font-bold text-ink uppercase tracking-wide">You Might Also Like</h3>
+            </div>
+            <div className="space-y-0">
+              {relatedArticles.map((relatedArticle) => (
+                <ArticleCard key={relatedArticle.id} article={relatedArticle} variant="compact" />
+              ))}
+            </div>
+          </section>
+        )}
+      </div>
+    </aside>
+    
+        </div>
+      </div>
     </>
   );
 }

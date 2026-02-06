@@ -1,14 +1,17 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/dashboard/DashboardLayout';
 import { useAuth } from '../../hooks/useAuth';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPlus, faEdit, faTrash, faEye, faSearch, faFilter, faBroom } from '@fortawesome/free-solid-svg-icons';
+import { faPlus, faEdit, faTrash, faEye, faSearch, faFilter, faBroom, faSort, faSortUp, faSortDown, faChevronLeft, faChevronRight } from '@fortawesome/free-solid-svg-icons';
 import { cleanupOrphanedDrafts } from '../../services/cleanupService';
 import type { Article, ArticleStatus } from '../../types/models';
 import { collection, getDocs, deleteDoc, doc, query, where, orderBy, getDoc } from 'firebase/firestore';
 import type { Timestamp } from 'firebase/firestore';
 import { db } from '../../config/firebase';
+
+type SortField = 'title' | 'status' | 'publishedAt' | 'lastUpdatedAt';
+type SortDirection = 'asc' | 'desc';
 
 export default function ArticlesPage() {
   const { userData, isWriter, isEditor, isAdmin } = useAuth();
@@ -20,6 +23,14 @@ export default function ArticlesPage() {
   const [search, setSearch] = useState('');
   const [userMap, setUserMap] = useState<Record<string, string>>({});
   const [cleaningUp, setCleaningUp] = useState(false);
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  
+  // Sorting state
+  const [sortField, setSortField] = useState<SortField>('lastUpdatedAt');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
   async function handleCleanupDrafts() {
     if (!userData?.id) return;
@@ -160,14 +171,78 @@ export default function ArticlesPage() {
     a.summary?.toLowerCase().includes(search.toLowerCase())
   );
 
+  // Sorting logic
+  const sortedArticles = useMemo(() => {
+    const sorted = [...filteredArticles].sort((a, b) => {
+      let aVal: string | number | Date = '';
+      let bVal: string | number | Date = '';
+      
+      switch (sortField) {
+        case 'title':
+          aVal = a.title.toLowerCase();
+          bVal = b.title.toLowerCase();
+          break;
+        case 'status':
+          aVal = a.status || '';
+          bVal = b.status || '';
+          break;
+        case 'publishedAt':
+          aVal = a.publishedAt ? (typeof a.publishedAt === 'object' && 'toDate' in a.publishedAt ? (a.publishedAt as Timestamp).toDate().getTime() : new Date(String(a.publishedAt)).getTime()) : 0;
+          bVal = b.publishedAt ? (typeof b.publishedAt === 'object' && 'toDate' in b.publishedAt ? (b.publishedAt as Timestamp).toDate().getTime() : new Date(String(b.publishedAt)).getTime()) : 0;
+          break;
+        case 'lastUpdatedAt':
+          aVal = a.lastUpdatedAt ? (typeof a.lastUpdatedAt === 'object' && 'toDate' in a.lastUpdatedAt ? (a.lastUpdatedAt as Timestamp).toDate().getTime() : new Date(String(a.lastUpdatedAt)).getTime()) : 0;
+          bVal = b.lastUpdatedAt ? (typeof b.lastUpdatedAt === 'object' && 'toDate' in b.lastUpdatedAt ? (b.lastUpdatedAt as Timestamp).toDate().getTime() : new Date(String(b.lastUpdatedAt)).getTime()) : 0;
+          break;
+      }
+      
+      if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+      if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+    return sorted;
+  }, [filteredArticles, sortField, sortDirection]);
+
+  // Pagination logic
+  const totalPages = Math.ceil(sortedArticles.length / itemsPerPage);
+  const paginatedArticles = sortedArticles.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, filterStatus]);
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('desc');
+    }
+  };
+
+  const getSortIcon = (field: SortField) => {
+    if (sortField !== field) return faSort;
+    return sortDirection === 'asc' ? faSortUp : faSortDown;
+  };
+
   return (
     <DashboardLayout>
-      <div>
-        <div className="mb-6 flex items-center justify-between">
-          <h1 className="text-2xl font-heading font-bold text-ink">Manage Articles</h1>
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-heading font-bold text-ink">Manage Articles</h1>
+            <p className="text-sm text-inkMuted mt-1">
+              {sortedArticles.length} article{sortedArticles.length !== 1 ? 's' : ''} found
+            </p>
+          </div>
           <div className="flex gap-3">
             <button
-              className="bg-red-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-opacity-90 transition-all text-sm"
+              className="bg-red-500/10 text-red-600 border border-red-200 px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-red-500/20 transition-all text-sm font-medium"
               onClick={handleCleanupDrafts}
               disabled={cleaningUp}
             >
@@ -175,7 +250,7 @@ export default function ArticlesPage() {
               {cleaningUp ? 'Cleaning...' : 'Clean Drafts'}
             </button>
             <button
-              className="bg-accent text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-opacity-90 transition-all"
+              className="bg-accent text-white px-4 py-2.5 rounded-lg flex items-center gap-2 hover:bg-opacity-90 transition-all shadow-sm font-medium"
               onClick={() => navigate('/dashboard/articles/create')}
             >
               <FontAwesomeIcon icon={faPlus} /> Create Article
@@ -183,147 +258,267 @@ export default function ArticlesPage() {
           </div>
         </div>
 
-        {/* Filters */}
-        <div className="flex gap-4 mb-6 items-center">
-          <div className="flex items-center gap-2">
-            <FontAwesomeIcon icon={faFilter} className="text-inkMuted" />
-            <span className="text-sm font-medium text-ink">Status:</span>
-          </div>
-          <button
-            className={`px-3 py-1.5 rounded text-sm ${filterStatus === 'all' ? 'bg-accent text-white' : 'bg-stone text-ink hover:bg-opacity-80'}`}
-            onClick={() => setFilterStatus('all')}
-          >
-            All
-          </button>
-          <button
-            className={`px-3 py-1.5 rounded text-sm ${filterStatus === 'draft' ? 'bg-accent text-white' : 'bg-stone text-ink hover:bg-opacity-80'}`}
-            onClick={() => setFilterStatus('draft')}
-          >
-            Draft
-          </button>
-          <button
-            className={`px-3 py-1.5 rounded text-sm ${filterStatus === 'review' ? 'bg-accent text-white' : 'bg-stone text-ink hover:bg-opacity-80'}`}
-            onClick={() => setFilterStatus('review')}
-          >
-            In Review
-          </button>
-          <button
-            className={`px-3 py-1.5 rounded text-sm ${filterStatus === 'scheduled' ? 'bg-accent text-white' : 'bg-stone text-ink hover:bg-opacity-80'}`}
-            onClick={() => setFilterStatus('scheduled')}
-          >
-            Scheduled
-          </button>
-          <button
-            className={`px-3 py-1.5 rounded text-sm ${filterStatus === 'published' ? 'bg-accent text-white' : 'bg-stone text-ink hover:bg-opacity-80'}`}
-            onClick={() => setFilterStatus('published')}
-          >
-            Published
-          </button>
+        {/* Filters Card */}
+        <div className="bg-white rounded-xl border border-stone p-4 shadow-sm">
+          <div className="flex flex-wrap gap-4 items-center">
+            <div className="flex items-center gap-2">
+              <FontAwesomeIcon icon={faFilter} className="text-inkMuted" />
+              <span className="text-sm font-medium text-ink">Status:</span>
+            </div>
+            <div className="flex gap-2">
+              {(['all', 'draft', 'review', 'scheduled', 'published'] as const).map((status) => (
+                <button
+                  key={status}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                    filterStatus === status 
+                      ? 'bg-accent text-white shadow-sm' 
+                      : 'bg-stone/50 text-ink hover:bg-stone'
+                  }`}
+                  onClick={() => setFilterStatus(status)}
+                >
+                  {status === 'all' ? 'All' : status === 'review' ? 'In Review' : status.charAt(0).toUpperCase() + status.slice(1)}
+                </button>
+              ))}
+            </div>
 
-          <div className="flex-1"></div>
+            <div className="flex-1" />
 
-          {/* Search */}
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="Search articles..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="px-3 py-1.5 pl-9 border border-stone rounded-lg focus:ring-2 focus:ring-accent w-64"
-            />
-            <FontAwesomeIcon icon={faSearch} className="absolute left-3 top-2.5 text-inkMuted" />
+            {/* Items per page */}
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-inkMuted">Show:</span>
+              <select
+                value={itemsPerPage}
+                onChange={(e) => {
+                  setItemsPerPage(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
+                className="border border-stone rounded-lg px-2 py-1.5 text-sm bg-white focus:ring-2 focus:ring-accent"
+              >
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+            </div>
+
+            {/* Search */}
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search articles..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="px-4 py-2 pl-10 border border-stone rounded-lg focus:ring-2 focus:ring-accent focus:border-accent w-64 text-sm"
+              />
+              <FontAwesomeIcon icon={faSearch} className="absolute left-3.5 top-2.5 text-inkMuted" />
+            </div>
           </div>
         </div>
 
-        {/* Articles Table */}
+        {/* Limited View Warning */}
         {limitedView && (
-          <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded text-yellow-800 text-sm">
-            Your view is limited to published articles. Drafts and private articles are visible only to writers and editors.
+          <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-sm flex items-center gap-3">
+            <span className="text-lg">⚠️</span>
+            <span>Your view is limited to published articles. Drafts and private articles are visible only to writers and editors.</span>
           </div>
         )}
+
+        {/* Articles Table */}
         {loading ? (
-          <div className="text-center text-inkMuted py-12">Loading articles...</div>
-        ) : filteredArticles.length === 0 ? (
-          <div className="text-center text-inkMuted py-12">
-            {search ? 'No articles match your search.' : 'No articles found. Create your first article!'}
+          <div className="bg-white rounded-xl border border-stone p-12 text-center">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-accent border-r-transparent mb-4" />
+            <p className="text-inkMuted">Loading articles...</p>
+          </div>
+        ) : paginatedArticles.length === 0 ? (
+          <div className="bg-white rounded-xl border border-stone p-12 text-center">
+            <div className="text-4xl mb-4">📝</div>
+            <p className="text-inkMuted">
+              {search ? 'No articles match your search.' : 'No articles found. Create your first article!'}
+            </p>
           </div>
         ) : (
-          <div className="bg-white rounded-lg border border-stone overflow-hidden">
-            <table className="w-full">
-              <thead className="bg-stone bg-opacity-30">
-                <tr>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-ink">Title</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-ink">Article ID</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-ink">Status</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-ink">Published</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-ink">Last Updated</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-ink">Last Updated By</th>
-                  <th className="px-4 py-3 text-right text-sm font-medium text-ink">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredArticles.map(article => (
-                  <tr key={article.id} className="border-t border-stone hover:bg-stone hover:bg-opacity-10 transition-colors">
-                    <td className="px-4 py-3">
-                      <div className="font-medium text-ink">{article.title}</div>
-                      <div className="text-xs text-inkMuted truncate max-w-md">{article.summary}</div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="text-xs font-mono text-inkMuted bg-stone-50 px-2 py-1 rounded">
-                        {article.id ? article.id.substring(0, 8) + '...' : 'N/A'}
+          <div className="bg-white rounded-xl border border-stone overflow-hidden shadow-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-gradient-to-r from-stone/30 to-stone/10 border-b border-stone">
+                    <th 
+                      className="px-4 py-3 text-left text-xs font-semibold text-ink uppercase tracking-wider cursor-pointer hover:bg-stone/20 transition-colors"
+                      onClick={() => handleSort('title')}
+                    >
+                      <div className="flex items-center gap-2">
+                        Title
+                        <FontAwesomeIcon icon={getSortIcon('title')} className="text-inkMuted" />
                       </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={`
-                        inline-block px-2 py-1 rounded text-xs font-medium
-                        ${article.status === 'published' ? 'bg-green-100 text-green-800' : ''}
-                        ${article.status === 'draft' ? 'bg-gray-100 text-gray-800' : ''}
-                        ${article.status === 'review' ? 'bg-blue-100 text-blue-800' : ''}
-                        ${article.status === 'scheduled' ? 'bg-purple-100 text-purple-800' : ''}
-                      `}>
-                        {article.status}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-inkMuted">
-                      {formatMaybeTimestamp(article.publishedAt)}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-inkMuted">
-                      {formatMaybeTimestamp(article.lastUpdatedAt)}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-inkMuted">
-                      {article.lastUpdatedBy ? (userMap[article.lastUpdatedBy] || article.lastUpdatedBy) : '—'}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex gap-2 justify-end">
-                        {article.status === 'published' && (
-                          <button
-                            onClick={() => navigate(`/article/${article.slug}`)}
-                            className="p-2 hover:bg-stone rounded transition-colors"
-                            title="View"
-                          >
-                            <FontAwesomeIcon icon={faEye} className="text-inkMuted hover:text-ink" />
-                          </button>
-                        )}
-                        <button
-                          onClick={() => navigate(`/dashboard/articles/edit/${article.id}`)}
-                          className="p-2 hover:bg-stone rounded transition-colors"
-                          title="Edit"
-                        >
-                          <FontAwesomeIcon icon={faEdit} className="text-inkMuted hover:text-accent" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(article)}
-                          className="p-2 hover:bg-stone rounded transition-colors"
-                          title="Delete"
-                        >
-                          <FontAwesomeIcon icon={faTrash} className="text-inkMuted hover:text-red-600" />
-                        </button>
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-ink uppercase tracking-wider">
+                      ID
+                    </th>
+                    <th 
+                      className="px-4 py-3 text-left text-xs font-semibold text-ink uppercase tracking-wider cursor-pointer hover:bg-stone/20 transition-colors"
+                      onClick={() => handleSort('status')}
+                    >
+                      <div className="flex items-center gap-2">
+                        Status
+                        <FontAwesomeIcon icon={getSortIcon('status')} className="text-inkMuted" />
                       </div>
-                    </td>
+                    </th>
+                    <th 
+                      className="px-4 py-3 text-left text-xs font-semibold text-ink uppercase tracking-wider cursor-pointer hover:bg-stone/20 transition-colors"
+                      onClick={() => handleSort('publishedAt')}
+                    >
+                      <div className="flex items-center gap-2">
+                        Published
+                        <FontAwesomeIcon icon={getSortIcon('publishedAt')} className="text-inkMuted" />
+                      </div>
+                    </th>
+                    <th 
+                      className="px-4 py-3 text-left text-xs font-semibold text-ink uppercase tracking-wider cursor-pointer hover:bg-stone/20 transition-colors"
+                      onClick={() => handleSort('lastUpdatedAt')}
+                    >
+                      <div className="flex items-center gap-2">
+                        Updated
+                        <FontAwesomeIcon icon={getSortIcon('lastUpdatedAt')} className="text-inkMuted" />
+                      </div>
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-ink uppercase tracking-wider">
+                      Updated By
+                    </th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-ink uppercase tracking-wider">
+                      Actions
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-stone/50">
+                  {paginatedArticles.map((article, idx) => (
+                    <tr 
+                      key={article.id} 
+                      className={`hover:bg-accent/5 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-stone/5'}`}
+                    >
+                      <td className="px-4 py-4">
+                        <div className="font-medium text-ink hover:text-accent cursor-pointer" onClick={() => navigate(`/dashboard/articles/edit/${article.id}`)}>
+                          {article.title}
+                        </div>
+                        <div className="text-xs text-inkMuted truncate max-w-md mt-0.5">{article.summary}</div>
+                      </td>
+                      <td className="px-4 py-4">
+                        <code className="text-xs font-mono text-inkMuted bg-stone/30 px-2 py-1 rounded">
+                          {article.id ? article.id.substring(0, 8) : 'N/A'}
+                        </code>
+                      </td>
+                      <td className="px-4 py-4">
+                        <span className={`
+                          inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold
+                          ${article.status === 'published' ? 'bg-green-100 text-green-700' : ''}
+                          ${article.status === 'draft' ? 'bg-gray-100 text-gray-700' : ''}
+                          ${article.status === 'review' ? 'bg-blue-100 text-blue-700' : ''}
+                          ${article.status === 'scheduled' ? 'bg-purple-100 text-purple-700' : ''}
+                        `}>
+                          <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
+                            article.status === 'published' ? 'bg-green-500' :
+                            article.status === 'draft' ? 'bg-gray-500' :
+                            article.status === 'review' ? 'bg-blue-500' :
+                            'bg-purple-500'
+                          }`} />
+                          {article.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4 text-sm text-inkMuted">
+                        {formatMaybeTimestamp(article.publishedAt)}
+                      </td>
+                      <td className="px-4 py-4 text-sm text-inkMuted">
+                        {formatMaybeTimestamp(article.lastUpdatedAt)}
+                      </td>
+                      <td className="px-4 py-4 text-sm text-inkMuted">
+                        {article.lastUpdatedBy ? (userMap[article.lastUpdatedBy] || article.lastUpdatedBy.substring(0, 8)) : '—'}
+                      </td>
+                      <td className="px-4 py-4">
+                        <div className="flex gap-1 justify-end">
+                          {article.status === 'published' && (
+                            <button
+                              onClick={() => navigate(`/article/${article.slug}`)}
+                              className="p-2 hover:bg-stone rounded-lg transition-colors group"
+                              title="View"
+                            >
+                              <FontAwesomeIcon icon={faEye} className="text-inkMuted group-hover:text-accent" />
+                            </button>
+                          )}
+                          <button
+                            onClick={() => navigate(`/dashboard/articles/edit/${article.id}`)}
+                            className="p-2 hover:bg-stone rounded-lg transition-colors group"
+                            title="Edit"
+                          >
+                            <FontAwesomeIcon icon={faEdit} className="text-inkMuted group-hover:text-accent" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(article)}
+                            className="p-2 hover:bg-red-50 rounded-lg transition-colors group"
+                            title="Delete"
+                          >
+                            <FontAwesomeIcon icon={faTrash} className="text-inkMuted group-hover:text-red-600" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="px-4 py-3 border-t border-stone bg-stone/10 flex items-center justify-between">
+                <div className="text-sm text-inkMuted">
+                  Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, sortedArticles.length)} of {sortedArticles.length} articles
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="p-2 rounded-lg border border-stone hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <FontAwesomeIcon icon={faChevronLeft} className="text-inkMuted" />
+                  </button>
+                  
+                  {/* Page numbers */}
+                  <div className="flex gap-1">
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      let pageNum: number;
+                      if (totalPages <= 5) {
+                        pageNum = i + 1;
+                      } else if (currentPage <= 3) {
+                        pageNum = i + 1;
+                      } else if (currentPage >= totalPages - 2) {
+                        pageNum = totalPages - 4 + i;
+                      } else {
+                        pageNum = currentPage - 2 + i;
+                      }
+                      return (
+                        <button
+                          key={pageNum}
+                          onClick={() => setCurrentPage(pageNum)}
+                          className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
+                            currentPage === pageNum
+                              ? 'bg-accent text-white'
+                              : 'hover:bg-white border border-stone text-inkMuted'
+                          }`}
+                        >
+                          {pageNum}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <button
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    className="p-2 rounded-lg border border-stone hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <FontAwesomeIcon icon={faChevronRight} className="text-inkMuted" />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

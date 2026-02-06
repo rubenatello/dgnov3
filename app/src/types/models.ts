@@ -140,12 +140,27 @@ export interface Media {
 // Comment interface
 export interface Comment {
   id?: string;
-  articleId?: string;
-  userId?: string;
-  body?: string;
-  status?: 'pending' | 'approved' | 'hidden';
-  createdAt?: Timestamp;
+  articleId: string;
+  articleAuthorId?: string; // To show "Author" badge when author comments
+  userId: string;
+  userName: string;
+  userAvatarUrl?: string;
+  userRoles?: UserRole[]; // For displaying badges (staff, editor, writer, etc.)
+  body: string;
+  parentId?: string; // For replies (null = top-level comment)
+  replyCount?: number; // Count of replies to this comment
+  likeCount?: number; // Comment likes
+  status: 'pending' | 'approved' | 'hidden' | 'deleted';
+  createdAt: Timestamp;
   editedAt?: Timestamp;
+}
+
+// Comment like interface
+export interface CommentLike {
+  id?: string; // Format: {commentId}_{userId}
+  commentId: string;
+  userId: string;
+  createdAt: Timestamp;
 }
 
 // Reaction interface

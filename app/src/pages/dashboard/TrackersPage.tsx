@@ -96,26 +96,29 @@ export default function TrackersPage() {
   return (
     <DashboardLayout>
       <div className="p-6">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold">Trackers</h1>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+          <div>
+            <h1 className="text-2xl font-bold text-ink">Trackers</h1>
+            <p className="text-sm text-gray-500 mt-1">Manage and monitor incident tracking databases</p>
+          </div>
           <div className="flex gap-3">
             {trackers.length > 0 && (
               <button
-                className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
+                className={`px-4 py-2.5 rounded-lg flex items-center gap-2 text-sm font-medium transition-all duration-200 ${
                   canDownload 
-                    ? 'bg-green-600 text-white hover:bg-green-700' 
-                    : 'bg-gray-400 text-gray-700 cursor-not-allowed'
+                    ? 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm hover:shadow-md' 
+                    : 'bg-gray-100 text-gray-400 cursor-not-allowed'
                 }`}
                 onClick={handleDownloadAllCSV}
                 title={canDownload ? "Download all tracker data as CSV files" : "Subscriber feature - CSV downloads available to subscribers only"}
               >
                 <FontAwesomeIcon icon={faDownload} /> 
-                {canDownload ? 'Download All CSV' : 'Download All CSV (Subscribers Only)'}
+                {canDownload ? 'Export All' : 'Export All (Subscribers)'}
               </button>
             )}
             {(isEditor() || isAdmin()) && (
               <button
-                className="bg-accent text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-opacity-90"
+                className="bg-accent text-white px-4 py-2.5 rounded-lg flex items-center gap-2 text-sm font-medium hover:bg-accent/90 shadow-sm hover:shadow-md transition-all duration-200"
                 onClick={() => navigate('/dashboard/trackers/create')}
               >
                 <FontAwesomeIcon icon={faPlus} /> Create Tracker
@@ -125,101 +128,116 @@ export default function TrackersPage() {
         </div>
 
         {/* Filters */}
-        <div className="flex gap-4 mb-6">
-          <label className="flex items-center gap-2">
+        <div className="flex gap-4 mb-6 p-3 bg-gray-50 rounded-lg border border-gray-100">
+          <label className="flex items-center gap-2 cursor-pointer select-none">
             <input
               type="checkbox"
               checked={showInactive}
               onChange={(e) => setShowInactive(e.target.checked)}
-              className="rounded"
+              className="w-4 h-4 rounded border-gray-300 text-accent focus:ring-accent/50 cursor-pointer"
             />
-            <span className="text-sm">Show inactive trackers</span>
+            <span className="text-sm text-gray-600">Show inactive trackers</span>
           </label>
         </div>
 
         {/* Trackers Table */}
         {loading ? (
-          <div className="text-center py-8">Loading...</div>
+          <div className="text-center py-12">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-accent mb-4"></div>
+            <p className="text-gray-500">Loading trackers...</p>
+          </div>
         ) : trackers.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
-            {showInactive ? 'No inactive trackers found.' : 'No active trackers found.'}
+          <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
+            <div className="text-4xl mb-3">📊</div>
+            <h3 className="font-semibold text-gray-700 mb-1">
+              {showInactive ? 'No inactive trackers' : 'No active trackers'}
+            </h3>
+            <p className="text-sm text-gray-500">
+              {showInactive ? 'All trackers are currently active.' : 'Create your first tracker to get started.'}
+            </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse border border-gray-300">
+          <div className="overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
+            <table className="w-full">
               <thead>
-                <tr className="bg-gray-100">
-                  <th className="border border-gray-300 px-4 py-2 text-left">Name</th>
-                  <th className="border border-gray-300 px-4 py-2 text-left">Incidents</th>
-                  <th className="border border-gray-300 px-4 py-2 text-left">Status</th>
-                  <th className="border border-gray-300 px-4 py-2 text-left">Updated</th>
-                  <th className="border border-gray-300 px-4 py-2 text-left">Actions</th>
+                <tr className="bg-gray-50 border-b border-gray-200">
+                  <th className="px-5 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Name</th>
+                  <th className="px-5 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Incidents</th>
+                  <th className="px-5 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
+                  <th className="px-5 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Updated</th>
+                  <th className="px-5 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="bg-white divide-y divide-gray-100">
                 {trackers.map((tracker) => (
-                  <tr key={tracker.id} className="hover:bg-gray-50">
-                    <td className="border border-gray-300 px-4 py-2">
+                  <tr key={tracker.id} className="hover:bg-gray-50/50 transition-colors duration-150">
+                    <td className="px-5 py-4">
                       <div>
-                        <div className="font-medium">{tracker.name}</div>
+                        <div className="font-semibold text-ink">{tracker.name}</div>
                         {tracker.description && (
-                          <div className="text-sm text-gray-600 mt-1">{tracker.description}</div>
+                          <div className="text-sm text-gray-500 mt-0.5 line-clamp-1">{tracker.description}</div>
                         )}
                       </div>
                     </td>
-                    <td className="border border-gray-300 px-4 py-2 text-center">
-                      <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm font-medium">
+                    <td className="px-5 py-4 text-center">
+                      <span className="inline-flex items-center justify-center min-w-[2.5rem] bg-blue-100 text-blue-700 px-2.5 py-1 rounded-full text-sm font-semibold">
                         {tracker.incidentCount || 0}
                       </span>
                     </td>
-                    <td className="border border-gray-300 px-4 py-2">
-                      <span className={`px-2 py-1 rounded text-xs ${
-                        tracker.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                    <td className="px-5 py-4 text-center">
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${
+                        tracker.isActive 
+                          ? 'bg-emerald-100 text-emerald-700' 
+                          : 'bg-gray-100 text-gray-600'
                       }`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${tracker.isActive ? 'bg-emerald-500' : 'bg-gray-400'}`}></span>
                         {tracker.isActive ? 'Active' : 'Inactive'}
                       </span>
                     </td>
-                    <td className="border border-gray-300 px-4 py-2">
+                    <td className="px-5 py-4 text-sm text-gray-600">
                       {formatDate(tracker.updatedAt)}
                     </td>
-                    <td className="border border-gray-300 px-4 py-2">
-                      <div className="flex gap-2">
+                    <td className="px-5 py-4">
+                      <div className="flex justify-center gap-1">
                         <button
-                          className="text-blue-600 hover:text-blue-800"
+                          className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors"
                           onClick={() => navigate(`/tracker/${tracker.slug}`)}
                           title="View incidents"
                         >
                           <FontAwesomeIcon icon={faEye} />
                         </button>
                         <button
-                          className={`${
+                          className={`p-2 rounded-lg transition-colors ${
                             canDownload 
-                              ? 'text-purple-600 hover:text-purple-800' 
-                              : 'text-gray-400 cursor-not-allowed'
+                              ? 'text-purple-600 hover:text-purple-800 hover:bg-purple-50' 
+                              : 'text-gray-300 cursor-not-allowed'
                           }`}
                           onClick={() => handleDownloadTrackerCSV(tracker)}
-                          title={canDownload ? "Download tracker data as CSV" : "Subscriber feature - CSV downloads available to subscribers only"}
+                          title={canDownload ? "Download tracker data as CSV" : "Subscriber feature"}
                         >
                           <FontAwesomeIcon icon={faDownload} />
                         </button>
                         {(isEditor() || isAdmin()) && (
                           <>
                             <button
-                              className="text-green-600 hover:text-green-800"
+                              className="p-2 text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50 rounded-lg transition-colors"
                               onClick={() => navigate(`/dashboard/trackers/${tracker.id}/edit`)}
                               title="Edit tracker"
                             >
                               <FontAwesomeIcon icon={faEdit} />
                             </button>
                             <button
-                              className={`${tracker.isActive ? 'text-orange-600 hover:text-orange-800' : 'text-green-600 hover:text-green-800'}`}
+                              className={`p-2 rounded-lg transition-colors ${tracker.isActive 
+                                ? 'text-amber-600 hover:text-amber-800 hover:bg-amber-50' 
+                                : 'text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50'
+                              }`}
                               onClick={() => handleToggleActive(tracker.id!, tracker.isActive)}
                               title={tracker.isActive ? 'Deactivate' : 'Activate'}
                             >
                               <FontAwesomeIcon icon={tracker.isActive ? faToggleOff : faToggleOn} />
                             </button>
                             <button
-                              className="text-red-600 hover:text-red-800"
+                              className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
                               onClick={() => handleDeleteTracker(tracker.id!, tracker.name)}
                               title="Delete tracker"
                             >

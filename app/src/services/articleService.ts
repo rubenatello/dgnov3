@@ -9,7 +9,7 @@ import {
   where, 
   orderBy,
   serverTimestamp,
-  limit
+  limit as firestoreLimit
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import type { Article, ArticleStatus } from '../types/models';
@@ -151,6 +151,32 @@ export async function getArticleBySlug(slug: string): Promise<Article | null> {
 }
 
 /**
+ * Get related articles by tags (excluding current article)
+ */
+export async function getRelatedArticles(tags: string[], excludeId: string, limit: number = 5): Promise<Article[]> {
+  if (!tags || tags.length === 0) return [];
+  
+  // Firestore 'array-contains-any' can check up to 10 values
+  const searchTags = tags.slice(0, 10);
+  
+  const q = query(
+    collection(db, ARTICLES_COLLECTION),
+    where('status', '==', 'published'),
+    where('tags', 'array-contains-any', searchTags),
+    orderBy('publishedAt', 'desc'),
+    firestoreLimit(limit + 1) // Get one extra in case we need to exclude current
+  );
+  
+  const querySnapshot = await getDocs(q);
+  const articles = querySnapshot.docs
+    .map(doc => ({ id: doc.id, ...doc.data() } as Article))
+    .filter(article => article.id !== excludeId)
+    .slice(0, limit);
+  
+  return articles;
+}
+
+/**
  * Get articles by author
  */
 export async function getArticlesByAuthor(authorId: string): Promise<Article[]> {
@@ -277,7 +303,7 @@ export async function getAutosaves(articleId: string): Promise<ArticleAutosave[]
  */
 export async function getLatestAutosave(articleId: string): Promise<ArticleAutosave | null> {
   const autosavesCollection = collection(db, ARTICLES_COLLECTION, articleId, 'autosaves');
-  const q = query(autosavesCollection, orderBy('timestamp', 'desc'), limit(1));
+  const q = query(autosavesCollection, orderBy('timestamp', 'desc'), firestoreLimit(1));
   
   const querySnapshot = await getDocs(q);
   if (querySnapshot.empty) return null;

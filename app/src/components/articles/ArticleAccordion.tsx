@@ -22,11 +22,13 @@ export default function ArticleAccordion({
   if (!articles.length) return null;
 
   return (
-    <section className="mb-6 sm:mb-8">
-      <div className="border-b-2 border-accent pb-2 mb-4">
+    <section className="mb-8 sm:mb-10">
+      <div className="flex items-center gap-4 border-b-2 border-accent pb-3 mb-5">
         <h2 className="text-lg sm:text-xl font-bold text-ink uppercase tracking-wide">
           {title}
         </h2>
+        <div className="flex-1 h-px bg-gradient-to-r from-accent/20 to-transparent" />
+        <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">{articles.length} articles</span>
       </div>
       
       <div className="space-y-0">
@@ -41,11 +43,21 @@ export default function ArticleAccordion({
       
       {hasMore && (
         <button
-          className="mt-4 px-4 py-2 text-sm font-semibold text-accent border border-accent hover:bg-accent hover:text-white transition-colors duration-200 w-full sm:w-auto"
+          className="mt-5 px-5 py-2.5 text-sm font-semibold text-accent border-2 border-accent hover:bg-accent hover:text-white rounded-lg transition-all duration-200 w-full sm:w-auto flex items-center justify-center gap-2 group"
           onClick={() => setExpanded(e => !e)}
           aria-expanded={expanded}
         >
-          {expanded ? 'Show Less' : `Show ${articles.length - maxVisible} More`}
+          {expanded ? (
+            <>
+              <span>Show Less</span>
+              <span className="group-hover:translate-y-[-2px] transition-transform">↑</span>
+            </>
+          ) : (
+            <>
+              <span>Show {articles.length - maxVisible} More</span>
+              <span className="group-hover:translate-y-[2px] transition-transform">↓</span>
+            </>
+          )}
         </button>
       )}
     </section>

@@ -4,6 +4,7 @@ import Header from '../header/Header';
 import Footer from '../footer/Footer';
 import CookieConsentBanner from '../CookieConsentBanner';
 import SEOHead from '../SEOHead';
+import BackToTopButton from '../BackToTopButton';
 import { SEO_CONFIG } from '../../utils/seoConstants';
 
 const Layout: React.FC = () => {
@@ -29,6 +30,7 @@ const Layout: React.FC = () => {
       </main>
       <Footer />
       <CookieConsentBanner />
+      <BackToTopButton />
     </div>
   );
 };

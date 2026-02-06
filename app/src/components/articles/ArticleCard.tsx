@@ -50,47 +50,54 @@ export default function ArticleCard({ article, variant = 'compact' }: ArticleCar
   // Featured: Large hero card
   if (variant === 'featured') {
     return (
-      <Link to={getArticleUrl(article)} className="block group relative">
+      <Link to={getArticleUrl(article)} className="block group relative rounded-lg overflow-hidden shadow-lg hover:shadow-2xl transition-shadow duration-500">
         <article className="relative">
           {article.featuredImageUrl ? (
-            <div className="relative w-full h-64 sm:h-80 md:h-96 overflow-hidden brightness-60">
+            <div className="relative w-full h-64 sm:h-80 md:h-[28rem] overflow-hidden">
               <img 
                 src={article.featuredImageUrl} 
                 alt={article.title} 
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out" 
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
             </div>
           ) : (
-            <div className="w-full h-64 sm:h-80 md:h-96 bg-gray-200 flex items-center justify-center">
-              <span className="text-gray-400">No Image</span>
+            <div className="w-full h-64 sm:h-80 md:h-[28rem] bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center">
+              <span className="text-gray-400 text-lg">No Image</span>
             </div>
           )}
           {isBreaking && (
-            <span className="absolute top-4 left-4 bg-red-600 text-white text-sm font-bold px-3 py-1 z-10">
-              BREAKING
+            <span className="absolute top-4 left-4 bg-red-600 text-white text-xs font-bold px-3 py-1.5 z-10 uppercase tracking-wider animate-pulse shadow-lg">
+              Breaking News
             </span>
           )}
           {isExclusive && (
-            <span className="absolute top-4 right-4 bg-accent text-white text-sm font-bold px-3 py-1 z-10">
-              EXCLUSIVE
+            <span className="absolute top-4 right-4 bg-accent text-white text-xs font-bold px-3 py-1.5 z-10 uppercase tracking-wider shadow-lg">
+              ★ Exclusive
             </span>
           )}
-          <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6 text-white">
-            <h1 className="font-heading font-bold text-2xl text-shadow-lg/30 sm:text-3xl md:text-4xl mb-2 group-hover:text-accent-light leading-tight">
+          <div className="absolute bottom-0 left-0 right-0 p-5 sm:p-8 text-white">
+            <div className="mb-3">
+              {article.section && (
+                <span className="text-xs font-bold uppercase tracking-widest text-accent bg-white/10 backdrop-blur-sm px-2 py-1 rounded">
+                  {article.section}
+                </span>
+              )}
+            </div>
+            <h1 className="font-heading font-bold text-2xl sm:text-3xl md:text-4xl lg:text-5xl mb-3 group-hover:text-accent transition-colors duration-300 leading-tight drop-shadow-lg">
               {article.title}
             </h1>
             {article.summary && (
-              <p className="text-base sm:text-lg mb-3 opacity-90 line-clamp-2 text-shadow-lg/20">
+              <p className="text-base sm:text-lg mb-4 opacity-90 line-clamp-2 max-w-3xl drop-shadow-md">
                 {article.summary}
               </p>
             )}
             <div className="flex items-center gap-3 text-sm opacity-80">
-              <span>By {article.authorName}</span>
-              <span>•</span>
+              <span className="font-medium">By {article.authorName}</span>
+              <span className="text-white/50">•</span>
               <span>{getRelativeTime(publishedAt)}</span>
-              <span>•</span>
-              <span>{readingTime}</span>
+              <span className="text-white/50">•</span>
+              <span className="bg-white/20 backdrop-blur-sm px-2 py-0.5 rounded text-xs">{readingTime}</span>
             </div>
           </div>
         </article>
@@ -102,46 +109,55 @@ export default function ArticleCard({ article, variant = 'compact' }: ArticleCar
   if (variant === 'secondary') {
     return (
       <Link to={getArticleUrl(article)} className="block group">
-        <article className="border-b border-gray-200 pb-4 mb-4 last:border-b-0">
-          <div className="flex gap-4 sm:gap-6">
+        <article className="bg-white rounded-lg overflow-hidden hover:shadow-md transition-all duration-300 border border-gray-100 hover:border-gray-200">
+          <div className="flex flex-col">
             {article.featuredImageUrl ? (
-              <div className="flex-shrink-0 w-24 h-20 sm:w-32 sm:h-24 md:w-40 md:h-28 overflow-hidden">
+              <div className="relative w-full h-40 sm:h-48 overflow-hidden">
                 <img 
                   src={article.featuredImageUrl} 
                   alt={article.title} 
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
                 />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
               </div>
             ) : (
-              <div className="flex-shrink-0 w-24 h-20 sm:w-32 sm:h-24 md:w-40 md:h-28 bg-gray-200 flex items-center justify-center">
-                <span className="text-gray-400 text-xs">No Image</span>
+              <div className="w-full h-40 sm:h-48 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+                <span className="text-gray-400 text-sm">No Image</span>
               </div>
             )}
-            <div className="flex-1 min-w-0">
-              {isBreaking && (
-                <span className="inline-block bg-red-600 text-white text-xs font-bold px-2 py-1 mb-2">
-                  BREAKING
-                </span>
-              )}
-              {isExclusive && (
-                <span className="inline-block bg-black text-white text-xs font-bold px-2 py-1 mb-2">
-                  EXCLUSIVE
-                </span>
-              )}
-              <h2 className="font-heading font-bold text-lg sm:text-xl mb-2 group-hover:text-accent leading-tight">
+            <div className="p-4">
+              <div className="flex items-center gap-2 mb-2">
+                {isBreaking && (
+                  <span className="inline-block bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded uppercase tracking-wide animate-pulse">
+                    Breaking
+                  </span>
+                )}
+                {isExclusive && (
+                  <span className="inline-block bg-ink text-white text-xs font-bold px-2 py-0.5 rounded uppercase tracking-wide">
+                    Exclusive
+                  </span>
+                )}
+                {article.section && !isBreaking && !isExclusive && (
+                  <span className="text-xs font-semibold text-accent uppercase tracking-wide">
+                    {article.section}
+                  </span>
+                )}
+              </div>
+              <h2 className="font-heading font-bold text-lg sm:text-xl mb-2 group-hover:text-accent transition-colors duration-200 leading-tight line-clamp-2">
                 {article.title}
               </h2>
               {article.summary && (
-                <p className="text-sm sm:text-base text-inkMuted mb-2 line-clamp-2">
+                <p className="text-sm text-inkMuted mb-3 line-clamp-2">
                   {article.summary}
                 </p>
               )}
-              <div className="flex items-center gap-1 text-xs sm:text-xs text-sand">
-                <span>By {article.authorName}</span>
-                <span>•</span>
-                <span>{getRelativeTime(publishedAt)}</span>
-                <span>•</span>
-                <span>{readingTime}</span>
+              <div className="flex items-center justify-between text-xs text-sand">
+                <span className="font-medium">By {article.authorName}</span>
+                <div className="flex items-center gap-2">
+                  <span>{getRelativeTime(publishedAt)}</span>
+                  <span className="text-gray-300">•</span>
+                  <span className="text-accent">{readingTime}</span>
+                </div>
               </div>
             </div>
           </div>
@@ -154,26 +170,30 @@ export default function ArticleCard({ article, variant = 'compact' }: ArticleCar
   if (variant === 'list') {
     return (
       <Link to={getArticleUrl(article)} className="block group">
-        <article className="border-b border-gray-200 py-3 last:border-b-0">
-          {isBreaking && (
-            <span className="inline-block bg-red-600 text-white text-xs font-bold px-2 py-1 mb-2">
-              BREAKING
-            </span>
-          )}
-          {isExclusive && (
-            <span className="inline-block bg-black text-white text-xs font-bold px-2 py-1 mb-2">
-              EXCLUSIVE
-            </span>
-          )}
-          <h3 className="font-heading font-semibold text-base sm:text-lg mb-1 group-hover:text-accent leading-tight">
-            {article.title}
-          </h3>
-          <div className="flex items-center gap-2 text-xs text-sand">
-            <span>By {article.authorName}</span>
-            <span>•</span>
-            <span>{getRelativeTime(publishedAt)}</span>
-            <span>•</span>
-            <span>{readingTime}</span>
+        <article className="border-b border-gray-100 py-4 last:border-b-0 hover:bg-gray-50/50 -mx-2 px-2 rounded transition-colors duration-200">
+          <div className="flex items-start gap-2">
+            {isBreaking && (
+              <span className="inline-flex items-center bg-red-600 text-white text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wide animate-pulse flex-shrink-0 mt-1">
+                Breaking
+              </span>
+            )}
+            {isExclusive && (
+              <span className="inline-flex items-center bg-ink text-white text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wide flex-shrink-0 mt-1">
+                Exclusive
+              </span>
+            )}
+            <div className="flex-1">
+              <h3 className="font-heading font-semibold text-base sm:text-lg mb-1.5 group-hover:text-accent transition-colors duration-200 leading-tight">
+                {article.title}
+              </h3>
+              <div className="flex items-center gap-2 text-xs text-sand">
+                <span className="font-medium">{article.authorName}</span>
+                <span className="text-gray-300">•</span>
+                <span>{getRelativeTime(publishedAt)}</span>
+                <span className="text-gray-300">•</span>
+                <span className="text-accent font-medium">{readingTime}</span>
+              </div>
+            </div>
           </div>
         </article>
       </Link>
@@ -183,39 +203,39 @@ export default function ArticleCard({ article, variant = 'compact' }: ArticleCar
   // Compact: Small card for sidebar
   return (
     <Link to={getArticleUrl(article)} className="block group">
-      <article className="border-b border-gray-200 pb-3 mb-3 last:border-b-0">
+      <article className="border-b border-gray-100 py-3 last:border-b-0 hover:bg-gray-50/50 -mx-1 px-1 rounded transition-colors duration-200">
         <div className="flex gap-3">
           {article.featuredImageUrl ? (
-            <div className="flex-shrink-0 w-16 h-12 sm:w-20 sm:h-16 overflow-hidden">
+            <div className="flex-shrink-0 w-16 h-12 sm:w-20 sm:h-14 overflow-hidden rounded shadow-sm">
               <img 
                 src={article.featuredImageUrl} 
                 alt={article.title} 
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
+                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" 
               />
             </div>
           ) : (
-            <div className="flex-shrink-0 w-16 h-12 sm:w-20 sm:h-16 bg-gray-200 flex items-center justify-center">
-              <span className="text-gray-400 text-xs">No Image</span>
+            <div className="flex-shrink-0 w-16 h-12 sm:w-20 sm:h-14 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center rounded shadow-sm">
+              <span className="text-gray-400 text-[10px]">No Image</span>
             </div>
           )}
           <div className="flex-1 min-w-0">
             {isBreaking && (
-              <span className="inline-block bg-red-600 text-white text-xs font-bold px-2 py-1 mb-1">
-                BREAKING
+              <span className="inline-block bg-red-600 text-white text-[10px] font-bold px-1.5 py-0.5 mb-1 rounded uppercase tracking-wide animate-pulse">
+                Breaking
               </span>
             )}
             {isExclusive && (
-              <span className="inline-block bg-black text-white text-xs font-bold px-2 py-1 mb-1">
-                EXCLUSIVE
+              <span className="inline-block bg-ink text-white text-[10px] font-bold px-1.5 py-0.5 mb-1 rounded uppercase tracking-wide">
+                Exclusive
               </span>
             )}
-            <h3 className="font-heading font-semibold text-sm sm:text-base mb-1 group-hover:text-accent leading-tight line-clamp-2">
+            <h3 className="font-heading font-semibold text-sm leading-tight line-clamp-2 group-hover:text-accent transition-colors duration-200">
               {article.title}
             </h3>
-            <div className="flex items-center gap-1 text-xs text-sand">
+            <div className="flex items-center gap-1.5 text-[11px] text-sand mt-1">
               <span>{getRelativeTime(publishedAt)}</span>
-              <span>•</span>
-              <span>{readingTime}</span>
+              <span className="text-gray-300">•</span>
+              <span className="text-accent">{readingTime}</span>
             </div>
           </div>
         </div>

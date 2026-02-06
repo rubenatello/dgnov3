@@ -36,6 +36,10 @@ service cloud.firestore {
       return hasRole('admin') || hasRole('superuser');
     }
 
+    function isInvestigationsEditor() {
+      return hasRole('editor') || hasRole('superuser');
+    }
+
     // Articles collection
     match /articles/{articleId} {
       // Anyone (including anonymous users) can read published articles
@@ -158,7 +162,7 @@ service cloud.firestore {
       // Anyone can read approved comments
       allow read: if resource.data.status == 'approved';
       
-      // Editors can read all comments
+      // Editors can read all comments (for moderation)
       allow read: if isEditor();
       
       // Signed-in & verified users can create comments (enforce types)
@@ -166,13 +170,32 @@ service cloud.firestore {
                     && request.auth.token.email_verified == true
                     && request.resource.data.userId == request.auth.uid
                     && request.resource.data.articleId is string
-                    && request.resource.data.body is string;
+                    && request.resource.data.body is string
+                    && request.resource.data.userName is string
+                    && request.resource.data.status == 'approved';
       
-      // Users can update/delete their own comments
-      allow update, delete: if isOwner(resource.data.userId);
+      // Users can update their own comments (body and editedAt only)
+      allow update: if isOwner(resource.data.userId)
+                    && request.resource.data.userId == resource.data.userId
+                    && request.resource.data.articleId == resource.data.articleId;
+      
+      // Users can soft-delete their own comments
+      allow delete: if isOwner(resource.data.userId);
       
       // Editors can update/delete any comment (moderation)
       allow update, delete: if isEditor();
+    }
+
+    // Comment Likes collection
+    match /commentLikes/{likeId} {
+      // Anyone can read comment likes
+      allow read: if true;
+      
+      // Signed-in users can create/delete their own likes
+      allow create: if isSignedIn() && 
+        request.resource.data.userId == request.auth.uid;
+      
+      allow delete: if isOwner(resource.data.userId);
     }
 
     // Reactions collection
@@ -197,8 +220,8 @@ service cloud.firestore {
       allow create: if true;
     }
 
-    // Bookmarks collection
-    match /bookmarks/{userId}/{articleId} {
+    // Bookmarks collection (subcollection under user)
+    match /bookmarks/{userId}/articles/{articleId} {
       // Users can only access their own bookmarks
       allow read, write: if isOwner(userId);
     }
@@ -217,6 +240,14 @@ service cloud.firestore {
       
       // Only editors can delete media
       allow delete: if isEditor();
+    }
+
+    // Investigations boards
+    match /investigations/{boardId} {
+      // Public read-only access
+      allow read: if true;
+      // Only editors and superusers can write
+      allow write: if isInvestigationsEditor();
     }
 
     // Tags collection

@@ -1,6 +1,6 @@
 
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { db } from '../../config/firebase';
 import { 
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
@@ -10,6 +10,12 @@ import DashboardLayout from '../../components/dashboard/DashboardLayout';
 import { fetchAuthors, fetchArticlesAnalytics, type ArticleAnalytics } from '../../utils/articleAnalytics';
 import { format, subDays, parseISO } from 'date-fns';
 import { Link } from 'react-router-dom';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faSort, faSortUp, faSortDown, faDownload, faFilter, faChartLine, faChartBar, faEye, faHeart, faNewspaper, faTrophy, faUsers } from '@fortawesome/free-solid-svg-icons';
+
+type ArticleSortField = 'title' | 'viewCount' | 'likeCount' | 'authorName';
+type AuthorSortField = 'name' | 'articles' | 'totalViews' | 'avgViews' | 'avgLikes';
+type SortDirection = 'asc' | 'desc';
 
 interface AuthorStats {
   name: string;
@@ -45,6 +51,12 @@ export default function AnalyticsPage() {
   const [datePreset, setDatePreset] = useState<'7d' | '30d' | '90d' | 'custom'>('30d');
   const [sortBy, setSortBy] = useState<'viewCount' | 'likeCount'>('viewCount');
   const [loading, setLoading] = useState(false);
+
+  // Sorting state for tables
+  const [articleSortField, setArticleSortField] = useState<ArticleSortField>('viewCount');
+  const [articleSortDir, setArticleSortDir] = useState<SortDirection>('desc');
+  const [authorSortField, setAuthorSortField] = useState<AuthorSortField>('totalViews');
+  const [authorSortDir, setAuthorSortDir] = useState<SortDirection>('desc');
 
   // Computed analytics data
   const [authorStats, setAuthorStats] = useState<AuthorStats[]>([]);
@@ -157,6 +169,73 @@ export default function AnalyticsPage() {
     setDailyStats(dailyStatsData);
   };
 
+  // Sorted articles for table
+  const sortedArticles = useMemo(() => {
+    return [...articles].sort((a, b) => {
+      let aVal: string | number = '';
+      let bVal: string | number = '';
+      
+      switch (articleSortField) {
+        case 'title': aVal = a.title.toLowerCase(); bVal = b.title.toLowerCase(); break;
+        case 'viewCount': aVal = a.viewCount; bVal = b.viewCount; break;
+        case 'likeCount': aVal = a.likeCount; bVal = b.likeCount; break;
+        case 'authorName': aVal = (a.authorName || '').toLowerCase(); bVal = (b.authorName || '').toLowerCase(); break;
+      }
+      
+      if (aVal < bVal) return articleSortDir === 'asc' ? -1 : 1;
+      if (aVal > bVal) return articleSortDir === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }, [articles, articleSortField, articleSortDir]);
+
+  // Sorted author stats for table
+  const sortedAuthorStats = useMemo(() => {
+    return [...authorStats].sort((a, b) => {
+      let aVal: string | number = '';
+      let bVal: string | number = '';
+      
+      switch (authorSortField) {
+        case 'name': aVal = a.name.toLowerCase(); bVal = b.name.toLowerCase(); break;
+        case 'articles': aVal = a.articles; bVal = b.articles; break;
+        case 'totalViews': aVal = a.totalViews; bVal = b.totalViews; break;
+        case 'avgViews': aVal = a.avgViews; bVal = b.avgViews; break;
+        case 'avgLikes': aVal = a.avgLikes; bVal = b.avgLikes; break;
+      }
+      
+      if (aVal < bVal) return authorSortDir === 'asc' ? -1 : 1;
+      if (aVal > bVal) return authorSortDir === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }, [authorStats, authorSortField, authorSortDir]);
+
+  const handleArticleSort = (field: ArticleSortField) => {
+    if (articleSortField === field) {
+      setArticleSortDir(articleSortDir === 'asc' ? 'desc' : 'asc');
+    } else {
+      setArticleSortField(field);
+      setArticleSortDir('desc');
+    }
+  };
+
+  const handleAuthorSort = (field: AuthorSortField) => {
+    if (authorSortField === field) {
+      setAuthorSortDir(authorSortDir === 'asc' ? 'desc' : 'asc');
+    } else {
+      setAuthorSortField(field);
+      setAuthorSortDir('desc');
+    }
+  };
+
+  const getArticleSortIcon = (field: ArticleSortField) => {
+    if (articleSortField !== field) return faSort;
+    return articleSortDir === 'asc' ? faSortUp : faSortDown;
+  };
+
+  const getAuthorSortIcon = (field: AuthorSortField) => {
+    if (authorSortField !== field) return faSort;
+    return authorSortDir === 'asc' ? faSortUp : faSortDown;
+  };
+
   const formatNumber = (num: number): string => {
     if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
     if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
@@ -209,113 +288,158 @@ export default function AnalyticsPage() {
     <DashboardLayout>
       <div className="space-y-6">
         {/* Header with Filters */}
-        <div className="bg-white p-6 rounded-lg shadow">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-4 gap-4">
+        <div className="bg-white rounded-xl border border-stone p-6 shadow-sm">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
             <div className="flex items-center gap-4">
-              <h1 className="text-3xl font-bold text-gray-900">Analytics Dashboard</h1>
-              <button
-                onClick={exportAnalyticsData}
-                className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors text-sm font-medium"
-              >
-                Export CSV
-              </button>
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-accent to-purple-600 flex items-center justify-center">
+                <FontAwesomeIcon icon={faChartLine} className="text-white text-xl" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-ink">Analytics Dashboard</h1>
+                <p className="text-sm text-inkMuted">Track your content performance</p>
+              </div>
             </div>
             
-            <div className="flex flex-wrap gap-3 items-center">
-              <div className="flex items-center gap-2">
-                <label className="text-sm font-medium text-gray-700">Author:</label>
-                <select
-                  value={selectedAuthor}
-                  onChange={e => setSelectedAuthor(e.target.value)}
-                  className="border border-gray-300 rounded-md px-3 py-1 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="all">All Authors</option>
-                  {authors.map(name => (
-                    <option key={name} value={name}>{name}</option>
-                  ))}
-                </select>
-              </div>
+            <button
+              onClick={exportAnalyticsData}
+              className="flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white px-4 py-2.5 rounded-lg font-medium transition-colors shadow-sm"
+            >
+              <FontAwesomeIcon icon={faDownload} />
+              Export CSV
+            </button>
+          </div>
 
-              <div className="flex items-center gap-2">
-                <label className="text-sm font-medium text-gray-700">Period:</label>
-                <select
-                  value={datePreset}
-                  onChange={e => setDatePreset(e.target.value as '7d' | '30d' | '90d' | 'custom')}
-                  className="border border-gray-300 rounded-md px-3 py-1 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="7d">Last 7 days</option>
-                  <option value="30d">Last 30 days</option>
-                  <option value="90d">Last 90 days</option>
-                  <option value="custom">Custom Range</option>
-                </select>
-              </div>
-
-              {datePreset === 'custom' && (
-                <div className="flex items-center gap-2">
-                  <input
-                    type="date"
-                    value={dateFrom}
-                    onChange={e => setDateFrom(e.target.value)}
-                    className="border border-gray-300 rounded-md px-3 py-1 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
-                  <span className="text-gray-500">to</span>
-                  <input
-                    type="date"
-                    value={dateTo}
-                    onChange={e => setDateTo(e.target.value)}
-                    className="border border-gray-300 rounded-md px-3 py-1 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-              )}
-
-              <div className="flex items-center gap-2">
-                <label className="text-sm font-medium text-gray-700">Sort by:</label>
-                <select
-                  value={sortBy}
-                  onChange={e => setSortBy(e.target.value as 'viewCount' | 'likeCount')}
-                  className="border border-gray-300 rounded-md px-3 py-1 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="viewCount">Views</option>
-                  <option value="likeCount">Likes</option>
-                </select>
-              </div>
+          {/* Filters Row */}
+          <div className="mt-6 pt-6 border-t border-stone flex flex-wrap gap-4 items-center">
+            <div className="flex items-center gap-2 text-sm text-inkMuted">
+              <FontAwesomeIcon icon={faFilter} />
+              Filters:
             </div>
+            
+            <select
+              value={selectedAuthor}
+              onChange={e => setSelectedAuthor(e.target.value)}
+              className="border border-stone rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-accent"
+            >
+              <option value="all">All Authors</option>
+              {authors.map(name => (
+                <option key={name} value={name}>{name}</option>
+              ))}
+            </select>
+
+            <select
+              value={datePreset}
+              onChange={e => setDatePreset(e.target.value as '7d' | '30d' | '90d' | 'custom')}
+              className="border border-stone rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-accent"
+            >
+              <option value="7d">Last 7 days</option>
+              <option value="30d">Last 30 days</option>
+              <option value="90d">Last 90 days</option>
+              <option value="custom">Custom Range</option>
+            </select>
+
+            {datePreset === 'custom' && (
+              <div className="flex items-center gap-2">
+                <input
+                  type="date"
+                  value={dateFrom}
+                  onChange={e => setDateFrom(e.target.value)}
+                  className="border border-stone rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-accent"
+                />
+                <span className="text-inkMuted">to</span>
+                <input
+                  type="date"
+                  value={dateTo}
+                  onChange={e => setDateTo(e.target.value)}
+                  className="border border-stone rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-accent"
+                />
+              </div>
+            )}
+
+            <select
+              value={sortBy}
+              onChange={e => setSortBy(e.target.value as 'viewCount' | 'likeCount')}
+              className="border border-stone rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-accent"
+            >
+              <option value="viewCount">Sort by Views</option>
+              <option value="likeCount">Sort by Likes</option>
+            </select>
           </div>
         </div>
 
         {/* KPI Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-          <div className="bg-white p-4 rounded-lg shadow">
-            <h3 className="text-sm font-medium text-gray-600 mb-1">Total Articles</h3>
-            <p className="text-2xl font-bold text-blue-600">{formatNumber(kpiData.totalArticles)}</p>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          <div className="bg-white rounded-xl border border-stone p-4 hover:shadow-lg hover:border-blue-300 transition-all group">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center group-hover:bg-blue-500 transition-colors">
+                <FontAwesomeIcon icon={faNewspaper} className="text-blue-600 group-hover:text-white text-sm" />
+              </div>
+              <span className="text-xs font-medium text-inkMuted uppercase tracking-wide">Articles</span>
+            </div>
+            <p className="text-2xl font-bold text-ink">{formatNumber(kpiData.totalArticles)}</p>
           </div>
-          <div className="bg-white p-4 rounded-lg shadow">
-            <h3 className="text-sm font-medium text-gray-600 mb-1">Total Views</h3>
-            <p className="text-2xl font-bold text-green-600">{formatNumber(kpiData.totalViews)}</p>
+
+          <div className="bg-white rounded-xl border border-stone p-4 hover:shadow-lg hover:border-green-300 transition-all group">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center group-hover:bg-green-500 transition-colors">
+                <FontAwesomeIcon icon={faEye} className="text-green-600 group-hover:text-white text-sm" />
+              </div>
+              <span className="text-xs font-medium text-inkMuted uppercase tracking-wide">Views</span>
+            </div>
+            <p className="text-2xl font-bold text-ink">{formatNumber(kpiData.totalViews)}</p>
           </div>
-          <div className="bg-white p-4 rounded-lg shadow">
-            <h3 className="text-sm font-medium text-gray-600 mb-1">Total Likes</h3>
-            <p className="text-2xl font-bold text-purple-600">{formatNumber(kpiData.totalLikes)}</p>
+
+          <div className="bg-white rounded-xl border border-stone p-4 hover:shadow-lg hover:border-pink-300 transition-all group">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-8 h-8 rounded-lg bg-pink-100 flex items-center justify-center group-hover:bg-pink-500 transition-colors">
+                <FontAwesomeIcon icon={faHeart} className="text-pink-600 group-hover:text-white text-sm" />
+              </div>
+              <span className="text-xs font-medium text-inkMuted uppercase tracking-wide">Likes</span>
+            </div>
+            <p className="text-2xl font-bold text-ink">{formatNumber(kpiData.totalLikes)}</p>
           </div>
-          <div className="bg-white p-4 rounded-lg shadow">
-            <h3 className="text-sm font-medium text-gray-600 mb-1">Avg Views/Article</h3>
-            <p className="text-2xl font-bold text-orange-600">{formatNumber(kpiData.avgViewsPerArticle)}</p>
+
+          <div className="bg-white rounded-xl border border-stone p-4 hover:shadow-lg hover:border-orange-300 transition-all group">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center group-hover:bg-orange-500 transition-colors">
+                <FontAwesomeIcon icon={faEye} className="text-orange-600 group-hover:text-white text-sm" />
+              </div>
+              <span className="text-xs font-medium text-inkMuted uppercase tracking-wide">Avg Views</span>
+            </div>
+            <p className="text-2xl font-bold text-ink">{formatNumber(kpiData.avgViewsPerArticle)}</p>
           </div>
-          <div className="bg-white p-4 rounded-lg shadow">
-            <h3 className="text-sm font-medium text-gray-600 mb-1">Avg Likes/Article</h3>
-            <p className="text-2xl font-bold text-pink-600">{formatNumber(kpiData.avgLikesPerArticle)}</p>
+
+          <div className="bg-white rounded-xl border border-stone p-4 hover:shadow-lg hover:border-purple-300 transition-all group">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center group-hover:bg-purple-500 transition-colors">
+                <FontAwesomeIcon icon={faHeart} className="text-purple-600 group-hover:text-white text-sm" />
+              </div>
+              <span className="text-xs font-medium text-inkMuted uppercase tracking-wide">Avg Likes</span>
+            </div>
+            <p className="text-2xl font-bold text-ink">{formatNumber(kpiData.avgLikesPerArticle)}</p>
           </div>
-          <div className="bg-white p-4 rounded-lg shadow">
-            <h3 className="text-sm font-medium text-gray-600 mb-1">Engagement Rate</h3>
-            <p className="text-2xl font-bold text-indigo-600">{kpiData.engagementRate}%</p>
+
+          <div className="bg-white rounded-xl border border-stone p-4 hover:shadow-lg hover:border-indigo-300 transition-all group">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center group-hover:bg-indigo-500 transition-colors">
+                <FontAwesomeIcon icon={faTrophy} className="text-indigo-600 group-hover:text-white text-sm" />
+              </div>
+              <span className="text-xs font-medium text-inkMuted uppercase tracking-wide">Engagement</span>
+            </div>
+            <p className="text-2xl font-bold text-ink">{kpiData.engagementRate}%</p>
           </div>
         </div>
 
         {/* Charts Grid */}
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
           {/* Top Articles Chart */}
-          <div className="bg-white p-6 rounded-lg shadow">
-            <h2 className="text-xl font-semibold mb-4">Top Performing Articles</h2>
+          <div className="bg-white rounded-xl border border-stone p-6 shadow-sm hover:shadow-md transition-shadow">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
+                <FontAwesomeIcon icon={faChartBar} className="text-blue-600 text-sm" />
+              </div>
+              <h2 className="text-lg font-semibold text-ink">Top Performing Articles</h2>
+            </div>
             <ResponsiveContainer width="100%" height={400}>
               <BarChart data={articles}>
                 <CartesianGrid strokeDasharray="3 3" />
@@ -339,8 +463,13 @@ export default function AnalyticsPage() {
           </div>
 
           {/* Author Performance Chart */}
-          <div className="bg-white p-6 rounded-lg shadow">
-            <h2 className="text-xl font-semibold mb-4">Author Performance</h2>
+          <div className="bg-white rounded-xl border border-stone p-6 shadow-sm hover:shadow-md transition-shadow">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center">
+                <FontAwesomeIcon icon={faUsers} className="text-purple-600 text-sm" />
+              </div>
+              <h2 className="text-lg font-semibold text-ink">Author Performance</h2>
+            </div>
             <ResponsiveContainer width="100%" height={400}>
               <BarChart data={authorStats} layout="horizontal">
                 <CartesianGrid strokeDasharray="3 3" />
@@ -362,8 +491,13 @@ export default function AnalyticsPage() {
 
           {/* Daily Trend Chart */}
           {dailyStats.length > 0 && (
-            <div className="bg-white p-6 rounded-lg shadow xl:col-span-2">
-              <h2 className="text-xl font-semibold mb-4">Daily Performance Trends</h2>
+            <div className="bg-white rounded-xl border border-stone p-6 shadow-sm hover:shadow-md transition-shadow xl:col-span-2">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center">
+                  <FontAwesomeIcon icon={faChartLine} className="text-green-600 text-sm" />
+                </div>
+                <h2 className="text-lg font-semibold text-ink">Daily Performance Trends</h2>
+              </div>
               <ResponsiveContainer width="100%" height={300}>
                 <AreaChart data={dailyStats}>
                   <CartesianGrid strokeDasharray="3 3" />
@@ -402,46 +536,51 @@ export default function AnalyticsPage() {
         </div>
 
         {/* Performance Insights */}
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h2 className="text-xl font-semibold mb-4">Performance Insights</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="text-center">
-              <div className="text-sm font-medium text-gray-600 mb-1">Top Article Views</div>
-              <div className="text-2xl font-bold text-blue-600">
+        <div className="bg-white rounded-xl border border-stone p-6 shadow-sm">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center">
+              <FontAwesomeIcon icon={faTrophy} className="text-amber-600 text-sm" />
+            </div>
+            <h2 className="text-lg font-semibold text-ink">Performance Insights</h2>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-4 text-center">
+              <div className="text-xs font-medium text-blue-600 uppercase tracking-wide mb-1">Top Article Views</div>
+              <div className="text-2xl font-bold text-blue-700">
                 {articles.length > 0 ? formatNumber(articles[0].viewCount) : '0'}
               </div>
-              <div className="text-xs text-gray-500">
-                {articles.length > 0 ? articles[0].title.slice(0, 30) + '...' : 'No data'}
+              <div className="text-xs text-blue-500 truncate mt-1">
+                {articles.length > 0 ? articles[0].title.slice(0, 25) + '...' : 'No data'}
               </div>
             </div>
-            <div className="text-center">
-              <div className="text-sm font-medium text-gray-600 mb-1">Most Liked Article</div>
-              <div className="text-2xl font-bold text-green-600">
+            <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-4 text-center">
+              <div className="text-xs font-medium text-green-600 uppercase tracking-wide mb-1">Most Liked Article</div>
+              <div className="text-2xl font-bold text-green-700">
                 {articles.length > 0 ? formatNumber(Math.max(...articles.map(a => a.likeCount))) : '0'}
               </div>
-              <div className="text-xs text-gray-500">
+              <div className="text-xs text-green-500 truncate mt-1">
                 {articles.length > 0 ? 
-                  articles.find(a => a.likeCount === Math.max(...articles.map(a => a.likeCount)))?.title.slice(0, 30) + '...' 
+                  articles.find(a => a.likeCount === Math.max(...articles.map(a => a.likeCount)))?.title.slice(0, 25) + '...' 
                   : 'No data'}
               </div>
             </div>
-            <div className="text-center">
-              <div className="text-sm font-medium text-gray-600 mb-1">Top Author</div>
-              <div className="text-2xl font-bold text-purple-600">
+            <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-4 text-center">
+              <div className="text-xs font-medium text-purple-600 uppercase tracking-wide mb-1">Top Author</div>
+              <div className="text-2xl font-bold text-purple-700">
                 {authorStats.length > 0 ? formatNumber(authorStats[0].totalViews) : '0'}
               </div>
-              <div className="text-xs text-gray-500">
+              <div className="text-xs text-purple-500 truncate mt-1">
                 {authorStats.length > 0 ? authorStats[0].name : 'No data'}
               </div>
             </div>
-            <div className="text-center">
-              <div className="text-sm font-medium text-gray-600 mb-1">Best Engagement</div>
-              <div className="text-2xl font-bold text-orange-600">
+            <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl p-4 text-center">
+              <div className="text-xs font-medium text-orange-600 uppercase tracking-wide mb-1">Best Engagement</div>
+              <div className="text-2xl font-bold text-orange-700">
                 {articles.length > 0 ? 
                   Math.max(...articles.map(a => a.viewCount > 0 ? (a.likeCount / a.viewCount) * 100 : 0)).toFixed(1) + '%'
                   : '0%'}
               </div>
-              <div className="text-xs text-gray-500">
+              <div className="text-xs text-orange-500 mt-1">
                 Highest like-to-view ratio
               </div>
             </div>
@@ -451,45 +590,74 @@ export default function AnalyticsPage() {
         {/* Detailed Tables */}
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
           {/* Top Articles Table */}
-          <div className="bg-white p-6 rounded-lg shadow">
-            <h2 className="text-xl font-semibold mb-4">Article Performance Details</h2>
+          <div className="bg-white rounded-xl border border-stone p-6 shadow-sm">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
+                <FontAwesomeIcon icon={faNewspaper} className="text-blue-600 text-sm" />
+              </div>
+              <h2 className="text-lg font-semibold text-ink">Article Performance Details</h2>
+            </div>
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Title
+              <table className="min-w-full divide-y divide-stone">
+                <thead>
+                  <tr className="bg-stone/30">
+                    <th 
+                      className="px-3 py-3 text-left text-xs font-semibold text-inkMuted uppercase tracking-wider cursor-pointer hover:bg-stone/50 transition-colors"
+                      onClick={() => handleArticleSort('title')}
+                    >
+                      <div className="flex items-center gap-2">
+                        Title
+                        <FontAwesomeIcon icon={getArticleSortIcon('title')} className="text-inkMuted" />
+                      </div>
                     </th>
-                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Views
+                    <th 
+                      className="px-3 py-3 text-left text-xs font-semibold text-inkMuted uppercase tracking-wider cursor-pointer hover:bg-stone/50 transition-colors"
+                      onClick={() => handleArticleSort('viewCount')}
+                    >
+                      <div className="flex items-center gap-2">
+                        Views
+                        <FontAwesomeIcon icon={getArticleSortIcon('viewCount')} className="text-inkMuted" />
+                      </div>
                     </th>
-                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Likes
+                    <th 
+                      className="px-3 py-3 text-left text-xs font-semibold text-inkMuted uppercase tracking-wider cursor-pointer hover:bg-stone/50 transition-colors"
+                      onClick={() => handleArticleSort('likeCount')}
+                    >
+                      <div className="flex items-center gap-2">
+                        Likes
+                        <FontAwesomeIcon icon={getArticleSortIcon('likeCount')} className="text-inkMuted" />
+                      </div>
                     </th>
-                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Author
+                    <th 
+                      className="px-3 py-3 text-left text-xs font-semibold text-inkMuted uppercase tracking-wider cursor-pointer hover:bg-stone/50 transition-colors"
+                      onClick={() => handleArticleSort('authorName')}
+                    >
+                      <div className="flex items-center gap-2">
+                        Author
+                        <FontAwesomeIcon icon={getArticleSortIcon('authorName')} className="text-inkMuted" />
+                      </div>
                     </th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {articles.slice(0, 10).map((article, index) => (
-                    <tr key={index} className="hover:bg-gray-50">
-                      <td className="px-3 py-4 text-sm text-gray-900 max-w-xs">
+                <tbody className="divide-y divide-stone">
+                  {sortedArticles.slice(0, 10).map((article, index) => (
+                    <tr key={index} className="hover:bg-stone/20 transition-colors">
+                      <td className="px-3 py-3 text-sm text-ink max-w-xs">
                         <Link 
                           to={`/article/${article.slug}`} 
-                          className="text-blue-600 hover:text-blue-800 hover:underline truncate block"
+                          className="text-accent hover:text-accent/80 hover:underline truncate block font-medium"
                           title={article.title}
                         >
                           {article.title}
                         </Link>
                       </td>
-                      <td className="px-3 py-4 text-sm text-gray-600">
+                      <td className="px-3 py-3 text-sm text-inkMuted font-medium">
                         {formatNumber(article.viewCount)}
                       </td>
-                      <td className="px-3 py-4 text-sm text-gray-600">
+                      <td className="px-3 py-3 text-sm text-inkMuted font-medium">
                         {formatNumber(article.likeCount)}
                       </td>
-                      <td className="px-3 py-4 text-sm text-gray-600">
+                      <td className="px-3 py-3 text-sm text-inkMuted">
                         {article.authorName || 'Unknown'}
                       </td>
                     </tr>
@@ -500,45 +668,80 @@ export default function AnalyticsPage() {
           </div>
 
           {/* Author Stats Table */}
-          <div className="bg-white p-6 rounded-lg shadow">
-            <h2 className="text-xl font-semibold mb-4">Author Statistics</h2>
+          <div className="bg-white rounded-xl border border-stone p-6 shadow-sm">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center">
+                <FontAwesomeIcon icon={faUsers} className="text-purple-600 text-sm" />
+              </div>
+              <h2 className="text-lg font-semibold text-ink">Author Statistics</h2>
+            </div>
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Author
+              <table className="min-w-full divide-y divide-stone">
+                <thead>
+                  <tr className="bg-stone/30">
+                    <th 
+                      className="px-3 py-3 text-left text-xs font-semibold text-inkMuted uppercase tracking-wider cursor-pointer hover:bg-stone/50 transition-colors"
+                      onClick={() => handleAuthorSort('name')}
+                    >
+                      <div className="flex items-center gap-2">
+                        Author
+                        <FontAwesomeIcon icon={getAuthorSortIcon('name')} className="text-inkMuted" />
+                      </div>
                     </th>
-                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Articles
+                    <th 
+                      className="px-3 py-3 text-left text-xs font-semibold text-inkMuted uppercase tracking-wider cursor-pointer hover:bg-stone/50 transition-colors"
+                      onClick={() => handleAuthorSort('articles')}
+                    >
+                      <div className="flex items-center gap-2">
+                        Articles
+                        <FontAwesomeIcon icon={getAuthorSortIcon('articles')} className="text-inkMuted" />
+                      </div>
                     </th>
-                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Total Views
+                    <th 
+                      className="px-3 py-3 text-left text-xs font-semibold text-inkMuted uppercase tracking-wider cursor-pointer hover:bg-stone/50 transition-colors"
+                      onClick={() => handleAuthorSort('totalViews')}
+                    >
+                      <div className="flex items-center gap-2">
+                        Total Views
+                        <FontAwesomeIcon icon={getAuthorSortIcon('totalViews')} className="text-inkMuted" />
+                      </div>
                     </th>
-                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Avg Views
+                    <th 
+                      className="px-3 py-3 text-left text-xs font-semibold text-inkMuted uppercase tracking-wider cursor-pointer hover:bg-stone/50 transition-colors"
+                      onClick={() => handleAuthorSort('avgViews')}
+                    >
+                      <div className="flex items-center gap-2">
+                        Avg Views
+                        <FontAwesomeIcon icon={getAuthorSortIcon('avgViews')} className="text-inkMuted" />
+                      </div>
                     </th>
-                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Avg Likes
+                    <th 
+                      className="px-3 py-3 text-left text-xs font-semibold text-inkMuted uppercase tracking-wider cursor-pointer hover:bg-stone/50 transition-colors"
+                      onClick={() => handleAuthorSort('avgLikes')}
+                    >
+                      <div className="flex items-center gap-2">
+                        Avg Likes
+                        <FontAwesomeIcon icon={getAuthorSortIcon('avgLikes')} className="text-inkMuted" />
+                      </div>
                     </th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {authorStats.map((author, index) => (
-                    <tr key={index} className="hover:bg-gray-50">
-                      <td className="px-3 py-4 text-sm font-medium text-gray-900">
+                <tbody className="divide-y divide-stone">
+                  {sortedAuthorStats.map((author, index) => (
+                    <tr key={index} className="hover:bg-stone/20 transition-colors">
+                      <td className="px-3 py-3 text-sm font-medium text-ink">
                         {author.name}
                       </td>
-                      <td className="px-3 py-4 text-sm text-gray-600">
+                      <td className="px-3 py-3 text-sm text-inkMuted font-medium">
                         {author.articles}
                       </td>
-                      <td className="px-3 py-4 text-sm text-gray-600">
+                      <td className="px-3 py-3 text-sm text-inkMuted font-medium">
                         {formatNumber(author.totalViews)}
                       </td>
-                      <td className="px-3 py-4 text-sm text-gray-600">
+                      <td className="px-3 py-3 text-sm text-inkMuted">
                         {formatNumber(author.avgViews)}
                       </td>
-                      <td className="px-3 py-4 text-sm text-gray-600">
+                      <td className="px-3 py-3 text-sm text-inkMuted">
                         {formatNumber(author.avgLikes)}
                       </td>
                     </tr>

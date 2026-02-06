@@ -6,9 +6,10 @@ import DashboardSidebar from './DashboardSidebar';
 
 interface DashboardLayoutProps {
   children: ReactNode;
+  fullWidth?: boolean;
 }
 
-export default function DashboardLayout({ children }: DashboardLayoutProps) {
+export default function DashboardLayout({ children, fullWidth = false }: DashboardLayoutProps) {
   const { userData, isStaff, signOut } = useAuth();
   const navigate = useNavigate();
 
@@ -52,7 +53,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         {isStaff() && <DashboardSidebar />}
 
         {/* Main Content */}
-        <main className={`flex-1 p-6 ${isStaff() ? 'max-w-7xl' : 'max-w-4xl mx-auto'}`}>
+        <main className={`flex-1 ${fullWidth ? 'p-0' : 'p-6'} ${!isStaff() ? 'max-w-4xl mx-auto' : ''}`}>
           {children}
         </main>
       </div>

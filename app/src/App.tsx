@@ -25,6 +25,9 @@ import CreateEditTrackerPage from './pages/dashboard/CreateEditTrackerPage';
 import PublicTrackersPage from './pages/PublicTrackersPage';
 import PublicTrackerDetailPage from './pages/PublicTrackerDetailPage';
 import ReportsPage from './pages/ReportsPage';
+import InvestigationsBoardPage from './pages/InvestigationsBoardPage';
+import InvestigationsBoardAdminPage from './pages/dashboard/InvestigationsBoardAdminPage';
+import InvestigationsIndexPage from './pages/InvestigationsIndexPage';
 
 
 function App() {
@@ -62,6 +65,10 @@ function App() {
             <Route path="/tracker/:slug" element={<PublicTrackerDetailPage />} />
             {/* Reports page */}
             <Route path="/reports" element={<ReportsPage />} />
+            {/* Investigations index */}
+            <Route path="/investigations" element={<InvestigationsIndexPage />} />
+            {/* Investigations board */}
+            <Route path="/investigations/epstein-files" element={<InvestigationsBoardPage />} />
             {/* Informational pages that should include site chrome */}
             <Route path="/about" element={<AboutPage />} />
             <Route path="/privacy" element={<PrivacyPolicyPage />} />
@@ -161,6 +168,15 @@ function App() {
             element={
               <ProtectedRoute requireStaff>
                 <CreateEditTrackerPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/dashboard/investigations/epstein-files"
+            element={
+              <ProtectedRoute requireRoles={['editor', 'superuser']}>
+                <InvestigationsBoardAdminPage />
               </ProtectedRoute>
             }
           />
