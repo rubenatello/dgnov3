@@ -1,5 +1,5 @@
 import SEOHead from '../components/SEOHead';
-import InvestigationBoardEditor from '../components/investigations/InvestigationBoardEditor';
+import InvestigationBoardEditorV2 from '../components/investigations/InvestigationBoardEditorV2';
 
 export default function InvestigationsBoardPage() {
   return (
@@ -9,7 +9,7 @@ export default function InvestigationsBoardPage() {
         description="Explore DGNO's Epstein Files investigation board: an interactive map of people, documents, timelines, and verified source links."
         url="https://dgno.us/investigations/epstein-files"
       />
-      <InvestigationBoardEditor />
+      <InvestigationBoardEditorV2 readOnly />
     </div>
   );
 }

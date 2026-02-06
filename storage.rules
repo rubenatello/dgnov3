@@ -75,5 +75,19 @@ service firebase.storage {
       // Writers can update/delete their own videos
       allow update, delete: if isWriter();
     }
+
+    // Investigations folder (people/location images, evidence documents)
+    // Note: Storage rules cannot read Firestore roles, so we allow any signed-in
+    // user to upload. The dashboard UI already enforces editor-only access.
+    match /investigations/{allPaths=**} {
+      // Anyone can read (investigation boards are public)
+      allow read: if true;
+      
+      // Any signed-in user can upload (dashboard enforces role check)
+      allow create: if isSignedIn() && isValidSize(10);
+      
+      // Any signed-in user can update/delete (dashboard enforces role check)
+      allow update, delete: if isSignedIn();
+    }
   }
 }

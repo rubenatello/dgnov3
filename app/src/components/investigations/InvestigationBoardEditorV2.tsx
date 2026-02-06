@@ -311,6 +311,29 @@ export default function InvestigationBoardEditorV2({ readOnly = false }: Props) 
     return conns;
   }, [events]);
 
+  // Canvas bounds for connection lines
+  const canvasSize = useMemo(() => {
+    const minWidth = 3000;
+    const minHeight = 2000;
+    const padding = 400;
+    const points = [...people, ...locations, ...events].map((item) => ({
+      x: (item.x ?? 100) + 120,
+      y: (item.y ?? 100) + 100,
+    }));
+
+    if (points.length === 0) {
+      return { width: minWidth, height: minHeight };
+    }
+
+    const maxX = Math.max(...points.map((p) => p.x));
+    const maxY = Math.max(...points.map((p) => p.y));
+
+    return {
+      width: Math.max(minWidth, maxX + padding),
+      height: Math.max(minHeight, maxY + padding),
+    };
+  }, [people, locations, events]);
+
   // ============================================
   // Zoom Controls
   // ============================================
@@ -798,8 +821,8 @@ export default function InvestigationBoardEditorV2({ readOnly = false }: Props) 
   return (
     <div className="relative h-full w-full">
       {/* Header */}
-      <div className="bg-white border-b border-stone/20 px-6 py-3">
-        <div className="flex items-center justify-between gap-4">
+      <div className="bg-white border-b border-stone/20 px-4 sm:px-6 py-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex-1 min-w-0">
             {editMode ? (
               <input
@@ -847,11 +870,11 @@ export default function InvestigationBoardEditorV2({ readOnly = false }: Props) 
       </div>
 
       {/* Main content */}
-      <div className="flex h-[calc(100vh-140px)]">
+      <div className="flex flex-col lg:flex-row h-[calc(100vh-180px)] sm:h-[calc(100vh-160px)] lg:h-[calc(100vh-140px)]">
         {/* Canvas area */}
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col min-h-[60vh] lg:min-h-0">
           {/* Toolbar */}
-          <div className="bg-stone/5 border-b border-stone/20 px-4 py-2 flex items-center gap-3 flex-wrap">
+          <div className="bg-stone/5 border-b border-stone/20 px-3 sm:px-4 py-2 flex items-center gap-2 sm:gap-3 flex-wrap">
             {/* Search */}
             <div className="relative">
               <FontAwesomeIcon icon={faSearch} className="absolute left-3 top-1/2 -translate-y-1/2 text-inkMuted text-xs" />
@@ -859,7 +882,7 @@ export default function InvestigationBoardEditorV2({ readOnly = false }: Props) 
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Search..."
-                className="pl-9 pr-4 py-2 text-sm rounded-lg border border-stone/30 focus:outline-none focus:ring-2 focus:ring-accent/40 w-48"
+                className="pl-9 pr-4 py-2 text-sm rounded-lg border border-stone/30 focus:outline-none focus:ring-2 focus:ring-accent/40 w-full sm:w-48"
               />
             </div>
 
@@ -867,7 +890,7 @@ export default function InvestigationBoardEditorV2({ readOnly = false }: Props) 
             <select
               value={filterType}
               onChange={(e) => setFilterType(e.target.value as typeof filterType)}
-              className="px-3 py-2 text-sm rounded-lg border border-stone/30 bg-white"
+              className="px-3 py-2 text-sm rounded-lg border border-stone/30 bg-white w-full sm:w-auto"
             >
               <option value="all">All</option>
               <option value="people">People</option>
@@ -966,10 +989,29 @@ export default function InvestigationBoardEditorV2({ readOnly = false }: Props) 
               }}
             >
               {/* Connection lines */}
-              <svg className="absolute inset-0 w-[3000px] h-[2000px] pointer-events-none">
+              <svg
+                className="absolute inset-0 pointer-events-none"
+                width={canvasSize.width}
+                height={canvasSize.height}
+                viewBox={`0 0 ${canvasSize.width} ${canvasSize.height}`}
+              >
                 {connections.map((conn) => {
                   const fromPos = getEntityPosition(conn.fromType, conn.fromId);
                   const toPos = getEntityPosition(conn.toType, conn.toId);
+
+                  const x1 = fromPos.x + 60;
+                  const y1 = fromPos.y + 40;
+                  const x2 = toPos.x + 60;
+                  const y2 = toPos.y + 40;
+                  const dx = x2 - x1;
+                  const dy = y2 - y1;
+                  const dist = Math.hypot(dx, dy) || 1;
+                  const nx = -dy / dist;
+                  const ny = dx / dist;
+                  const bend = Math.min(160, Math.max(0, dist * 0.2));
+                  const cx = x1 + dx * 0.5 + nx * bend;
+                  const cy = y1 + dy * 0.5 + ny * bend;
+                  const pathD = `M ${x1} ${y1} Q ${cx} ${cy} ${x2} ${y2}`;
                   
                   const isHighlighted = 
                     (selectedEntity?.type === conn.fromType && selectedEntity.id === conn.fromId) ||
@@ -977,11 +1019,9 @@ export default function InvestigationBoardEditorV2({ readOnly = false }: Props) 
                   
                   return (
                     <g key={conn.id}>
-                      <line
-                        x1={fromPos.x + 60}
-                        y1={fromPos.y + 40}
-                        x2={toPos.x + 60}
-                        y2={toPos.y + 40}
+                      <path
+                        d={pathD}
+                        fill="none"
                         stroke={isHighlighted ? '#8b5cf6' : '#d1d5db'}
                         strokeWidth={isHighlighted ? 2 : 1}
                         strokeDasharray={conn.toType === 'location' ? '4,4' : undefined}
@@ -997,7 +1037,7 @@ export default function InvestigationBoardEditorV2({ readOnly = false }: Props) 
                   key={person.id}
                   onMouseDown={(e) => handleEntityMouseDown(e, 'person', person.id)}
                   onClick={() => handleEntityClick('person', person.id)}
-                  className={`absolute w-[120px] rounded-xl border-2 p-3 text-left transition-all ${
+                  className={`absolute w-[96px] sm:w-[120px] rounded-xl border-2 p-2 sm:p-3 text-left transition-all ${
                     entityColors.person.bg
                   } ${
                     selectedEntity?.type === 'person' && selectedEntity.id === person.id
@@ -1014,18 +1054,18 @@ export default function InvestigationBoardEditorV2({ readOnly = false }: Props) 
                       <img
                         src={person.imageUrl}
                         alt={person.name}
-                        className="w-12 h-12 rounded-full object-cover mb-2"
+                        className="w-10 h-10 sm:w-12 sm:h-12 rounded-full object-cover mb-2"
                       />
                     ) : (
-                      <div className="w-12 h-12 rounded-full bg-sky-200 flex items-center justify-center mb-2">
+                      <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-sky-200 flex items-center justify-center mb-2">
                         <FontAwesomeIcon icon={faUser} className="text-sky-600" />
                       </div>
                     )}
-                    <span className="font-medium text-sm text-ink leading-tight line-clamp-2">
+                    <span className="font-medium text-xs sm:text-sm text-ink leading-tight line-clamp-2">
                       {person.name}
                     </span>
                     {person.title && (
-                      <span className="text-[10px] text-inkMuted mt-1 line-clamp-1">
+                      <span className="text-[9px] sm:text-[10px] text-inkMuted mt-1 line-clamp-1">
                         {person.title}
                       </span>
                     )}
@@ -1039,7 +1079,7 @@ export default function InvestigationBoardEditorV2({ readOnly = false }: Props) 
                   key={location.id}
                   onMouseDown={(e) => handleEntityMouseDown(e, 'location', location.id)}
                   onClick={() => handleEntityClick('location', location.id)}
-                  className={`absolute w-[120px] rounded-xl border-2 p-3 text-left transition-all ${
+                  className={`absolute w-[96px] sm:w-[120px] rounded-xl border-2 p-2 sm:p-3 text-left transition-all ${
                     entityColors.location.bg
                   } ${
                     selectedEntity?.type === 'location' && selectedEntity.id === location.id
@@ -1056,18 +1096,18 @@ export default function InvestigationBoardEditorV2({ readOnly = false }: Props) 
                       <img
                         src={location.imageUrl}
                         alt={location.name}
-                        className="w-12 h-12 rounded-lg object-cover mb-2"
+                        className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg object-cover mb-2"
                       />
                     ) : (
-                      <div className="w-12 h-12 rounded-lg bg-emerald-200 flex items-center justify-center mb-2">
+                      <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-emerald-200 flex items-center justify-center mb-2">
                         <FontAwesomeIcon icon={faMapMarkerAlt} className="text-emerald-600" />
                       </div>
                     )}
-                    <span className="font-medium text-sm text-ink leading-tight line-clamp-2">
+                    <span className="font-medium text-xs sm:text-sm text-ink leading-tight line-clamp-2">
                       {location.name}
                     </span>
                     {location.city && (
-                      <span className="text-[10px] text-inkMuted mt-1 line-clamp-1">
+                      <span className="text-[9px] sm:text-[10px] text-inkMuted mt-1 line-clamp-1">
                         {location.city}{location.state ? `, ${location.state}` : ''}
                       </span>
                     )}
@@ -1083,7 +1123,7 @@ export default function InvestigationBoardEditorV2({ readOnly = false }: Props) 
                     key={event.id}
                     onMouseDown={(e) => handleEntityMouseDown(e, 'event', event.id)}
                     onClick={() => handleEntityClick('event', event.id)}
-                    className={`absolute w-[160px] rounded-xl border-2 p-3 text-left transition-all ${
+                    className={`absolute w-[140px] sm:w-[160px] rounded-xl border-2 p-2 sm:p-3 text-left transition-all ${
                       entityColors.event.bg
                     } ${
                       selectedEntity?.type === 'event' && selectedEntity.id === event.id
@@ -1096,14 +1136,14 @@ export default function InvestigationBoardEditorV2({ readOnly = false }: Props) 
                     }}
                   >
                     <div className="flex items-start gap-2">
-                      <div className={`w-8 h-8 rounded-lg bg-violet-200 flex items-center justify-center flex-shrink-0 ${config.color}`}>
+                      <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-violet-200 flex items-center justify-center flex-shrink-0 ${config.color}`}>
                         <FontAwesomeIcon icon={config.icon} className="text-sm" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <span className="font-medium text-sm text-ink leading-tight line-clamp-2 block">
+                        <span className="font-medium text-xs sm:text-sm text-ink leading-tight line-clamp-2 block">
                           {event.title}
                         </span>
-                        <span className="text-[10px] text-inkMuted mt-1 block">
+                        <span className="text-[9px] sm:text-[10px] text-inkMuted mt-1 block">
                           {event.date}
                         </span>
                         {event.peopleIds.length > 0 && (
@@ -1122,7 +1162,7 @@ export default function InvestigationBoardEditorV2({ readOnly = false }: Props) 
         </div>
 
         {/* Right Sidebar */}
-        <div className="w-80 bg-white border-l border-stone/20 overflow-y-auto">
+        <div className="w-full lg:w-80 bg-white border-t lg:border-t-0 lg:border-l border-stone/20 overflow-y-auto">
           {/* Stats */}
           <div className="p-4 border-b border-stone/20">
             <h2 className="text-xs font-semibold text-inkMuted uppercase tracking-wide mb-3">Overview</h2>
@@ -2137,8 +2177,10 @@ export default function InvestigationBoardEditorV2({ readOnly = false }: Props) 
       {/* Media Picker Modal */}
       {showMediaPicker && (
         <MediaPicker
+          isOpen={showMediaPicker}
           onSelect={handleMediaSelect}
           onClose={() => setShowMediaPicker(false)}
+          filterType="image"
         />
       )}
 
