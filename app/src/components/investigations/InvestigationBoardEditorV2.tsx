@@ -1,6 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { MouseEvent, ChangeEvent } from 'react';
-import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { ChangeEvent } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faSave,
@@ -31,8 +30,10 @@ import {
   faFileAlt,
   faExternalLinkAlt,
 } from '@fortawesome/free-solid-svg-icons';
-import { db } from '../../config/firebase';
 import { useAuth } from '../../hooks/useAuth';
+import { usePanZoom } from '../../hooks/usePanZoom';
+import { useBoardHistory } from '../../hooks/useBoardHistory';
+import { useBoardPersistence } from '../../hooks/useBoardPersistence';
 import MediaPicker from '../MediaPicker';
 import type { Media } from '../../types/models';
 import type {
@@ -42,21 +43,14 @@ import type {
   InvestigationLocation,
   TimelineEvent,
   TimelineEventType,
-  InvestigationsBoardPayload,
   BoardConnection,
+  BoardViewMode,
 } from '../../types/investigations';
 import { uploadMediaFile } from '../../services/mediaService';
+import BoardCanvasView from './BoardCanvasView';
+import TimelineTableView from './TimelineTableView';
+import PeopleGridView from './PeopleGridView';
 
-const BOARD_DOC_ID = 'epstein-files';
-
-// ============================================
-// Color schemes for different entity types
-// ============================================
-const entityColors = {
-  person: { bg: 'bg-sky-50', border: 'border-sky-300', text: 'text-sky-700', accent: 'bg-sky-500' },
-  location: { bg: 'bg-emerald-50', border: 'border-emerald-300', text: 'text-emerald-700', accent: 'bg-emerald-500' },
-  event: { bg: 'bg-violet-50', border: 'border-violet-300', text: 'text-violet-700', accent: 'bg-violet-500' },
-};
 
 const eventTypeConfig: Record<TimelineEventType, { icon: typeof faPhone; label: string; color: string }> = {
   communication: { icon: faPhone, label: 'Communication', color: 'text-blue-600' },
@@ -71,7 +65,7 @@ const eventTypeConfig: Record<TimelineEventType, { icon: typeof faPhone; label: 
 // ============================================
 // History State
 // ============================================
-interface HistoryState {
+interface HistorySnapshot {
   people: InvestigationPerson[];
   locations: InvestigationLocation[];
   events: TimelineEvent[];
@@ -86,26 +80,115 @@ interface Props {
 // ============================================
 export default function InvestigationBoardEditorV2({ readOnly = false }: Props) {
   const { isEditor, isSuperUser, userData } = useAuth();
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const canvasRef = useRef<HTMLDivElement | null>(null);
 
-  // Board state
-  const [loading, setLoading] = useState(true);
-  const [boardTitle, setBoardTitle] = useState('Investigation Board');
-  const [boardDescription, setBoardDescription] = useState('');
-  const [people, setPeople] = useState<InvestigationPerson[]>([]);
-  const [locations, setLocations] = useState<InvestigationLocation[]>([]);
-  const [events, setEvents] = useState<TimelineEvent[]>([]);
-  const [isActive, setIsActive] = useState(true);
+  const canEdit = !readOnly && (isEditor() || isSuperUser());
+
+  // ---- Extracted hooks ----
+  const {
+    containerRef,
+    canvasRef,
+    scale,
+    offset,
+    isPanning,
+    zoomIn,
+    zoomOut,
+    resetView,
+    handleMouseDown,
+    handleMouseMove,
+    handleMouseUp,
+    handleTouchStart,
+    handleTouchMove,
+    handleTouchEnd,
+  } = usePanZoom();
+
+  const {
+    loading,
+    saving,
+    isDirty,
+    saveMessage,
+    boardData,
+    setBoardData,
+    markDirty,
+    saveBoard,
+  } = useBoardPersistence({ canEdit, userEmail: userData?.email });
+
+  const {
+    pushHistory,
+    undo: undoHistory,
+    redo: redoHistory,
+    canUndo,
+    canRedo,
+  } = useBoardHistory<HistorySnapshot>({ people: [], locations: [], events: [] });
+
+  // Derived state from boardData
+  const { title: boardTitle, people, locations, events, isActive } = boardData;
+
+  // Convenience setters that keep boardData in sync and mark dirty
+  const setPeople = useCallback(
+    (updater: InvestigationPerson[] | ((prev: InvestigationPerson[]) => InvestigationPerson[])) => {
+      setBoardData((d) => ({
+        ...d,
+        people: typeof updater === 'function' ? updater(d.people) : updater,
+      }));
+      markDirty();
+    },
+    [setBoardData, markDirty],
+  );
+
+  const setLocations = useCallback(
+    (updater: InvestigationLocation[] | ((prev: InvestigationLocation[]) => InvestigationLocation[])) => {
+      setBoardData((d) => ({
+        ...d,
+        locations: typeof updater === 'function' ? updater(d.locations) : updater,
+      }));
+      markDirty();
+    },
+    [setBoardData, markDirty],
+  );
+
+  const setEvents = useCallback(
+    (updater: TimelineEvent[] | ((prev: TimelineEvent[]) => TimelineEvent[])) => {
+      setBoardData((d) => ({
+        ...d,
+        events: typeof updater === 'function' ? updater(d.events) : updater,
+      }));
+      markDirty();
+    },
+    [setBoardData, markDirty],
+  );
+
+  const setBoardTitle = useCallback(
+    (title: string) => {
+      setBoardData((d) => ({ ...d, title }));
+      markDirty();
+    },
+    [setBoardData, markDirty],
+  );
+
+  // History wrappers
+  const takeSnapshot = useCallback(() => {
+    pushHistory({ people, locations, events });
+  }, [pushHistory, people, locations, events]);
+
+  const undo = useCallback(() => {
+    const prev = undoHistory();
+    if (prev) {
+      setBoardData((d) => ({ ...d, people: prev.people, locations: prev.locations, events: prev.events }));
+    }
+  }, [undoHistory, setBoardData]);
+
+  const redo = useCallback(() => {
+    const next = redoHistory();
+    if (next) {
+      setBoardData((d) => ({ ...d, people: next.people, locations: next.locations, events: next.events }));
+    }
+  }, [redoHistory, setBoardData]);
 
   // UI state
   const [editMode, setEditMode] = useState(false);
-  const [scale, setScale] = useState(1);
-  const [offset, setOffset] = useState({ x: 0, y: 0 });
-  const [isPanning, setIsPanning] = useState(false);
-  const [panStart, setPanStart] = useState({ x: 0, y: 0 });
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'people' | 'locations' | 'events'>('all');
+  const [viewMode, setViewMode] = useState<BoardViewMode>('board');
 
   // Selection state
   const [selectedEntity, setSelectedEntity] = useState<{
@@ -113,31 +196,16 @@ export default function InvestigationBoardEditorV2({ readOnly = false }: Props) 
     id: string;
   } | null>(null);
 
-  // Drag state
-  const [draggingEntity, setDraggingEntity] = useState<{
-    type: 'person' | 'location' | 'event';
-    id: string;
-  } | null>(null);
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
-
   // Panel state
   const [activePanel, setActivePanel] = useState<'none' | 'people' | 'locations' | 'events' | 'settings'>('none');
   const [showMediaPicker, setShowMediaPicker] = useState(false);
   const [mediaPickerTarget, setMediaPickerTarget] = useState<'person' | 'location'>('person');
   const [showDocumentUploadModal, setShowDocumentUploadModal] = useState(false);
 
-  // Save state
-  const [saving, setSaving] = useState(false);
-  const [saveMessage, setSaveMessage] = useState<string | null>(null);
-
   // Upload state
   const [uploadingImage, setUploadingImage] = useState(false);
   const [uploadingDocument, setUploadingDocument] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<string | null>(null);
-
-  // History for undo/redo
-  const [history, setHistory] = useState<HistoryState[]>([]);
-  const [historyIndex, setHistoryIndex] = useState(-1);
 
   // ============================================
   // Form States
@@ -184,95 +252,7 @@ export default function InvestigationBoardEditorV2({ readOnly = false }: Props) 
     type: 'link',
   });
 
-  const canEdit = !readOnly && (isEditor() || isSuperUser());
-
-  // ============================================
-  // Load Board Data
-  // ============================================
-  useEffect(() => {
-    const fetchBoard = async () => {
-      try {
-        const snapshot = await getDoc(doc(db, 'investigations', BOARD_DOC_ID));
-        if (snapshot.exists()) {
-          const data = snapshot.data() as InvestigationsBoardPayload;
-          setBoardTitle(data.title || 'Investigation Board');
-          setBoardDescription(data.description || '');
-          setPeople(data.people || []);
-          setLocations(data.locations || []);
-          setEvents(data.events || []);
-          setIsActive(data.isActive ?? true);
-        }
-      } catch (error) {
-        console.error('Failed to load board:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchBoard();
-  }, []);
-
-  // ============================================
-  // Save Board
-  // ============================================
-  const saveBoard = useCallback(async () => {
-    if (!canEdit) return;
-    setSaving(true);
-    setSaveMessage(null);
-    try {
-      const payload: InvestigationsBoardPayload = {
-        title: boardTitle,
-        description: boardDescription,
-        people,
-        locations,
-        events,
-        documents: [],
-        isActive,
-        updatedAt: serverTimestamp(),
-        updatedBy: userData?.email || 'unknown',
-      };
-      await setDoc(doc(db, 'investigations', BOARD_DOC_ID), payload);
-      setSaveMessage('Saved successfully!');
-      setTimeout(() => setSaveMessage(null), 3000);
-    } catch (error) {
-      console.error('Save failed:', error);
-      setSaveMessage('Save failed!');
-    } finally {
-      setSaving(false);
-    }
-  }, [canEdit, boardTitle, boardDescription, people, locations, events, isActive, userData]);
-
-  // ============================================
-  // History Management
-  // ============================================
-  const pushHistory = useCallback(() => {
-    const newState: HistoryState = {
-      people: JSON.parse(JSON.stringify(people)),
-      locations: JSON.parse(JSON.stringify(locations)),
-      events: JSON.parse(JSON.stringify(events)),
-    };
-    setHistory((prev) => [...prev.slice(0, historyIndex + 1), newState]);
-    setHistoryIndex((prev) => prev + 1);
-  }, [people, locations, events, historyIndex]);
-
-  const undo = useCallback(() => {
-    if (historyIndex > 0) {
-      const prevState = history[historyIndex - 1];
-      setPeople(prevState.people);
-      setLocations(prevState.locations);
-      setEvents(prevState.events);
-      setHistoryIndex((prev) => prev - 1);
-    }
-  }, [history, historyIndex]);
-
-  const redo = useCallback(() => {
-    if (historyIndex < history.length - 1) {
-      const nextState = history[historyIndex + 1];
-      setPeople(nextState.people);
-      setLocations(nextState.locations);
-      setEvents(nextState.events);
-      setHistoryIndex((prev) => prev + 1);
-    }
-  }, [history, historyIndex]);
+  // (canEdit, loading, saving, history, zoom, pan — handled by extracted hooks above)
 
   // ============================================
   // Auto-generate Connections
@@ -281,7 +261,6 @@ export default function InvestigationBoardEditorV2({ readOnly = false }: Props) 
     const conns: BoardConnection[] = [];
     
     events.forEach((event) => {
-      // Connect event to each tagged person
       event.peopleIds.forEach((personId) => {
         conns.push({
           id: `${event.id}-person-${personId}`,
@@ -294,7 +273,6 @@ export default function InvestigationBoardEditorV2({ readOnly = false }: Props) 
         });
       });
       
-      // Connect event to each tagged location
       event.locationIds.forEach((locationId) => {
         conns.push({
           id: `${event.id}-location-${locationId}`,
@@ -311,143 +289,13 @@ export default function InvestigationBoardEditorV2({ readOnly = false }: Props) 
     return conns;
   }, [events]);
 
-  // Canvas bounds for connection lines
-  const canvasSize = useMemo(() => {
-    const minWidth = 3000;
-    const minHeight = 2000;
-    const padding = 400;
-    const points = [...people, ...locations, ...events].map((item) => ({
-      x: (item.x ?? 100) + 120,
-      y: (item.y ?? 100) + 100,
-    }));
-
-    if (points.length === 0) {
-      return { width: minWidth, height: minHeight };
-    }
-
-    const maxX = Math.max(...points.map((p) => p.x));
-    const maxY = Math.max(...points.map((p) => p.y));
-
-    return {
-      width: Math.max(minWidth, maxX + padding),
-      height: Math.max(minHeight, maxY + padding),
-    };
-  }, [people, locations, events]);
-
-  // ============================================
-  // Zoom Controls
-  // ============================================
-  const zoomIn = () => setScale((s) => Math.min(2, s * 1.15));
-  const zoomOut = () => setScale((s) => Math.max(0.4, s / 1.15));
-  const resetView = () => {
-    setScale(1);
-    setOffset({ x: 0, y: 0 });
-  };
-
-  // ============================================
-  // Wheel Zoom
-  // ============================================
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    const wheelListener = (e: WheelEvent) => {
-      e.preventDefault();
-      const delta = -e.deltaY;
-      const zoomFactor = delta > 0 ? 1.08 : 0.92;
-      setScale((current) => Math.min(2, Math.max(0.4, current * zoomFactor)));
-    };
-
-    container.addEventListener('wheel', wheelListener, { passive: false });
-    return () => container.removeEventListener('wheel', wheelListener);
-  }, []);
-
-  // ============================================
-  // Pan Handlers
-  // ============================================
-  const handleMouseDown = (e: MouseEvent<HTMLDivElement>) => {
-    if (e.button !== 0 || draggingEntity) return;
-    setIsPanning(true);
-    setPanStart({ x: e.clientX - offset.x, y: e.clientY - offset.y });
-  };
-
-  const handleMouseMove = (e: MouseEvent<HTMLDivElement>) => {
-    if (isPanning && !draggingEntity) {
-      setOffset({ x: e.clientX - panStart.x, y: e.clientY - panStart.y });
-    }
-    
-    if (draggingEntity && editMode) {
-      const bounds = canvasRef.current?.getBoundingClientRect();
-      if (!bounds) return;
-      const x = (e.clientX - bounds.left - dragOffset.x) / scale;
-      const y = (e.clientY - bounds.top - dragOffset.y) / scale;
-      
-      if (draggingEntity.type === 'person') {
-        setPeople((prev) => prev.map((p) => 
-          p.id === draggingEntity.id ? { ...p, x, y } : p
-        ));
-      } else if (draggingEntity.type === 'location') {
-        setLocations((prev) => prev.map((l) => 
-          l.id === draggingEntity.id ? { ...l, x, y } : l
-        ));
-      } else if (draggingEntity.type === 'event') {
-        setEvents((prev) => prev.map((ev) => 
-          ev.id === draggingEntity.id ? { ...ev, x, y } : ev
-        ));
-      }
-    }
-  };
-
-  const handleMouseUp = () => {
-    if (draggingEntity) {
-      pushHistory();
-    }
-    setIsPanning(false);
-    setDraggingEntity(null);
-  };
-
-  // ============================================
-  // Entity Mouse Handlers
-  // ============================================
-  const handleEntityMouseDown = (
-    e: MouseEvent<HTMLButtonElement>,
-    type: 'person' | 'location' | 'event',
-    id: string
-  ) => {
-    if (!editMode) return;
-    e.stopPropagation();
-    
-    const bounds = e.currentTarget.getBoundingClientRect();
-    setDragOffset({
-      x: e.clientX - bounds.left,
-      y: e.clientY - bounds.top,
-    });
-    setDraggingEntity({ type, id });
-  };
-
   const handleEntityClick = (
     type: 'person' | 'location' | 'event',
     id: string
   ) => {
-    if (draggingEntity) return;
     setSelectedEntity({ type, id });
   };
 
-  // ============================================
-  // Get Entity Position
-  // ============================================
-  const getEntityPosition = (type: 'person' | 'location' | 'event', id: string) => {
-    if (type === 'person') {
-      const person = people.find((p) => p.id === id);
-      return { x: person?.x ?? 100, y: person?.y ?? 100 };
-    }
-    if (type === 'location') {
-      const location = locations.find((l) => l.id === id);
-      return { x: location?.x ?? 200, y: location?.y ?? 200 };
-    }
-    const event = events.find((ev) => ev.id === id);
-    return { x: event?.x ?? 300, y: event?.y ?? 300 };
-  };
 
   // ============================================
   // CRUD Operations - People
@@ -460,7 +308,7 @@ export default function InvestigationBoardEditorV2({ readOnly = false }: Props) 
   const savePerson = () => {
     if (!personForm.name.trim()) return;
     
-    pushHistory();
+    takeSnapshot();
     
     if (editingPersonId) {
       setPeople((prev) => prev.map((p) => 
@@ -491,7 +339,7 @@ export default function InvestigationBoardEditorV2({ readOnly = false }: Props) 
 
   const deletePerson = (id: string) => {
     if (!confirm('Delete this person? They will be removed from all events.')) return;
-    pushHistory();
+    takeSnapshot();
     setPeople((prev) => prev.filter((p) => p.id !== id));
     setEvents((prev) => prev.map((ev) => ({
       ...ev,
@@ -513,7 +361,7 @@ export default function InvestigationBoardEditorV2({ readOnly = false }: Props) 
   const saveLocation = () => {
     if (!locationForm.name.trim()) return;
     
-    pushHistory();
+    takeSnapshot();
     
     if (editingLocationId) {
       setLocations((prev) => prev.map((l) => 
@@ -544,7 +392,7 @@ export default function InvestigationBoardEditorV2({ readOnly = false }: Props) 
 
   const deleteLocation = (id: string) => {
     if (!confirm('Delete this location? It will be removed from all events.')) return;
-    pushHistory();
+    takeSnapshot();
     setLocations((prev) => prev.filter((l) => l.id !== id));
     setEvents((prev) => prev.map((ev) => ({
       ...ev,
@@ -579,7 +427,7 @@ export default function InvestigationBoardEditorV2({ readOnly = false }: Props) 
   const saveEvent = () => {
     if (!eventForm.title.trim() || !eventForm.date) return;
     
-    pushHistory();
+    takeSnapshot();
     
     if (editingEventId) {
       setEvents((prev) => prev.map((ev) => 
@@ -610,7 +458,7 @@ export default function InvestigationBoardEditorV2({ readOnly = false }: Props) 
 
   const deleteEvent = (id: string) => {
     if (!confirm('Delete this event?')) return;
-    pushHistory();
+    takeSnapshot();
     setEvents((prev) => prev.filter((ev) => ev.id !== id));
     if (selectedEntity?.type === 'event' && selectedEntity.id === id) {
       setSelectedEntity(null);
@@ -793,6 +641,32 @@ export default function InvestigationBoardEditorV2({ readOnly = false }: Props) 
     return [];
   }, [events, selectedEntity]);
 
+  // Filtered entities based on search term
+  const filteredEntities = useMemo(() => {
+    const term = searchTerm.toLowerCase().trim();
+    if (!term) return { people, locations, events };
+
+    return {
+      people: people.filter(
+        (p) =>
+          p.name.toLowerCase().includes(term) ||
+          p.title?.toLowerCase().includes(term) ||
+          p.bio?.toLowerCase().includes(term)
+      ),
+      locations: locations.filter(
+        (l) =>
+          l.name.toLowerCase().includes(term) ||
+          l.address.toLowerCase().includes(term) ||
+          l.city?.toLowerCase().includes(term)
+      ),
+      events: events.filter(
+        (e) =>
+          e.title.toLowerCase().includes(term) ||
+          e.description.toLowerCase().includes(term)
+      ),
+    };
+  }, [searchTerm, people, locations, events]);
+
   // ============================================
   // Loading State
   // ============================================
@@ -839,6 +713,7 @@ export default function InvestigationBoardEditorV2({ readOnly = false }: Props) 
               <>
                 <button
                   onClick={() => setEditMode(!editMode)}
+                  aria-label={editMode ? 'Switch to preview mode' : 'Switch to edit mode'}
                   className={`px-4 py-2 text-sm rounded-full flex items-center gap-2 transition-all ${
                     editMode
                       ? 'bg-ink text-white'
@@ -852,16 +727,23 @@ export default function InvestigationBoardEditorV2({ readOnly = false }: Props) 
                   <button
                     onClick={saveBoard}
                     disabled={saving}
+                    aria-label={saving ? 'Saving changes' : 'Publish changes'}
                     className="px-4 py-2 text-sm rounded-full bg-accent text-white flex items-center gap-2 disabled:opacity-60"
                   >
                     <FontAwesomeIcon icon={faSave} className="text-xs" />
                     {saving ? 'Saving…' : 'Publish'}
                   </button>
                 )}
+                {isDirty && !saving && (
+                  <span className="text-xs text-amber-600 flex items-center gap-1" aria-live="polite">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                    Unsaved changes
+                  </span>
+                )}
               </>
             )}
             {saveMessage && (
-              <span className={`text-xs ${saveMessage.includes('failed') ? 'text-red-600' : 'text-emerald-600'}`}>
+              <span className={`text-xs ${saveMessage.includes('failed') ? 'text-red-600' : 'text-emerald-600'}`} aria-live="polite">
                 {saveMessage}
               </span>
             )}
@@ -870,555 +752,454 @@ export default function InvestigationBoardEditorV2({ readOnly = false }: Props) 
       </div>
 
       {/* Main content */}
-      <div className="flex flex-col lg:flex-row h-[calc(100vh-180px)] sm:h-[calc(100vh-160px)] lg:h-[calc(100vh-140px)]">
-        {/* Canvas area */}
-        <div className="flex-1 flex flex-col min-h-[60vh] lg:min-h-0">
+      <div className="flex flex-col h-[calc(100vh-180px)] sm:h-[calc(100vh-160px)] lg:h-[calc(100vh-140px)]">
+        {/* Full-width canvas area */}
+        <div className="flex-1 flex flex-col min-h-0">
           {/* Toolbar */}
-          <div className="bg-stone/5 border-b border-stone/20 px-3 sm:px-4 py-2 flex items-center gap-2 sm:gap-3 flex-wrap">
-            {/* Search */}
-            <div className="relative">
-              <FontAwesomeIcon icon={faSearch} className="absolute left-3 top-1/2 -translate-y-1/2 text-inkMuted text-xs" />
-              <input
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search..."
-                className="pl-9 pr-4 py-2 text-sm rounded-lg border border-stone/30 focus:outline-none focus:ring-2 focus:ring-accent/40 w-full sm:w-48"
+          <div className="bg-stone/5 border-b border-stone/20 px-3 sm:px-4 py-2 space-y-2">
+            {/* View Mode Tabs */}
+            <div className="flex items-center gap-1 overflow-x-auto">
+              <button
+                onClick={() => setViewMode('board')}
+                className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors whitespace-nowrap ${
+                  viewMode === 'board'
+                    ? 'bg-accent text-white'
+                    : 'text-inkMuted hover:text-ink hover:bg-white'
+                }`}
+              >
+                <FontAwesomeIcon icon={faMapMarkerAlt} className="mr-2 text-xs" />
+                Board
+              </button>
+              <button
+                onClick={() => setViewMode('timeline')}
+                className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors whitespace-nowrap ${
+                  viewMode === 'timeline'
+                    ? 'bg-accent text-white'
+                    : 'text-inkMuted hover:text-ink hover:bg-white'
+                }`}
+              >
+                <FontAwesomeIcon icon={faCalendar} className="mr-2 text-xs" />
+                Timeline
+              </button>
+              <button
+                onClick={() => setViewMode('people')}
+                className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors whitespace-nowrap ${
+                  viewMode === 'people'
+                    ? 'bg-accent text-white'
+                    : 'text-inkMuted hover:text-ink hover:bg-white'
+                }`}
+              >
+                <FontAwesomeIcon icon={faUsers} className="mr-2 text-xs" />
+                People
+              </button>
+
+              {/* Divider */}
+              <div className="h-6 w-px bg-stone/30 mx-1" />
+
+              {/* Search */}
+              <div className="relative">
+                <FontAwesomeIcon icon={faSearch} className="absolute left-3 top-1/2 -translate-y-1/2 text-inkMuted text-xs" />
+                <input
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Search..."
+                  className="pl-9 pr-4 py-2 text-sm rounded-lg border border-stone/30 focus:outline-none focus:ring-2 focus:ring-accent/40 w-full sm:w-48"
+                />
+              </div>
+
+              {/* Board-specific controls */}
+              {viewMode === 'board' && (
+                <>
+                  {/* Filter */}
+                  <select
+                    value={filterType}
+                    onChange={(e) => setFilterType(e.target.value as typeof filterType)}
+                    aria-label="Filter board entities by type"
+                    className="px-3 py-2 text-sm rounded-lg border border-stone/30 bg-white w-full sm:w-auto"
+                  >
+                    <option value="all">All</option>
+                    <option value="people">People</option>
+                    <option value="locations">Locations</option>
+                    <option value="events">Events</option>
+                  </select>
+
+                  {/* Zoom */}
+                  <div className="flex items-center gap-1 border-l border-stone/30 pl-3" role="group" aria-label="Zoom controls">
+                    <button onClick={zoomOut} className="p-2 hover:bg-white rounded" title="Zoom out" aria-label="Zoom out">−</button>
+                    <span className="text-xs text-inkMuted w-12 text-center" aria-live="polite">{Math.round(scale * 100)}%</span>
+                    <button onClick={zoomIn} className="p-2 hover:bg-white rounded" title="Zoom in" aria-label="Zoom in">+</button>
+                    <button onClick={resetView} className="p-2 hover:bg-white rounded text-xs" title="Reset view">
+                      <FontAwesomeIcon icon={faExpand} />
+                    </button>
+                  </div>
+
+                  {/* Undo/Redo */}
+                  {editMode && (
+                    <div className="flex items-center gap-2 border-l border-stone/30 pl-3">
+                      <button
+                        onClick={undo}
+                        disabled={!canUndo}
+                        className="p-2 hover:bg-white rounded disabled:opacity-30"
+                        title="Undo (Ctrl+Z)"
+                        aria-label="Undo last action"
+                      >
+                        <FontAwesomeIcon icon={faUndo} className="text-xs" />
+                      </button>
+                      <button
+                        onClick={redo}
+                        disabled={!canRedo}
+                        className="p-2 hover:bg-white rounded disabled:opacity-30"
+                        title="Redo (Ctrl+Shift+Z)"
+                        aria-label="Redo last undone action"
+                      >
+                        <FontAwesomeIcon icon={faRedo} className="text-xs" />
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* Add buttons */}
+              {editMode && (
+                <div className="flex items-center gap-2 border-l border-stone/30 pl-3 ml-auto">
+                  <button
+                    onClick={() => { setActivePanel('people'); resetPersonForm(); }}
+                    className={`px-3 py-2 text-sm rounded-lg flex items-center gap-2 ${
+                      activePanel === 'people'
+                        ? 'bg-sky-500 text-white'
+                        : 'border border-stone/30 hover:bg-white'
+                    }`}
+                  >
+                    <FontAwesomeIcon icon={faUser} className="text-xs" />
+                    People ({people.length})
+                  </button>
+                  <button
+                    onClick={() => { setActivePanel('locations'); resetLocationForm(); }}
+                    className={`px-3 py-2 text-sm rounded-lg flex items-center gap-2 ${
+                      activePanel === 'locations'
+                        ? 'bg-emerald-500 text-white'
+                        : 'border border-stone/30 hover:bg-white'
+                    }`}
+                  >
+                    <FontAwesomeIcon icon={faMapMarkerAlt} className="text-xs" />
+                    Locations ({locations.length})
+                  </button>
+                  <button
+                    onClick={() => { setActivePanel('events'); resetEventForm(); }}
+                    className={`px-3 py-2 text-sm rounded-lg flex items-center gap-2 ${
+                      activePanel === 'events'
+                        ? 'bg-violet-500 text-white'
+                        : 'border border-stone/30 hover:bg-white'
+                    }`}
+                  >
+                    <FontAwesomeIcon icon={faCalendar} className="text-xs" />
+                    Events ({events.length})
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Search results banner */}
+            {searchTerm && (
+              <div className="bg-accent/10 border border-accent/20 rounded-lg px-4 py-2 flex items-center justify-between">
+                <div className="text-sm text-ink">
+                  Found: <strong>{filteredEntities.people.length}</strong> people,{' '}
+                  <strong>{filteredEntities.locations.length}</strong> locations,{' '}
+                  <strong>{filteredEntities.events.length}</strong> events
+                </div>
+                <button
+                  onClick={() => setSearchTerm('')}
+                  className="text-xs text-accent hover:underline flex items-center gap-1"
+                >
+                  Clear
+                  <FontAwesomeIcon icon={faTimes} />
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* View Content */}
+          {viewMode === 'board' && (
+            <BoardCanvasView
+              people={filteredEntities.people}
+              locations={filteredEntities.locations}
+              events={filteredEntities.events}
+              connections={connections}
+              selectedEntity={selectedEntity}
+              scale={scale}
+              offset={offset}
+              isPanning={isPanning}
+              filterType={filterType}
+              containerRef={containerRef}
+              canvasRef={canvasRef}
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
+              onEntityClick={handleEntityClick}
+            />
+          )}
+
+          {viewMode === 'timeline' && (
+            <div className="flex-1 overflow-y-auto bg-stone/5">
+              <TimelineTableView
+                events={filteredEntities.events}
+                people={people}
+                locations={locations}
+                readOnly={!canEdit || !editMode}
+                onEventClick={(id) => setSelectedEntity({ type: 'event', id })}
+                onEventEdit={editEvent}
+                onEventDelete={deleteEvent}
               />
             </div>
+          )}
 
-            {/* Filter */}
-            <select
-              value={filterType}
-              onChange={(e) => setFilterType(e.target.value as typeof filterType)}
-              className="px-3 py-2 text-sm rounded-lg border border-stone/30 bg-white w-full sm:w-auto"
-            >
-              <option value="all">All</option>
-              <option value="people">People</option>
-              <option value="locations">Locations</option>
-              <option value="events">Events</option>
-            </select>
+          {viewMode === 'people' && (
+            <div className="flex-1 overflow-y-auto bg-stone/5">
+              <PeopleGridView
+                people={filteredEntities.people}
+                events={events}
+                readOnly={!canEdit || !editMode}
+                onPersonClick={(id) => setSelectedEntity({ type: 'person', id })}
+                onPersonEdit={editPerson}
+                onPersonDelete={deletePerson}
+              />
+            </div>
+          )}
+        </div>
 
-            {/* Zoom */}
-            <div className="flex items-center gap-1 border-l border-stone/30 pl-3">
-              <button onClick={zoomOut} className="p-2 hover:bg-white rounded" title="Zoom out">−</button>
-              <span className="text-xs text-inkMuted w-12 text-center">{Math.round(scale * 100)}%</span>
-              <button onClick={zoomIn} className="p-2 hover:bg-white rounded" title="Zoom in">+</button>
-              <button onClick={resetView} className="p-2 hover:bg-white rounded text-xs" title="Reset view">
-                <FontAwesomeIcon icon={faExpand} />
+      </div>
+
+      {/* ============================================ */}
+      {/* Floating Detail Modal */}
+      {/* ============================================ */}
+      {selectedEntity && (selectedPerson || selectedLocation || selectedEvent) && (
+        <div className="fixed bottom-4 right-4 w-96 max-h-[70vh] bg-white rounded-2xl shadow-2xl border border-stone/20 z-40 overflow-hidden flex flex-col animate-in slide-in-from-bottom-4">
+          {/* Modal Header */}
+          <div className={`px-4 py-3 flex items-center justify-between flex-shrink-0 ${
+            selectedEntity.type === 'person' ? 'bg-sky-500' :
+            selectedEntity.type === 'location' ? 'bg-emerald-500' : 'bg-violet-500'
+          } text-white`}>
+            <h3 className="font-semibold text-sm flex items-center gap-2">
+              <FontAwesomeIcon icon={
+                selectedEntity.type === 'person' ? faUser :
+                selectedEntity.type === 'location' ? faMapMarkerAlt : faCalendar
+              } className="text-xs" />
+              {selectedEntity.type === 'person' ? 'Person' : selectedEntity.type === 'location' ? 'Location' : 'Event'} Details
+            </h3>
+            <div className="flex items-center gap-2">
+              {editMode && (
+                <>
+                  <button
+                    onClick={() => {
+                      if (selectedEntity.type === 'person') editPerson(selectedEntity.id);
+                      else if (selectedEntity.type === 'location') editLocation(selectedEntity.id);
+                      else editEvent(selectedEntity.id);
+                    }}
+                    className="text-xs px-2 py-1 rounded bg-white/20 hover:bg-white/30"
+                  >
+                    <FontAwesomeIcon icon={faEdit} className="mr-1" />
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (selectedEntity.type === 'person') deletePerson(selectedEntity.id);
+                      else if (selectedEntity.type === 'location') deleteLocation(selectedEntity.id);
+                      else deleteEvent(selectedEntity.id);
+                    }}
+                    className="text-xs px-2 py-1 rounded bg-white/20 hover:bg-red-500"
+                  >
+                    <FontAwesomeIcon icon={faTrash} />
+                  </button>
+                </>
+              )}
+              <button
+                onClick={() => setSelectedEntity(null)}
+                className="p-1 hover:bg-white/20 rounded"
+              >
+                <FontAwesomeIcon icon={faTimes} />
               </button>
             </div>
-
-            {/* Undo/Redo */}
-            {editMode && (
-              <div className="flex items-center gap-2 border-l border-stone/30 pl-3">
-                <button
-                  onClick={undo}
-                  disabled={historyIndex <= 0}
-                  className="p-2 hover:bg-white rounded disabled:opacity-30"
-                  title="Undo (Ctrl+Z)"
-                >
-                  <FontAwesomeIcon icon={faUndo} className="text-xs" />
-                </button>
-                <button
-                  onClick={redo}
-                  disabled={historyIndex >= history.length - 1}
-                  className="p-2 hover:bg-white rounded disabled:opacity-30"
-                  title="Redo (Ctrl+Shift+Z)"
-                >
-                  <FontAwesomeIcon icon={faRedo} className="text-xs" />
-                </button>
-              </div>
-            )}
-
-            {/* Add buttons */}
-            {editMode && (
-              <div className="flex items-center gap-2 border-l border-stone/30 pl-3 ml-auto">
-                <button
-                  onClick={() => { setActivePanel('people'); resetPersonForm(); }}
-                  className={`px-3 py-2 text-sm rounded-lg flex items-center gap-2 ${
-                    activePanel === 'people' 
-                      ? 'bg-sky-500 text-white' 
-                      : 'border border-stone/30 hover:bg-white'
-                  }`}
-                >
-                  <FontAwesomeIcon icon={faUser} className="text-xs" />
-                  People ({people.length})
-                </button>
-                <button
-                  onClick={() => { setActivePanel('locations'); resetLocationForm(); }}
-                  className={`px-3 py-2 text-sm rounded-lg flex items-center gap-2 ${
-                    activePanel === 'locations'
-                      ? 'bg-emerald-500 text-white'
-                      : 'border border-stone/30 hover:bg-white'
-                  }`}
-                >
-                  <FontAwesomeIcon icon={faMapMarkerAlt} className="text-xs" />
-                  Locations ({locations.length})
-                </button>
-                <button
-                  onClick={() => { setActivePanel('events'); resetEventForm(); }}
-                  className={`px-3 py-2 text-sm rounded-lg flex items-center gap-2 ${
-                    activePanel === 'events'
-                      ? 'bg-violet-500 text-white'
-                      : 'border border-stone/30 hover:bg-white'
-                  }`}
-                >
-                  <FontAwesomeIcon icon={faCalendar} className="text-xs" />
-                  Events ({events.length})
-                </button>
-              </div>
-            )}
           </div>
 
-          {/* Canvas */}
-          <div
-            ref={containerRef}
-            onMouseDown={handleMouseDown}
-            onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUp}
-            onMouseLeave={handleMouseUp}
-            className="flex-1 bg-stone/5 overflow-hidden cursor-grab relative"
-            style={{ cursor: isPanning ? 'grabbing' : draggingEntity ? 'move' : 'grab' }}
-          >
-            <div
-              ref={canvasRef}
-              className="absolute inset-0"
-              style={{
-                transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})`,
-                transformOrigin: '0 0',
-              }}
-            >
-              {/* Connection lines */}
-              <svg
-                className="absolute inset-0 pointer-events-none"
-                width={canvasSize.width}
-                height={canvasSize.height}
-                viewBox={`0 0 ${canvasSize.width} ${canvasSize.height}`}
-              >
-                {connections.map((conn) => {
-                  const fromPos = getEntityPosition(conn.fromType, conn.fromId);
-                  const toPos = getEntityPosition(conn.toType, conn.toId);
-
-                  const x1 = fromPos.x + 60;
-                  const y1 = fromPos.y + 40;
-                  const x2 = toPos.x + 60;
-                  const y2 = toPos.y + 40;
-                  const dx = x2 - x1;
-                  const dy = y2 - y1;
-                  const dist = Math.hypot(dx, dy) || 1;
-                  const nx = -dy / dist;
-                  const ny = dx / dist;
-                  const bend = Math.min(160, Math.max(0, dist * 0.2));
-                  const cx = x1 + dx * 0.5 + nx * bend;
-                  const cy = y1 + dy * 0.5 + ny * bend;
-                  const pathD = `M ${x1} ${y1} Q ${cx} ${cy} ${x2} ${y2}`;
-                  
-                  const isHighlighted = 
-                    (selectedEntity?.type === conn.fromType && selectedEntity.id === conn.fromId) ||
-                    (selectedEntity?.type === conn.toType && selectedEntity.id === conn.toId);
-                  
-                  return (
-                    <g key={conn.id}>
-                      <path
-                        d={pathD}
-                        fill="none"
-                        stroke={isHighlighted ? '#8b5cf6' : '#d1d5db'}
-                        strokeWidth={isHighlighted ? 2 : 1}
-                        strokeDasharray={conn.toType === 'location' ? '4,4' : undefined}
-                      />
-                    </g>
-                  );
-                })}
-              </svg>
-
-              {/* People nodes */}
-              {(filterType === 'all' || filterType === 'people') && people.map((person) => (
-                <button
-                  key={person.id}
-                  onMouseDown={(e) => handleEntityMouseDown(e, 'person', person.id)}
-                  onClick={() => handleEntityClick('person', person.id)}
-                  className={`absolute w-[96px] sm:w-[120px] rounded-xl border-2 p-2 sm:p-3 text-left transition-all ${
-                    entityColors.person.bg
-                  } ${
-                    selectedEntity?.type === 'person' && selectedEntity.id === person.id
-                      ? 'border-sky-500 ring-2 ring-sky-500/30'
-                      : entityColors.person.border
-                  } hover:shadow-lg`}
-                  style={{
-                    left: person.x ?? 100,
-                    top: person.y ?? 100,
-                  }}
-                >
-                  <div className="flex flex-col items-center text-center">
-                    {person.imageUrl ? (
-                      <img
-                        src={person.imageUrl}
-                        alt={person.name}
-                        className="w-10 h-10 sm:w-12 sm:h-12 rounded-full object-cover mb-2"
-                      />
-                    ) : (
-                      <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-sky-200 flex items-center justify-center mb-2">
-                        <FontAwesomeIcon icon={faUser} className="text-sky-600" />
-                      </div>
-                    )}
-                    <span className="font-medium text-xs sm:text-sm text-ink leading-tight line-clamp-2">
-                      {person.name}
-                    </span>
-                    {person.title && (
-                      <span className="text-[9px] sm:text-[10px] text-inkMuted mt-1 line-clamp-1">
-                        {person.title}
-                      </span>
-                    )}
-                  </div>
-                </button>
-              ))}
-
-              {/* Location nodes */}
-              {(filterType === 'all' || filterType === 'locations') && locations.map((location) => (
-                <button
-                  key={location.id}
-                  onMouseDown={(e) => handleEntityMouseDown(e, 'location', location.id)}
-                  onClick={() => handleEntityClick('location', location.id)}
-                  className={`absolute w-[96px] sm:w-[120px] rounded-xl border-2 p-2 sm:p-3 text-left transition-all ${
-                    entityColors.location.bg
-                  } ${
-                    selectedEntity?.type === 'location' && selectedEntity.id === location.id
-                      ? 'border-emerald-500 ring-2 ring-emerald-500/30'
-                      : entityColors.location.border
-                  } hover:shadow-lg`}
-                  style={{
-                    left: location.x ?? 200,
-                    top: location.y ?? 200,
-                  }}
-                >
-                  <div className="flex flex-col items-center text-center">
-                    {location.imageUrl ? (
-                      <img
-                        src={location.imageUrl}
-                        alt={location.name}
-                        className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg object-cover mb-2"
-                      />
-                    ) : (
-                      <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-emerald-200 flex items-center justify-center mb-2">
-                        <FontAwesomeIcon icon={faMapMarkerAlt} className="text-emerald-600" />
-                      </div>
-                    )}
-                    <span className="font-medium text-xs sm:text-sm text-ink leading-tight line-clamp-2">
-                      {location.name}
-                    </span>
-                    {location.city && (
-                      <span className="text-[9px] sm:text-[10px] text-inkMuted mt-1 line-clamp-1">
-                        {location.city}{location.state ? `, ${location.state}` : ''}
-                      </span>
-                    )}
-                  </div>
-                </button>
-              ))}
-
-              {/* Event nodes */}
-              {(filterType === 'all' || filterType === 'events') && events.map((event) => {
-                const config = eventTypeConfig[event.eventType];
-                return (
-                  <button
-                    key={event.id}
-                    onMouseDown={(e) => handleEntityMouseDown(e, 'event', event.id)}
-                    onClick={() => handleEntityClick('event', event.id)}
-                    className={`absolute w-[140px] sm:w-[160px] rounded-xl border-2 p-2 sm:p-3 text-left transition-all ${
-                      entityColors.event.bg
-                    } ${
-                      selectedEntity?.type === 'event' && selectedEntity.id === event.id
-                        ? 'border-violet-500 ring-2 ring-violet-500/30'
-                        : entityColors.event.border
-                    } hover:shadow-lg`}
-                    style={{
-                      left: event.x,
-                      top: event.y,
-                    }}
-                  >
-                    <div className="flex items-start gap-2">
-                      <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-violet-200 flex items-center justify-center flex-shrink-0 ${config.color}`}>
-                        <FontAwesomeIcon icon={config.icon} className="text-sm" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <span className="font-medium text-xs sm:text-sm text-ink leading-tight line-clamp-2 block">
-                          {event.title}
-                        </span>
-                        <span className="text-[9px] sm:text-[10px] text-inkMuted mt-1 block">
-                          {event.date}
-                        </span>
-                        {event.peopleIds.length > 0 && (
-                          <div className="flex items-center gap-1 mt-1">
-                            <FontAwesomeIcon icon={faUser} className="text-[8px] text-sky-500" />
-                            <span className="text-[9px] text-inkMuted">{event.peopleIds.length}</span>
-                          </div>
-                        )}
-                      </div>
+          {/* Modal Body */}
+          <div className="overflow-y-auto p-4 space-y-3">
+            {/* Person Details */}
+            {selectedPerson && (
+              <>
+                <div className="flex items-start gap-3">
+                  {selectedPerson.imageUrl ? (
+                    <img src={selectedPerson.imageUrl} alt={selectedPerson.name} className="w-14 h-14 rounded-full object-cover" />
+                  ) : (
+                    <div className="w-14 h-14 rounded-full bg-sky-100 flex items-center justify-center flex-shrink-0">
+                      <FontAwesomeIcon icon={faUser} className="text-sky-500 text-lg" />
                     </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-
-        {/* Right Sidebar */}
-        <div className="w-full lg:w-80 bg-white border-t lg:border-t-0 lg:border-l border-stone/20 overflow-y-auto">
-          {/* Stats */}
-          <div className="p-4 border-b border-stone/20">
-            <h2 className="text-xs font-semibold text-inkMuted uppercase tracking-wide mb-3">Overview</h2>
-            <div className="grid grid-cols-3 gap-3 text-center text-sm">
-              <div className="p-2 rounded-lg bg-sky-50">
-                <span className="block text-xl font-bold text-sky-600">{people.length}</span>
-                <span className="text-[10px] text-inkMuted">People</span>
-              </div>
-              <div className="p-2 rounded-lg bg-emerald-50">
-                <span className="block text-xl font-bold text-emerald-600">{locations.length}</span>
-                <span className="text-[10px] text-inkMuted">Locations</span>
-              </div>
-              <div className="p-2 rounded-lg bg-violet-50">
-                <span className="block text-xl font-bold text-violet-600">{events.length}</span>
-                <span className="text-[10px] text-inkMuted">Events</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Selected Entity Details */}
-          {selectedPerson && (
-            <div className="p-4 border-b border-stone/20">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="font-semibold text-ink text-sm">Person Details</h3>
-                {editMode && (
-                  <div className="flex gap-2">
-                    <button onClick={() => editPerson(selectedPerson.id)} className="text-xs text-accent hover:underline">
-                      Edit
-                    </button>
-                    <button onClick={() => deletePerson(selectedPerson.id)} className="text-xs text-red-600 hover:underline">
-                      Delete
-                    </button>
-                  </div>
-                )}
-              </div>
-              <div className="flex items-start gap-3">
-                {selectedPerson.imageUrl ? (
-                  <img src={selectedPerson.imageUrl} alt={selectedPerson.name} className="w-16 h-16 rounded-full object-cover" />
-                ) : (
-                  <div className="w-16 h-16 rounded-full bg-sky-100 flex items-center justify-center">
-                    <FontAwesomeIcon icon={faUser} className="text-sky-500 text-xl" />
-                  </div>
-                )}
-                <div>
-                  <h4 className="font-medium text-ink">{selectedPerson.name}</h4>
-                  {selectedPerson.title && <p className="text-sm text-inkMuted">{selectedPerson.title}</p>}
-                </div>
-              </div>
-              {selectedPerson.bio && (
-                <p className="text-sm text-inkMuted mt-3">{selectedPerson.bio}</p>
-              )}
-              {relatedEvents.length > 0 && (
-                <div className="mt-4">
-                  <h5 className="text-xs font-medium text-inkMuted uppercase mb-2">Related Events ({relatedEvents.length})</h5>
-                  <div className="space-y-2">
-                    {relatedEvents.slice(0, 5).map((ev) => (
-                      <button
-                        key={ev.id}
-                        onClick={() => setSelectedEntity({ type: 'event', id: ev.id })}
-                        className="w-full text-left p-2 rounded bg-violet-50 hover:bg-violet-100 text-sm transition-colors"
-                      >
-                        <span className="font-medium text-ink">{ev.title}</span>
-                        <span className="block text-[10px] text-inkMuted">{ev.date}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {selectedLocation && (
-            <div className="p-4 border-b border-stone/20">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="font-semibold text-ink text-sm">Location Details</h3>
-                {editMode && (
-                  <div className="flex gap-2">
-                    <button onClick={() => editLocation(selectedLocation.id)} className="text-xs text-accent hover:underline">
-                      Edit
-                    </button>
-                    <button onClick={() => deleteLocation(selectedLocation.id)} className="text-xs text-red-600 hover:underline">
-                      Delete
-                    </button>
-                  </div>
-                )}
-              </div>
-              <div className="flex items-start gap-3">
-                {selectedLocation.imageUrl ? (
-                  <img src={selectedLocation.imageUrl} alt={selectedLocation.name} className="w-16 h-16 rounded-lg object-cover" />
-                ) : (
-                  <div className="w-16 h-16 rounded-lg bg-emerald-100 flex items-center justify-center">
-                    <FontAwesomeIcon icon={faMapMarkerAlt} className="text-emerald-500 text-xl" />
-                  </div>
-                )}
-                <div>
-                  <h4 className="font-medium text-ink">{selectedLocation.name}</h4>
-                  <p className="text-sm text-inkMuted">{selectedLocation.address}</p>
-                  {selectedLocation.city && (
-                    <p className="text-sm text-inkMuted">
-                      {selectedLocation.city}{selectedLocation.state ? `, ${selectedLocation.state}` : ''}
-                      {selectedLocation.country ? `, ${selectedLocation.country}` : ''}
-                    </p>
                   )}
-                </div>
-              </div>
-              {relatedEvents.length > 0 && (
-                <div className="mt-4">
-                  <h5 className="text-xs font-medium text-inkMuted uppercase mb-2">Events at this Location ({relatedEvents.length})</h5>
-                  <div className="space-y-2">
-                    {relatedEvents.slice(0, 5).map((ev) => (
-                      <button
-                        key={ev.id}
-                        onClick={() => setSelectedEntity({ type: 'event', id: ev.id })}
-                        className="w-full text-left p-2 rounded bg-violet-50 hover:bg-violet-100 text-sm transition-colors"
-                      >
-                        <span className="font-medium text-ink">{ev.title}</span>
-                        <span className="block text-[10px] text-inkMuted">{ev.date}</span>
-                      </button>
-                    ))}
+                  <div>
+                    <h4 className="font-semibold text-ink">{selectedPerson.name}</h4>
+                    {selectedPerson.title && <p className="text-sm text-inkMuted">{selectedPerson.title}</p>}
                   </div>
                 </div>
-              )}
-            </div>
-          )}
-
-          {selectedEvent && (
-            <div className="p-4 border-b border-stone/20">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="font-semibold text-ink text-sm">Event Details</h3>
-                {editMode && (
-                  <div className="flex gap-2">
-                    <button onClick={() => editEvent(selectedEvent.id)} className="text-xs text-accent hover:underline">
-                      Edit
-                    </button>
-                    <button onClick={() => deleteEvent(selectedEvent.id)} className="text-xs text-red-600 hover:underline">
-                      Delete
-                    </button>
+                {selectedPerson.bio && (
+                  <p className="text-sm text-inkMuted">{selectedPerson.bio}</p>
+                )}
+                {relatedEvents.length > 0 && (
+                  <div>
+                    <h5 className="text-xs font-medium text-inkMuted uppercase mb-2">Related Events ({relatedEvents.length})</h5>
+                    <div className="space-y-1.5">
+                      {relatedEvents.map((ev) => (
+                        <button
+                          key={ev.id}
+                          onClick={() => setSelectedEntity({ type: 'event', id: ev.id })}
+                          className="w-full text-left p-2 rounded-lg bg-violet-50 hover:bg-violet-100 text-sm transition-colors"
+                        >
+                          <span className="font-medium text-ink">{ev.title}</span>
+                          <span className="block text-[10px] text-inkMuted">{ev.date}</span>
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 )}
-              </div>
-              <div className="flex items-center gap-2 mb-3">
-                <span className={`px-2 py-1 rounded text-xs ${eventTypeConfig[selectedEvent.eventType].color} bg-violet-100`}>
-                  <FontAwesomeIcon icon={eventTypeConfig[selectedEvent.eventType].icon} className="mr-1" />
-                  {eventTypeConfig[selectedEvent.eventType].label}
-                </span>
-                <span className="text-sm text-inkMuted">{selectedEvent.date}</span>
-              </div>
-              <h4 className="font-medium text-ink mb-2">{selectedEvent.title}</h4>
-              {selectedEvent.description && (
-                <p className="text-sm text-inkMuted mb-3">{selectedEvent.description}</p>
-              )}
-              
-              {/* Tagged People */}
-              {selectedEvent.peopleIds.length > 0 && (
-                <div className="mb-3">
-                  <h5 className="text-xs font-medium text-inkMuted uppercase mb-2">People Involved</h5>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedEvent.peopleIds.map((pid) => {
-                      const person = people.find((p) => p.id === pid);
-                      if (!person) return null;
-                      return (
-                        <button
-                          key={pid}
-                          onClick={() => setSelectedEntity({ type: 'person', id: pid })}
-                          className="flex items-center gap-1 px-2 py-1 rounded-full bg-sky-50 hover:bg-sky-100 text-xs transition-colors"
-                        >
-                          {person.imageUrl ? (
-                            <img src={person.imageUrl} alt={person.name} className="w-4 h-4 rounded-full object-cover" />
-                          ) : (
-                            <FontAwesomeIcon icon={faUser} className="text-sky-500 text-[10px]" />
-                          )}
-                          <span className="text-ink">{person.name}</span>
-                        </button>
-                      );
-                    })}
+              </>
+            )}
+
+            {/* Location Details */}
+            {selectedLocation && (
+              <>
+                <div className="flex items-start gap-3">
+                  {selectedLocation.imageUrl ? (
+                    <img src={selectedLocation.imageUrl} alt={selectedLocation.name} className="w-14 h-14 rounded-lg object-cover" />
+                  ) : (
+                    <div className="w-14 h-14 rounded-lg bg-emerald-100 flex items-center justify-center flex-shrink-0">
+                      <FontAwesomeIcon icon={faMapMarkerAlt} className="text-emerald-500 text-lg" />
+                    </div>
+                  )}
+                  <div>
+                    <h4 className="font-semibold text-ink">{selectedLocation.name}</h4>
+                    <p className="text-sm text-inkMuted">{selectedLocation.address}</p>
+                    {selectedLocation.city && (
+                      <p className="text-sm text-inkMuted">
+                        {selectedLocation.city}{selectedLocation.state ? `, ${selectedLocation.state}` : ''}
+                        {selectedLocation.country ? `, ${selectedLocation.country}` : ''}
+                      </p>
+                    )}
                   </div>
                 </div>
-              )}
-
-              {/* Tagged Locations */}
-              {selectedEvent.locationIds.length > 0 && (
-                <div className="mb-3">
-                  <h5 className="text-xs font-medium text-inkMuted uppercase mb-2">Locations</h5>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedEvent.locationIds.map((lid) => {
-                      const location = locations.find((l) => l.id === lid);
-                      if (!location) return null;
-                      return (
+                {relatedEvents.length > 0 && (
+                  <div>
+                    <h5 className="text-xs font-medium text-inkMuted uppercase mb-2">Events Here ({relatedEvents.length})</h5>
+                    <div className="space-y-1.5">
+                      {relatedEvents.map((ev) => (
                         <button
-                          key={lid}
-                          onClick={() => setSelectedEntity({ type: 'location', id: lid })}
-                          className="flex items-center gap-1 px-2 py-1 rounded-full bg-emerald-50 hover:bg-emerald-100 text-xs transition-colors"
+                          key={ev.id}
+                          onClick={() => setSelectedEntity({ type: 'event', id: ev.id })}
+                          className="w-full text-left p-2 rounded-lg bg-violet-50 hover:bg-violet-100 text-sm transition-colors"
                         >
-                          <FontAwesomeIcon icon={faMapMarkerAlt} className="text-emerald-500 text-[10px]" />
-                          <span className="text-ink">{location.name}</span>
+                          <span className="font-medium text-ink">{ev.title}</span>
+                          <span className="block text-[10px] text-inkMuted">{ev.date}</span>
                         </button>
-                      );
-                    })}
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
+              </>
+            )}
 
-              {/* Documents/Evidence */}
-              {selectedEvent.documents.length > 0 && (
-                <div>
-                  <h5 className="text-xs font-medium text-inkMuted uppercase mb-2">
-                    Evidence ({selectedEvent.documents.length})
-                  </h5>
-                  <div className="space-y-2">
-                    {selectedEvent.documents.map((doc, i) => (
-                      <a
-                        key={i}
-                        href={doc.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="flex items-center gap-3 p-2 rounded-lg bg-stone/5 hover:bg-violet-50 transition-colors group"
-                      >
-                        <div className={`w-8 h-8 rounded flex items-center justify-center flex-shrink-0 ${
-                          doc.type === 'pdf' ? 'bg-red-100' : doc.type === 'image' ? 'bg-blue-100' : 'bg-gray-100'
-                        }`}>
-                          <FontAwesomeIcon 
-                            icon={doc.type === 'pdf' ? faFilePdf : doc.type === 'image' ? faImage : faLink} 
-                            className={`text-sm ${
-                              doc.type === 'pdf' ? 'text-red-500' : doc.type === 'image' ? 'text-blue-500' : 'text-gray-500'
+            {/* Event Details */}
+            {selectedEvent && (
+              <>
+                <div className="flex items-center gap-2">
+                  <span className={`px-2 py-1 rounded text-xs ${eventTypeConfig[selectedEvent.eventType].color} bg-violet-100`}>
+                    <FontAwesomeIcon icon={eventTypeConfig[selectedEvent.eventType].icon} className="mr-1" />
+                    {eventTypeConfig[selectedEvent.eventType].label}
+                  </span>
+                  <span className="text-sm text-inkMuted">{selectedEvent.date}</span>
+                </div>
+                <h4 className="font-semibold text-ink">{selectedEvent.title}</h4>
+                {selectedEvent.description && (
+                  <p className="text-sm text-inkMuted">{selectedEvent.description}</p>
+                )}
+
+                {selectedEvent.peopleIds.length > 0 && (
+                  <div>
+                    <h5 className="text-xs font-medium text-inkMuted uppercase mb-2">People Involved</h5>
+                    <div className="flex flex-wrap gap-1.5">
+                      {selectedEvent.peopleIds.map((pid) => {
+                        const person = people.find((p) => p.id === pid);
+                        if (!person) return null;
+                        return (
+                          <button
+                            key={pid}
+                            onClick={() => setSelectedEntity({ type: 'person', id: pid })}
+                            className="flex items-center gap-1 px-2 py-1 rounded-full bg-sky-50 hover:bg-sky-100 text-xs transition-colors"
+                          >
+                            {person.imageUrl ? (
+                              <img src={person.imageUrl} alt={person.name} className="w-4 h-4 rounded-full object-cover" />
+                            ) : (
+                              <FontAwesomeIcon icon={faUser} className="text-sky-500 text-[10px]" />
+                            )}
+                            <span className="text-ink">{person.name}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {selectedEvent.locationIds.length > 0 && (
+                  <div>
+                    <h5 className="text-xs font-medium text-inkMuted uppercase mb-2">Locations</h5>
+                    <div className="flex flex-wrap gap-1.5">
+                      {selectedEvent.locationIds.map((lid) => {
+                        const location = locations.find((l) => l.id === lid);
+                        if (!location) return null;
+                        return (
+                          <button
+                            key={lid}
+                            onClick={() => setSelectedEntity({ type: 'location', id: lid })}
+                            className="flex items-center gap-1 px-2 py-1 rounded-full bg-emerald-50 hover:bg-emerald-100 text-xs transition-colors"
+                          >
+                            <FontAwesomeIcon icon={faMapMarkerAlt} className="text-emerald-500 text-[10px]" />
+                            <span className="text-ink">{location.name}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {selectedEvent.documents.length > 0 && (
+                  <div>
+                    <h5 className="text-xs font-medium text-inkMuted uppercase mb-2">Evidence ({selectedEvent.documents.length})</h5>
+                    <div className="space-y-1.5">
+                      {selectedEvent.documents.map((evDoc, i) => (
+                        <a
+                          key={i}
+                          href={evDoc.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="flex items-center gap-2 p-2 rounded-lg bg-stone/5 hover:bg-violet-50 transition-colors text-sm group"
+                        >
+                          <FontAwesomeIcon
+                            icon={evDoc.type === 'pdf' ? faFilePdf : evDoc.type === 'image' ? faImage : faLink}
+                            className={`text-xs ${
+                              evDoc.type === 'pdf' ? 'text-red-500' : evDoc.type === 'image' ? 'text-blue-500' : 'text-gray-500'
                             }`}
                           />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-ink truncate group-hover:text-violet-600">
-                            {doc.label}
-                          </p>
-                          <p className="text-[10px] text-inkMuted uppercase">{doc.type}</p>
-                        </div>
-                        <FontAwesomeIcon 
-                          icon={faExternalLinkAlt} 
-                          className="text-xs text-inkMuted group-hover:text-violet-500" 
-                        />
-                      </a>
-                    ))}
+                          <span className="flex-1 truncate text-ink group-hover:text-violet-600">{evDoc.label}</span>
+                          <FontAwesomeIcon icon={faExternalLinkAlt} className="text-[10px] text-inkMuted" />
+                        </a>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Empty state */}
-          {!selectedEntity && activePanel === 'none' && (
-            <div className="p-6 text-center text-inkMuted">
-              <p className="text-sm">Click an item on the board to see details</p>
-              {editMode && (
-                <p className="text-xs mt-2">Use the buttons above to add people, locations, or events</p>
-              )}
-            </div>
-          )}
+                )}
+              </>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* ============================================ */}
       {/* Slide-out Panel for People */}

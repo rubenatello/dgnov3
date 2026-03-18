@@ -140,6 +140,11 @@ export interface BoardLink {
 }
 
 // ============================================
+// View Modes
+// ============================================
+export type BoardViewMode = 'board' | 'timeline' | 'people';
+
+// ============================================
 // Board Payload (what gets saved to Firestore)
 // ============================================
 export interface InvestigationsBoardPayload {
