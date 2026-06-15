@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { getArticleBySlug } from '../services/articleService';
 import { getMediaById } from '../services/mediaService';
 import type { Article } from '../types/models';
 import { formatDistanceToNow, format } from 'date-fns';
 import { Timestamp } from 'firebase/firestore';
+import DOMPurify from 'dompurify';
 import LoadingScreen from '../components/LoadingScreen';
 
 export default function ArticleView() {
@@ -54,6 +55,11 @@ export default function ArticleView() {
       }
     })();
   }, [article?.id]);
+
+  const sanitizedContent = useMemo(
+    () => DOMPurify.sanitize(article?.content || "", { USE_PROFILES: { html: true } }),
+    [article?.content]
+  );
 
   if (loading) return <LoadingScreen message="Loading article…" />;
   if (error) return <div className="p-8 text-red-600">{error}</div>;
@@ -119,7 +125,7 @@ export default function ArticleView() {
         </div>
       )}
 
-      <div className="prose max-w-none mx-auto article-content" dangerouslySetInnerHTML={{ __html: article.content || '' }} />
+      <div className="prose max-w-none mx-auto article-content" dangerouslySetInnerHTML={{ __html: sanitizedContent }} />
 
       <div className="mt-8">
         <Link to="/" className="text-accent hover:underline">← Back to home</Link>
