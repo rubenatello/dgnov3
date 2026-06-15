@@ -1,84 +1,63 @@
-# 🎉 DGNO Project - Ready to Build!
+# DGNO v3
 
-## ✅ Status: Firebase Connected & Ready!
+DGNO (Digital Government News Organization) is a Firebase-backed publishing platform for creating, managing, and reading news articles. It includes a public-facing site, an authenticated editorial dashboard, and Firebase security rules + Cloud Functions for backend workflows.
 
-Your DGNO project is **completely set up** with Firebase connected and working!
+## Project Summary
 
-### What's Live
-- ✅ Dev server at **localhost:5173**
-- ✅ Firebase SDK connected to your project
-- ✅ Custom color scheme applied
-- ✅ Production build successful
-- ✅ Security rules prepared
+- Public pages for home, article listing, and article detail
+- Authenticated dashboard for writers/editors to create and manage content
+- Rich-text authoring with Tiptap
+- Media management with Firebase Storage
+- Role-aware access control via Firebase Auth custom claims + Firestore/Storage rules
+- Cloud Function automation for article publishing metadata
 
-## � Firebase Configuration
+## Tech Stack
 
-**Your Firebase is connected!** The keys in `firebase.ts` are public configuration values (safe to expose). Your real security comes from Firestore rules.
+- Frontend: React 19, TypeScript, Vite, React Router, Tailwind CSS, Sass
+- Editor: Tiptap
+- Backend services: Firebase Authentication, Firestore, Cloud Storage
+- Serverless backend: Firebase Cloud Functions (TypeScript, Node.js runtime)
+- Tooling: ESLint, TypeScript compiler, npm workspaces-by-directory pattern (`/`, `app/`, `functions/`)
 
-## 📖 Read These Docs
+## Deployment Stack
 
-I created comprehensive guides:
+- Hosting: Firebase Hosting
+- API/backend logic: Firebase Cloud Functions
+- Database: Cloud Firestore
+- File storage: Firebase Storage
+- Access control: Firestore rules + Storage rules + Firebase Auth claims
+- Local testing/runtime: Firebase Emulator Suite
+- CI/CD support: GitHub Actions workflows (repository-configured)
 
-1. **QUICKSTART.md** - Get Firebase config in 5 minutes
-2. **SETUP.md** - Complete setup and usage guide
-3. **BUILD_SUMMARY.md** - Everything that was built
-4. **CHECKLIST.md** - Track your development progress
-5. **TODO.md** - What to build next (with security reminders!)
+## Repository Layout
 
-## 🎯 Recommendation: Tiptap > CKEditor
+- `app/`: React frontend application
+- `functions/`: Firebase Cloud Functions source
+- `firestore.rules`: Firestore authorization rules
+- `storage.rules`: Storage authorization rules
+- `scripts/`: helper scripts for setup/role management
+- `docs/`: additional documentation
 
-I implemented **Tiptap** (not CKEditor) because:
-- ✅ Lighter and faster
-- ✅ Better React integration
-- ✅ Headless (full UI control)
-- ✅ Free and open source
-- ✅ More modern and extensible
+## Quick Start
 
-CKEditor is powerful but heavier and has licensing considerations for commercial use.
+1. Install dependencies:
+   - `npm ci`
+   - `cd app && npm ci`
+   - `cd ../functions && npm ci`
+2. Run frontend locally:
+   - `cd app && npm run dev`
+3. Build frontend:
+   - `cd app && npm run build`
+4. Build functions:
+   - `cd functions && npm run build`
+5. Run emulator tests (requires emulators running):
+   - `firebase emulators:start`
+   - `npm run test-rules`
 
-## 🎨 Your Color Scheme (Live!)
+## Security Notes
 
-Check localhost:5173 to see your exact colors in action:
-- bg: #FCFCFC
-- ink: #1D212B  
-- accent: #FF9C6E
-- paper: #FFFAF0
-- stone: #E5E2DC
-- sand: #AEA492
+- Client Firebase config values are public identifiers; secrets must stay in backend config/secrets.
+- Firestore/Storage rules are part of the security boundary and must be kept in sync with role model changes.
+- Rendered article HTML is sanitized before display to reduce XSS risk.
 
-## 🚀 Next Steps
-
-1. **Add Firebase config** (2 minutes)
-2. **Test the editor**: Change `HomePage` to `ArticleEditorPage` in App.tsx
-3. **Install React Router** for navigation
-4. **Build login page**
-5. **Create article list**
-
-## 📂 Project Structure
-
-```
-dgnov3/
-├── app/src/
-│   ├── components/     ✅ Header, Footer, Editor
-│   ├── pages/          ✅ Home, Article Editor  
-│   ├── services/       ✅ Firestore operations
-│   ├── types/          ✅ All data models
-│   ├── utils/          ✅ Helpers
-│   └── config/         ⚠️  Add Firebase config here
-├── functions/          ✅ Cloud Functions ready
-└── [docs]/            ✅ 5 guide files
-```
-
-## 🎊 You're Ready!
-
-Everything is set up professionally with:
-- ✅ TypeScript for type safety
-- ✅ Tailwind for rapid styling
-- ✅ Firebase for scalable backend
-- ✅ GitHub Actions for auto-deploy
-- ✅ Clean, organized code structure
-
-**Status**: Milestone 1 Complete ✅  
-**Next**: Add Firebase config and start building features!
-
-**Happy coding! 🚀**
+For additional setup and security guidance, see `SETUP.md`, `QUICKSTART.md`, and `SECURITY.md`.
