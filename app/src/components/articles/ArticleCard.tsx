@@ -54,10 +54,11 @@ export default function ArticleCard({ article, variant = 'compact' }: ArticleCar
         <article className="relative">
           {article.featuredImageUrl ? (
             <div className="relative w-full h-64 sm:h-80 md:h-[28rem] overflow-hidden">
-              <img 
-                src={article.featuredImageUrl} 
-                alt={article.title} 
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out" 
+              <img
+                src={article.featuredImageUrl}
+                alt={article.title}
+                loading="lazy"
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
             </div>
@@ -113,10 +114,11 @@ export default function ArticleCard({ article, variant = 'compact' }: ArticleCar
           <div className="flex flex-col">
             {article.featuredImageUrl ? (
               <div className="relative w-full h-40 sm:h-48 overflow-hidden">
-                <img 
-                  src={article.featuredImageUrl} 
-                  alt={article.title} 
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                <img
+                  src={article.featuredImageUrl}
+                  alt={article.title}
+                  loading="lazy"
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
               </div>
@@ -207,10 +209,11 @@ export default function ArticleCard({ article, variant = 'compact' }: ArticleCar
         <div className="flex gap-3">
           {article.featuredImageUrl ? (
             <div className="flex-shrink-0 w-16 h-12 sm:w-20 sm:h-14 overflow-hidden rounded shadow-sm">
-              <img 
-                src={article.featuredImageUrl} 
-                alt={article.title} 
-                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" 
+              <img
+                src={article.featuredImageUrl}
+                alt={article.title}
+                loading="lazy"
+                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
               />
             </div>
           ) : (

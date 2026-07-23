@@ -68,6 +68,13 @@ export async function createArticle(
   return docRef.id;
 }
 
+/** Check all article states for an existing generated slug before importing. */
+export async function articleSlugExists(slug: string): Promise<boolean> {
+  const q = query(collection(db, ARTICLES_COLLECTION), where('slug', '==', slug), firestoreLimit(1));
+  const querySnapshot = await getDocs(q);
+  return !querySnapshot.empty;
+}
+
 /**
  * Update an existing article
  */

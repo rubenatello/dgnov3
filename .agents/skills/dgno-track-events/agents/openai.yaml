@@ -1,0 +1,4 @@
+interface:
+  display_name: "DGNO Tracker Reporting"
+  short_description: "Vet DGNO incidents and prepare safe tracker packages"
+  default_prompt: "Use $dgno-track-events to vet recent events and create a local package for the authenticated editorial inbox."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "DGNO Article Writing"
+  short_description: "Draft verified DGNO articles for editorial review"
+  default_prompt: "Use $dgno-write-article to research a DGNO article and create a local package for the authenticated editorial inbox."

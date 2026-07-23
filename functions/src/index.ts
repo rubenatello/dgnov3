@@ -340,8 +340,25 @@ export const sitemap = functions.https.onRequest(async (req, res) => {
       { path: "/privacy", priority: "0.5" },
       { path: "/trackers", priority: "0.8" },
       { path: "/reports", priority: "0.8" },
+      { path: "/investigations", priority: "0.7" },
+      { path: "/investigations/epstein-files", priority: "0.8" },
     ];
     
+    // Add published tracker pages
+    const trackersSnapshot = await db.collection("trackers")
+      .where("isActive", "==", true)
+      .get();
+
+    trackersSnapshot.forEach((doc) => {
+      const tracker = doc.data();
+      if (!tracker.slug) return;
+      sitemap += "  <url>\n";
+      sitemap += `    <loc>${baseUrl}/tracker/${tracker.slug}</loc>\n`;
+      sitemap += "    <changefreq>weekly</changefreq>\n";
+      sitemap += "    <priority>0.7</priority>\n";
+      sitemap += "  </url>\n";
+    });
+
     staticPages.forEach((page) => {
       sitemap += "  <url>\n";
       sitemap += `    <loc>${baseUrl}${page.path}</loc>\n`;

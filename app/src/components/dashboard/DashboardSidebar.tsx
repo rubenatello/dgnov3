@@ -15,6 +15,7 @@ import {
   faHome,
   faSignOutAlt,
   faPlus,
+  faInbox,
   type IconDefinition
 } from '@fortawesome/free-solid-svg-icons';
 import { useAuth } from '../../hooks/useAuth';
@@ -37,7 +38,7 @@ export default function DashboardSidebar() {
   const [isOpen, setIsOpen] = useState(true);
   const navigate = useNavigate();
   const location = useLocation();
-  const { userData, isEditor, isSuperUser, signOut } = useAuth();
+  const { userData, isEditor, isAdmin, isSuperUser, signOut } = useAuth();
 
   // Get initials for avatar
   const getInitials = (name: string) => {
@@ -72,10 +73,17 @@ export default function DashboardSidebar() {
     ];
 
     // Add Investigations group for editors/superusers
-    if (isEditor() || isSuperUser()) {
+    if (isEditor() || isAdmin() || isSuperUser()) {
       groups.push({
         title: 'Special Projects',
         items: [
+          {
+            name: 'AI Editorial Inbox',
+            icon: faInbox,
+            path: '/dashboard/editorial-inbox',
+            badge: 'Review',
+            badgeColor: 'bg-purple-600'
+          },
           { 
             name: 'Investigations', 
             icon: faUserSecret, 
@@ -88,7 +96,7 @@ export default function DashboardSidebar() {
     }
 
     return groups;
-  }, [isEditor, isSuperUser]);
+  }, [isAdmin, isEditor, isSuperUser]);
 
   // User account items
   const accountItems: NavItem[] = [

@@ -205,6 +205,7 @@ export default function ArticleView() {
     <img
       src={article.featuredImageUrl || resolvedImageUrl || '/default-image.png'}
       alt={article.featuredImageDescription || article.title}
+      loading="lazy"
       className="w-full h-auto object-cover"
     />
     {(article.featuredImageDescription || article.featuredImageSourceCredit) && (

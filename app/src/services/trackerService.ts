@@ -13,6 +13,8 @@ function removeUndefinedFields(obj: Record<string, unknown>): Record<string, unk
             ? removeUndefinedFields(item as Record<string, unknown>)
             : item
         );
+      } else if (value instanceof Timestamp || value instanceof Date) {
+        result[key] = value;
       } else if (typeof value === 'object' && value !== null) {
         result[key] = removeUndefinedFields(value as Record<string, unknown>);
       } else {
@@ -93,7 +95,7 @@ export async function addIncident(trackerId: string, incident: Omit<TrackerIncid
   
   // Update tracker's incident count and updatedAt
   const incidentsCount = await getIncidentCount(trackerId);
-  await updateTracker(trackerId, { incidentCount: incidentsCount + 1 });
+  await updateTracker(trackerId, { incidentCount: incidentsCount });
   
   return docRef.id;
 }

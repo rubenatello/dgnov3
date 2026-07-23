@@ -4,7 +4,11 @@
       "Bash(npm run build:*)",
       "Bash(npm run lint)",
       "Bash(git push:*)",
-      "Bash(firebase deploy:*)"
+      "Bash(firebase deploy:*)",
+      "Bash(npx tsc:*)",
+      "Bash(find /c/Users/rcazarez/Projects/dgnov3 -type f -name *[Rr]oute*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ]
   }
 }

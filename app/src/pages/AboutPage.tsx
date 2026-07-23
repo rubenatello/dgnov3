@@ -69,6 +69,31 @@ export default function AboutPage() {
     setExpandedFAQ(expandedFAQ === index ? null : index)
   }
 
+  // Inject FAQPage JSON-LD schema
+  useEffect(() => {
+    const faqSchema = {
+      '@context': 'https://schema.org',
+      '@type': 'FAQPage',
+      'mainEntity': faqs.map((faq) => ({
+        '@type': 'Question',
+        'name': faq.question,
+        'acceptedAnswer': {
+          '@type': 'Answer',
+          'text': faq.answer,
+        },
+      })),
+    }
+    const script = document.createElement('script')
+    script.type = 'application/ld+json'
+    script.setAttribute('data-schema', 'faq')
+    script.textContent = JSON.stringify(faqSchema)
+    document.head.appendChild(script)
+    return () => {
+      const el = document.querySelector('script[data-schema="faq"]')
+      if (el) el.remove()
+    }
+  }, [])
+
   return (
     <div className="bg-white">
       <SEOHead
@@ -169,6 +194,7 @@ export default function AboutPage() {
                         <img 
                           src={member.profileImageUrl || member.avatarUrl} 
                           alt={member.displayName}
+                          loading="lazy"
                           className="w-full h-full object-cover"
                         />
                       ) : (

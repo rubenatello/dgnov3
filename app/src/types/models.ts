@@ -1,4 +1,5 @@
 import { Timestamp } from 'firebase/firestore';
+import type { EditorialAuditEntry, EditorialEvidence } from './editorialInbox';
 
 // User roles
 export type UserRole = 'reader' | 'writer' | 'editor' | 'admin' | 'dev' | 'superuser';
@@ -81,6 +82,7 @@ export interface Article {
   lastUpdatedAt?: Timestamp;
   lastUpdatedBy?: string;
   createdAt?: Timestamp;
+  editorialEvidence?: EditorialEvidence;
 }
 
 export interface LiveArticle {
@@ -294,4 +296,6 @@ export interface TrackerIncident {
   status: 'active' | 'hidden'; // For moderation
   // NEW: Custom field data
   customData?: Record<string, string | number | boolean | Date>; // Dynamic field values based on tracker's customFields
+  editorialEvidence?: EditorialEvidence;
+  editorialAudit?: EditorialAuditEntry[];
 }

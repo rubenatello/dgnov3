@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
-import { useEffect } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { trackPageView, isAnalyticsEnabled } from './lib/analytics';
 import { AuthProvider } from './contexts/AuthContext';
 import { ArticlesProvider } from './contexts/ArticlesContext';
@@ -9,25 +9,28 @@ import ProtectedRoute from './components/ProtectedRoute';
 import { HomePage } from './pages';
 import LoginPage from './pages/LoginPage';
 import ArticleView from './components/articles/ArticleView';
-import DashboardPage from './pages/dashboard/DashboardPage';
-import MediaPage from './pages/dashboard/MediaPage';
-import ArticlesPage from './pages/dashboard/ArticlesPage';
-import CreateEditArticlePage from './pages/dashboard/CreateEditArticlePage';
-import SettingsPage from './pages/dashboard/SettingsPage';
 import AboutPage from './pages/AboutPage';
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 import NotFoundPage from './pages/NotFoundPage';
 import ArticlesSection from './components/articles/ArticlesSection';
 import ArticlesByDate from './components/articles/ArticlesByDate';
-import AnalyticsPage from './pages/dashboard/AnalyticsPage';
-import TrackersPage from './pages/dashboard/TrackersPage';
-import CreateEditTrackerPage from './pages/dashboard/CreateEditTrackerPage';
 import PublicTrackersPage from './pages/PublicTrackersPage';
 import PublicTrackerDetailPage from './pages/PublicTrackerDetailPage';
 import ReportsPage from './pages/ReportsPage';
 import InvestigationsBoardPage from './pages/InvestigationsBoardPage';
-import InvestigationsBoardAdminPage from './pages/dashboard/InvestigationsBoardAdminPage';
 import InvestigationsIndexPage from './pages/InvestigationsIndexPage';
+
+// Lazy-load dashboard/admin routes (not needed for initial public page load)
+const DashboardPage = lazy(() => import('./pages/dashboard/DashboardPage'));
+const MediaPage = lazy(() => import('./pages/dashboard/MediaPage'));
+const ArticlesPage = lazy(() => import('./pages/dashboard/ArticlesPage'));
+const CreateEditArticlePage = lazy(() => import('./pages/dashboard/CreateEditArticlePage'));
+const SettingsPage = lazy(() => import('./pages/dashboard/SettingsPage'));
+const AnalyticsPage = lazy(() => import('./pages/dashboard/AnalyticsPage'));
+const TrackersPage = lazy(() => import('./pages/dashboard/TrackersPage'));
+const CreateEditTrackerPage = lazy(() => import('./pages/dashboard/CreateEditTrackerPage'));
+const InvestigationsBoardAdminPage = lazy(() => import('./pages/dashboard/InvestigationsBoardAdminPage'));
+const EditorialInboxPage = lazy(() => import('./pages/dashboard/EditorialInboxPage'));
 
 
 function App() {
@@ -51,6 +54,7 @@ function App() {
         <ToastProvider>
         <Router>
         <RouteChangeTracker />
+        <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><p className="text-gray-500">Loading...</p></div>}>
         <Routes>
           {/* Public Routes using shared Layout (Header/Footer/CookieConsentBanner) */}
           <Route element={<Layout />}> 
@@ -181,9 +185,19 @@ function App() {
             }
           />
 
+          <Route
+            path="/dashboard/editorial-inbox"
+            element={
+              <ProtectedRoute requireRoles={['editor', 'admin', 'superuser']}>
+                <EditorialInboxPage />
+              </ProtectedRoute>
+            }
+          />
+
 
           {/* Login and dashboard remain outside the Layout */}
         </Routes>
+        </Suspense>
         </Router>
         </ToastProvider>
       </ArticlesProvider>

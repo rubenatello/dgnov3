@@ -151,6 +151,7 @@ export default function SEOHead({
           "@type": "WebPage",
           "@id": url
         },
+        "inLanguage": "en-US",
         "articleSection": section,
         "keywords": tags.join(', ')
       };

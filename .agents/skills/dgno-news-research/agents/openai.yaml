@@ -1,0 +1,4 @@
+interface:
+  display_name: "DGNO News Research"
+  short_description: "Verify live news sources and disputed claims"
+  default_prompt: "Use $dgno-news-research to investigate a developing story and produce an evidence ledger."

@@ -67,3 +67,5 @@ node_modules/
 .env.production
 # dataconnect generated files
 .dataconnect
+# Local Jensen/Lancelot editorial packages awaiting browser review
+editorial-inbox/
