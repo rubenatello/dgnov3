@@ -1,0 +1,4 @@
+interface:
+  display_name: "DGNO News SEO"
+  short_description: "Improve ethical news search discoverability"
+  default_prompt: "Use $dgno-news-seo to audit DGNO and prioritize ethical search improvements."
