@@ -113,7 +113,9 @@ test('bounded article API validates and applies section/date filters', async ({ 
 });
 
 test('contact API rejects unsafe requests before delivery', async ({ request }) => {
-  expect((await request.get('/api/contact')).status()).toBe(405);
+  const unsupportedMethod = await request.get('/api/contact');
+  expect(unsupportedMethod.status()).toBe(405);
+  expect(unsupportedMethod.headers().allow).toBe('POST, OPTIONS');
 
   const invalid = await request.post('/api/contact', {
     data: {

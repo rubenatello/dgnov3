@@ -391,6 +391,7 @@ export const contact = functions
       return;
     }
     if (req.method !== "POST") {
+      res.set("Allow", "POST, OPTIONS");
       res.status(405).json({error: "Method not allowed. Use POST."});
       return;
     }
