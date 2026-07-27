@@ -132,14 +132,37 @@ service cloud.firestore {
 
     // Users collection
     match /users/{userId} {
-      // Users can read their own profile and other user profiles (for author info)
-      allow read: if true;
-      
-      // Users can update their own profile
-      allow update: if isOwner(userId);
-      
-      // Anyone can create a user profile (for signup)
-      allow create: if isSignedIn();
+      // User documents contain private email and account/role data. Public
+      // author pages use a field-projected backend endpoint instead.
+      allow read: if isOwner(userId) || isWriter();
+
+      // Administrators manage account state and roles. Account owners may edit
+      // only public profile fields and can never grant themselves staff access.
+      allow update: if isAdmin() || (
+        isOwner(userId) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'displayName',
+          'bio',
+          'avatarUrl',
+          'profileImageUrl',
+          'website',
+          'twitter',
+          'blueSky',
+          'instagram',
+          'linkedin',
+          'lastUpdatedAt',
+          'lastLoginAt'
+        ])
+      );
+
+      // New accounts can create only their own default reader profile.
+      allow create: if isOwner(userId) &&
+        request.resource.data.id == userId &&
+        request.resource.data.email == request.auth.token.email &&
+        request.resource.data.roles == ['reader'] &&
+        request.resource.data.isStaff == false &&
+        request.resource.data.isActive == true &&
+        !('rolesMap' in request.resource.data);
       
       // Only admins can delete users
       allow delete: if isAdmin();
@@ -147,11 +170,24 @@ service cloud.firestore {
 
     // Authors/Users collection (legacy - keeping for compatibility)
     match /authors/{userId} {
-      // Anyone can read author profiles
-      allow read: if true;
-      
-      // Users can update their own profile
-      allow update: if isOwner(userId);
+      // Legacy documents may also contain private fields.
+      allow read: if isOwner(userId) || isWriter();
+
+      allow update: if isAdmin() || (
+        isOwner(userId) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'displayName',
+          'bio',
+          'avatarUrl',
+          'profileImageUrl',
+          'website',
+          'twitter',
+          'blueSky',
+          'instagram',
+          'linkedin',
+          'lastUpdatedAt'
+        ])
+      );
       
       // Only admins can create/delete authors
       allow create, delete: if isAdmin();
@@ -293,7 +329,8 @@ service cloud.firestore {
     }
     // Subscriber profiles
     match /subscribers/{userId} {
-      allow read: if true; // public can read subscriber metadata if desired
+      // Subscriber documents contain email and account status.
+      allow read: if isOwner(userId) || isEditor();
       allow create: if request.auth != null && request.auth.uid == userId;
       allow update, delete: if request.auth != null && request.auth.uid == userId;
     }

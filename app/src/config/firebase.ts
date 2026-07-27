@@ -33,10 +33,8 @@ try {
   // setPersistence returns a promise; call and ignore resolution here
   setPersistence(auth, browserLocalPersistence).catch((err) => {
     // Not fatal; just log for diagnostics
-    // eslint-disable-next-line no-console
     console.warn('Failed to set auth persistence:', err);
   });
 } catch (e) {
-  // eslint-disable-next-line no-console
   console.warn('Error while configuring auth persistence (non-browser environment?):', e);
 }

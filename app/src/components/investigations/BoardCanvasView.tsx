@@ -90,7 +90,6 @@ export default function BoardCanvasView({
   people,
   locations,
   events,
-  connections: _,
   selectedEntity,
   scale,
   offset,

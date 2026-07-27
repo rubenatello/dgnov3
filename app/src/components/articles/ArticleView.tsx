@@ -2,29 +2,39 @@ import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { getArticleBySlug, getRelatedArticles } from '../../services/articleService';
 import { getMediaById } from '../../services/mediaService';
-import { getUserById } from '../../services/userService';
+import { getPublicAuthor } from '../../services/publicAuthorService';
 import { trackArticleView } from '../../services/analyticsService';
-import type { Article, User } from '../../types/models';
+import type { Article } from '../../types/models';
+import type { PublicAuthorProfile } from '../../services/publicAuthorService';
 import { formatDistanceToNow, format } from 'date-fns';
 import { Timestamp } from 'firebase/firestore';
 import LoadingScreen from '../LoadingScreen';
-import { estimateReadingTime } from '../../utils/helpers';
+import { estimateReadingTime, slugifyTag } from '../../utils/helpers';
 import { HydrateEmbeds } from '../embeds/article-embed';
 import LikeButton from './LikeButton';
 import BookmarkButton from './BookmarkButton';
 import CommentSection from './CommentSection';
-import { useAuth } from '../../hooks/useAuth';
 import SEOHead from '../SEOHead';
 import { SEO_CONFIG, buildBreadcrumbSchema } from '../../utils/seoConstants';
 import ArticleCard from './ArticleCard';
 import ReadingProgressBar from './ReadingProgressBar';
 import ShareButtons from './ShareButtons';
+import { getArticleUrl } from './getArticleUrl';
+import { isAnalyticsEnabled } from '../../lib/analytics';
+
+function isSafePublicUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' || url.protocol === 'http:';
+  } catch {
+    return false;
+  }
+}
 
 export default function ArticleView() {
-  const { slug } = useParams<{ slug: string }>();
-  const { userData } = useAuth();
+  const { slug, yyyy, mm, dd } = useParams<{ slug: string; yyyy: string; mm: string; dd: string }>();
   const [article, setArticle] = useState<Article | null>(null);
-  const [author, setAuthor] = useState<User | null>(null);
+  const [author, setAuthor] = useState<PublicAuthorProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [resolvedImageUrl, setResolvedImageUrl] = useState<string | null>(null);
@@ -34,33 +44,37 @@ export default function ArticleView() {
 
   useEffect(() => {
     if (!slug) return;
+    let active = true;
     setLoading(true);
-    const MIN_DELAY = 800; // ms: prevents brief error flash on fast transitions
-    const started = performance.now();
+    setError(null);
+    setArticle(null);
+    setAuthor(null);
+    const legacyDatePath = yyyy && mm && dd ? `${yyyy}/${mm}/${dd}` : undefined;
 
-    getArticleBySlug(slug)
+    getArticleBySlug(slug, legacyDatePath)
       .then(a => {
+        if (!active) return;
         if (!a) {
           setError('Article not found');
         } else {
           setArticle(a);
           // Track article view
-          if (a.id) {
-            trackArticleView(a.id, userData?.id);
+          if (a.id && isAnalyticsEnabled()) {
+            trackArticleView(a.id);
           }
         }
       })
-      .catch(err => setError(String(err)))
-      .finally(async () => {
-        const elapsed = performance.now() - started;
-        const remaining = MIN_DELAY - elapsed;
-        if (remaining > 0) await new Promise(r => setTimeout(r, remaining));
-        setLoading(false);
-      });
-  }, [slug, userData?.id]);
+      .catch((caught) => {
+        console.error('Article failed to load', caught);
+        if (active) setError('This article could not be loaded right now.');
+      })
+      .finally(() => active && setLoading(false));
+    return () => { active = false; };
+  }, [slug, yyyy, mm, dd]);
 
   // If the article references a media ID but no explicit URL, resolve it once.
   useEffect(() => {
+    let active = true;
     (async () => {
       if (!article) return;
       // Reset whenever the article changes
@@ -68,22 +82,24 @@ export default function ArticleView() {
       if (!article.featuredImageUrl && article.featuredImageId) {
         try {
           const media = await getMediaById(article.featuredImageId);
-          if (media?.url) setResolvedImageUrl(media.url);
+          if (active && media?.url) setResolvedImageUrl(media.url);
         } catch (e) {
           // Non-fatal: leave as null and UI will fallback to placeholder
           console.warn('Failed to resolve media URL from featuredImageId', e);
         }
       }
     })();
+    return () => { active = false; };
   }, [article]);
 
   useEffect(() => {
-  if (!article?.authorId || typeof article.authorId !== 'string') return;
-  (async () => {
-    const author = await getUserById(article.authorId!);
-    setAuthor(author);
-  })();
-}, [article?.authorId]);
+    if (!article?.authorId || typeof article.authorId !== 'string') return;
+    let active = true;
+    getPublicAuthor(article.authorId)
+      .then((profile) => active && setAuthor(profile))
+      .catch((caught) => console.warn('Author profile failed to load', caught));
+    return () => { active = false; };
+  }, [article?.authorId]);
 
   // Fetch related articles based on tags
   useEffect(() => {
@@ -91,24 +107,24 @@ export default function ArticleView() {
       setRelatedArticles([]);
       return;
     }
+    let active = true;
     (async () => {
       try {
         const related = await getRelatedArticles(article.tags!, article.id!, 5);
-        setRelatedArticles(related);
+        if (active) setRelatedArticles(related);
       } catch (e) {
         console.warn('Failed to fetch related articles', e);
-        setRelatedArticles([]);
+        if (active) setRelatedArticles([]);
       }
     })();
+    return () => { active = false; };
   }, [article?.id, article?.tags]);
 
   // Add breadcrumb structured data
   useEffect(() => {
     if (!article) return;
 
-    const canonicalUrl = article.slug
-      ? `https://dgno.us/article/${article.slug}`
-      : `https://dgno.us/article/${slug}`;
+    const canonicalUrl = new URL(getArticleUrl(article), SEO_CONFIG.siteUrl).toString();
 
     const breadcrumbs = buildBreadcrumbSchema([
       { name: 'Home', url: SEO_CONFIG.siteUrl },
@@ -133,9 +149,24 @@ export default function ArticleView() {
     };
   }, [article, slug]);
 
+  const requestedPath = yyyy && mm && dd
+    ? `/article/${yyyy}/${mm}/${dd}/${encodeURIComponent(slug || '')}`
+    : `/article/${encodeURIComponent(slug || '')}`;
+
   if (loading) return <LoadingScreen message="Loading article…" />;
-  if (error) return <div className="p-8 text-red-600">{error}</div>;
-  if (!article) return <div className="p-8">No article</div>;
+  if (error || !article) return (
+    <div className="max-w-3xl mx-auto px-4 py-16 min-h-[60vh]">
+      <SEOHead
+        title="Article unavailable | DGNO"
+        description="The requested DGNO article could not be loaded."
+        url={`${SEO_CONFIG.siteUrl}${requestedPath}`}
+        robots="noindex, nofollow"
+      />
+      <h1 className="text-3xl font-bold text-ink">{error === 'Article not found' || !article ? 'Article not found' : 'Article unavailable'}</h1>
+      <p className="mt-3 text-inkMuted">{error || 'The requested article is not available.'}</p>
+      <Link to="/" className="inline-flex mt-6 text-accent font-semibold underline underline-offset-4">Return to the homepage</Link>
+    </div>
+  );
 
   // helper: format publish date and relative updated
   const _pubVal: unknown = article.publishedAt;
@@ -156,22 +187,29 @@ export default function ArticleView() {
           : new Date(String(_lastVal)))
     : null;
 
-  // Construct canonical URL from article slug
-  const canonicalUrl = article.slug
-    ? `https://dgno.us/article/${article.slug}`
-    : `https://dgno.us/article/${slug}`;
+  const canonicalPath = getArticleUrl(article);
+  const canonicalUrl = new URL(canonicalPath, SEO_CONFIG.siteUrl).toString();
+  const sectionPath = article.section ? `/articles/${slugifyTag(article.section)}` : '/';
+  const authorName = article.authorName || author?.displayName || null;
+  const authorPath = article.authorId ? `/author/${encodeURIComponent(article.authorId)}` : null;
+  const coAuthorPath = article.coAuthorId ? `/author/${encodeURIComponent(article.coAuthorId)}` : null;
+  const authorImage = author?.profileImageUrl || author?.avatarUrl;
+  const readingTime = article.wordCount
+    ? `${Math.max(1, Math.ceil(article.wordCount / 200))} min read`
+    : estimateReadingTime(article.content || '');
+  const evidence = article.editorialEvidence;
 
   return (
     <>
       <SEOHead
         title={`${article.title} | DGNO`}
         description={article.summary || article.subtitle || `${article.title} - Independent journalism from DGNO`}
-        image={article.featuredImageUrl || resolvedImageUrl || 'https://dgno.us/favicon.png'}
+        image={article.socialImageUrl || article.featuredImageUrl || resolvedImageUrl || 'https://dgno.us/logo.png'}
         url={canonicalUrl}
         type="article"
         publishedTime={publishedAt?.toISOString()}
         modifiedTime={lastUpdatedAt?.toISOString()}
-        author={article.authorName || author?.displayName || 'DGNO Editorial Team'}
+        author={authorName || undefined}
         section={article.section}
         tags={tags}
       />
@@ -185,12 +223,21 @@ export default function ArticleView() {
           
           {/* Main Article Content */}
           <article className="lg:col-span-8 xl:col-span-9">
+            <nav aria-label="Breadcrumb" className="mb-4 text-sm text-inkMuted">
+              <ol className="flex flex-wrap items-center gap-2">
+                <li><Link to="/" className="hover:text-accent">Home</Link></li>
+                <li aria-hidden="true">/</li>
+                <li><Link to={sectionPath} className="hover:text-accent">{article.section || 'News'}</Link></li>
+                <li aria-hidden="true">/</li>
+                <li className="truncate max-w-[18rem]" aria-current="page">{article.title}</li>
+              </ol>
+            </nav>
             {/* Section badge */}
             {article.section && (
               <div className="mb-4">
-                <span className="text-xs font-bold uppercase tracking-widest text-accent bg-accent/10 px-3 py-1 rounded-full">
+                <Link to={sectionPath} className="inline-flex text-xs font-bold uppercase tracking-widest text-accent bg-accent/10 px-3 py-1 rounded-full hover:bg-accent hover:text-white">
                   {article.section}
-                </span>
+                </Link>
           </div>
         )}
         
@@ -205,8 +252,12 @@ export default function ArticleView() {
     <img
       src={article.featuredImageUrl || resolvedImageUrl || '/default-image.png'}
       alt={article.featuredImageDescription || article.title}
-      loading="lazy"
-      className="w-full h-auto object-cover"
+      loading="eager"
+      fetchPriority="high"
+      decoding="async"
+      width="1600"
+      height="900"
+      className="w-full aspect-video object-cover"
     />
     {(article.featuredImageDescription || article.featuredImageSourceCredit) && (
       <figcaption className="bg-gray-50 px-4 py-3 border-t border-gray-100">
@@ -227,9 +278,9 @@ export default function ArticleView() {
 
       <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-6 border-b border-gray-200">
         <div className="flex items-center gap-3">
-          {author?.profileImageUrl ? (
+          {authorImage ? (
     <img
-      src={author.profileImageUrl}
+      src={authorImage}
       alt={author.displayName || 'Author avatar'}
       className="w-12 h-12 rounded-full object-cover ring-2 ring-gray-100 shadow-sm"
       onError={(e) => {
@@ -241,24 +292,31 @@ export default function ArticleView() {
     />
   ) : (
     <div className="w-12 h-12 rounded-full bg-gradient-to-br from-accent to-accent/70 flex items-center justify-center text-white text-sm font-bold ring-2 ring-gray-100 shadow-sm">
-      {author?.displayName
-        ? author.displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
-        : '??'}
+      {authorName?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || '?'}
     </div>
   )}
           <div>
-            {article.authorName && <p className="font-semibold text-ink">By {article.authorName}</p>}
+            <p className="font-semibold text-ink">
+              {authorName ? <>
+                By {authorPath ? <Link to={authorPath} rel="author" className="underline decoration-stone/60 underline-offset-4 hover:text-accent">{authorName}</Link> : authorName}
+              </> : 'Byline unavailable'}
+              {article.coAuthorName && <> and {coAuthorPath ? <Link to={coAuthorPath} rel="author" className="underline decoration-stone/60 underline-offset-4 hover:text-accent">{article.coAuthorName}</Link> : article.coAuthorName}</>}
+            </p>
             <div className="flex items-center gap-2 text-xs text-gray-500">
-              <span className="bg-accent/10 text-accent font-medium px-2 py-0.5 rounded">{estimateReadingTime(article.content || "")}</span>
+              <span className="bg-accent/10 text-accent font-medium px-2 py-0.5 rounded">{readingTime}</span>
             </div>
           </div>
         </div>
         <div className="text-right text-sm">
           {publishedAt && (
-            <div className="text-ink font-medium">{format(publishedAt, 'MMMM d, yyyy')}</div>
+            <time className="block text-ink font-medium" dateTime={publishedAt.toISOString()}>
+              Published {format(publishedAt, 'MMMM d, yyyy')}
+            </time>
           )}
           {lastUpdatedAt && (
-            <div className="text-xs text-gray-500 mt-1">Updated {formatDistanceToNow(lastUpdatedAt, { addSuffix: true })}</div>
+            <time className="block text-xs text-gray-500 mt-1" dateTime={lastUpdatedAt.toISOString()}>
+              Record updated {formatDistanceToNow(lastUpdatedAt, { addSuffix: true })}
+            </time>
           )}
         </div>
       </div>
@@ -270,10 +328,34 @@ export default function ArticleView() {
         </div>
       )}
 
-      <div className="prose max-w-none mx-auto article-content" dangerouslySetInnerHTML={{ __html: article.content || '' }} />
+      <div className="prose max-w-3xl mx-auto article-content" dangerouslySetInnerHTML={{ __html: article.content || '' }} />
       
       {/* Hydrate embeds after content is rendered */}
       <HydrateEmbeds deps={article?.content ? [article.content] : undefined} />
+
+      {evidence?.sources?.length ? (
+        <section className="mt-10 p-5 sm:p-6 rounded-xl border border-stone/50 bg-paper" aria-labelledby="article-sources-heading">
+          <h2 id="article-sources-heading" className="text-lg font-bold text-ink">Sources and reporting record</h2>
+          <p className="mt-2 text-sm text-inkMuted">
+            These links are attached to DGNO's editorial evidence record. Source type describes the source, not an endorsement of every claim it makes.
+          </p>
+          <ul className="mt-4 space-y-3">
+            {evidence.sources.map((source) => (
+              <li key={`${source.url}-${source.title}`} className="text-sm">
+                {isSafePublicUrl(source.url) ? (
+                  <a href={source.url} target="_blank" rel="noopener noreferrer" className="font-semibold text-accent underline underline-offset-4 break-words">{source.title}</a>
+                ) : <span className="font-semibold text-ink">{source.title}</span>}
+                <span className="block text-inkMuted">{source.publisher} · {source.kind}</span>
+              </li>
+            ))}
+          </ul>
+          {evidence.approvedAt && (
+            <p className="mt-4 text-xs text-inkMuted">
+              Editorial review recorded <time dateTime={evidence.approvedAt}>{format(new Date(evidence.approvedAt), 'MMMM d, yyyy')}</time>.
+            </p>
+          )}
+        </section>
+      ) : null}
 
       {tags.length > 0 && (
         <div className="mt-10 pt-6 border-t border-gray-200">
@@ -282,9 +364,9 @@ export default function ArticleView() {
           </strong>
           <div className="flex flex-wrap gap-2">
             {tags.map((tag) => (
-              <span key={tag} className="text-xs font-medium text-gray-600 bg-gray-100 hover:bg-accent hover:text-white px-3 py-1.5 rounded-full transition-colors duration-200 cursor-pointer">
+              <Link key={tag} to={`/tag/${slugifyTag(tag)}`} className="text-xs font-medium text-gray-600 bg-gray-100 hover:bg-accent hover:text-white px-3 py-1.5 rounded-full transition-colors duration-200">
                 {tag.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
-              </span>
+              </Link>
             ))}
           </div>
         </div>
@@ -338,6 +420,19 @@ export default function ArticleView() {
           />
         </div>
       </div>
+
+      <section className="mt-10 overflow-hidden rounded-2xl border border-stone/60 bg-surface-raised shadow-soft" aria-labelledby="keep-following-heading">
+        <div className="border-b border-stone/50 bg-masthead px-5 py-6 text-on-masthead sm:px-7">
+          <p className="text-xs font-black uppercase tracking-[0.2em] text-accent-light">Keep following the record</p>
+          <h2 id="keep-following-heading" className="mt-2 font-heading text-2xl font-bold text-white">Go beyond one headline.</h2>
+          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-on-masthead-muted">Inspect DGNO's public data, read the latest reporting, or follow the site directly—no paywall or inbox required.</p>
+        </div>
+        <div className="grid divide-y divide-stone/50 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+          <Link to="/trackers" className="p-5 font-bold text-ink transition hover:bg-accent-soft hover:text-accent-dark">Explore trackers →</Link>
+          <Link to="/" className="p-5 font-bold text-ink transition hover:bg-accent-soft hover:text-accent-dark">Latest reporting →</Link>
+          <a href="/rss.xml" className="p-5 font-bold text-ink transition hover:bg-accent-soft hover:text-accent-dark">Follow by RSS →</a>
+        </div>
+      </section>
 
       {/* Related Articles - Mobile Only (shown below article) */}
       {relatedArticles.length > 0 && (

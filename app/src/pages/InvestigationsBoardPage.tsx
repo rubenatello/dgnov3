@@ -3,7 +3,7 @@ import InvestigationBoardEditorV2 from '../components/investigations/Investigati
 
 export default function InvestigationsBoardPage() {
   return (
-    <div className="bg-white min-h-screen">
+    <div className="bg-bg min-h-screen">
       <SEOHead
         title="Epstein Files Investigation Board | DGNO"
         description="Explore DGNO's Epstein Files investigation board: an interactive map of people, documents, timelines, and verified source links."

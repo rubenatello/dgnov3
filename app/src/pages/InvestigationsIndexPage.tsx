@@ -28,7 +28,7 @@ export default function InvestigationsIndexPage() {
   }, []);
 
   return (
-    <div className="bg-white">
+    <div className="bg-bg">
       <SEOHead
         title="Investigations | DGNO"
         description="Browse DGNO investigations featuring documented sources, timelines, and key relationships." 
@@ -44,13 +44,13 @@ export default function InvestigationsIndexPage() {
 
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
           {loading ? (
-            <div className="rounded-2xl border border-stone/20 bg-white p-6 text-inkMuted">
+            <div className="rounded-2xl border border-stone/20 bg-surface p-6 text-inkMuted">
               Loading investigations…
             </div>
           ) : isActive ? (
             <Link
               to="/investigations/epstein-files"
-              className="group rounded-2xl border border-stone/20 bg-white p-6 shadow-sm hover:shadow-md transition-all"
+              className="group rounded-2xl border border-stone/20 bg-surface p-6 shadow-sm hover:-translate-y-1 hover:border-accent/40 hover:shadow-lg transition-all"
             >
               <div className="flex items-start justify-between">
                 <div>
@@ -59,7 +59,7 @@ export default function InvestigationsIndexPage() {
                   </h2>
                   <p className="text-sm text-inkMuted mt-1">Interactive investigation board</p>
                 </div>
-                <span className="text-xs px-2 py-1 rounded-full bg-ink text-white">1</span>
+                <span className="text-xs px-2 py-1 rounded-full bg-masthead text-white">1</span>
               </div>
               <p className="text-sm text-inkMuted mt-4">
                 A structured map of key people, documents, and timeline events with source links.
@@ -67,7 +67,7 @@ export default function InvestigationsIndexPage() {
               <div className="mt-4 text-sm font-semibold text-accent">View board →</div>
             </Link>
           ) : (
-            <div className="rounded-2xl border border-stone/20 bg-white p-6 text-inkMuted">
+            <div className="rounded-2xl border border-stone/20 bg-surface p-6 text-inkMuted">
               No investigations are currently published.
             </div>
           )}

@@ -1,84 +1,17 @@
-import { collection, getDocs, query, where } from 'firebase/firestore';
-import { db } from '../config/firebase';
-import type { Article } from '../types/models';
-import { SECTION_MAP } from '../components/SectionMapping';
-
 /**
- * Generate an XML sitemap for all published articles
- * This should be called periodically or on-demand to update the sitemap
+ * Fetch the authoritative server-generated sitemap. Keeping the admin download
+ * on the same endpoint prevents canonical or last-modified logic from drifting
+ * between the browser and Firebase Functions.
  */
 export async function generateSitemap(): Promise<string> {
-  const articlesRef = collection(db, 'articles');
-  const q = query(
-    articlesRef,
-    where('status', '==', 'published'),
-    where('isActive', '==', true)
-  );
-
-  const snapshot = await getDocs(q);
-  const articles = snapshot.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data()
-  } as Article));
-
-  // Build XML sitemap
-  const baseUrl = 'https://dgno.us';
-  
-  let sitemap = '<?xml version="1.0" encoding="UTF-8"?>\n';
-  sitemap += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n';
-  
-  // Add homepage
-  sitemap += '  <url>\n';
-  sitemap += `    <loc>${baseUrl}/</loc>\n`;
-  sitemap += `    <changefreq>daily</changefreq>\n`;
-  sitemap += `    <priority>1.0</priority>\n`;
-  sitemap += '  </url>\n';
-  
-  // Add article pages
-  for (const article of articles) {
-    if (!article.slug) continue;
-    
-    const url = `${baseUrl}/article/${article.slug}`;
-    const lastmod = article.lastUpdatedAt 
-      ? new Date(article.lastUpdatedAt.toMillis()).toISOString()
-      : new Date().toISOString();
-    
-    sitemap += '  <url>\n';
-    sitemap += `    <loc>${url}</loc>\n`;
-    sitemap += `    <lastmod>${lastmod}</lastmod>\n`;
-    sitemap += `    <changefreq>weekly</changefreq>\n`;
-    sitemap += `    <priority>0.8</priority>\n`;
-    sitemap += '  </url>\n';
+  const response = await fetch('/sitemap.xml', {
+    headers: { Accept: 'application/xml' },
+    credentials: 'same-origin',
+  });
+  if (!response.ok) {
+    throw new Error(`Sitemap endpoint returned ${response.status}.`);
   }
-
-  // Add section pages
-  for (const [slug] of Object.entries(SECTION_MAP)) {
-    sitemap += '  <url>\n';
-    sitemap += `    <loc>${baseUrl}/articles/${slug}</loc>\n`;
-    sitemap += `    <changefreq>daily</changefreq>\n`;
-    sitemap += `    <priority>0.9</priority>\n`;
-    sitemap += '  </url>\n';
-  }
-
-  // Add static pages
-  const staticPages = [
-    { path: '/about', priority: '0.7' },
-    { path: '/privacy', priority: '0.5' },
-    { path: '/trackers', priority: '0.8' },
-    { path: '/reports', priority: '0.8' }
-  ];
-  
-  for (const page of staticPages) {
-    sitemap += '  <url>\n';
-    sitemap += `    <loc>${baseUrl}${page.path}</loc>\n`;
-    sitemap += `    <changefreq>monthly</changefreq>\n`;
-    sitemap += `    <priority>${page.priority}</priority>\n`;
-    sitemap += '  </url>\n';
-  }
-  
-  sitemap += '</urlset>';
-  
-  return sitemap;
+  return response.text();
 }
 
 /**

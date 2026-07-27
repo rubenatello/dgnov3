@@ -31,4 +31,25 @@ module.exports = {
     "import/no-unresolved": 0,
     "indent": ["error", 2],
   },
+  overrides: [
+    {
+      files: ["src/**/*.ts"],
+      rules: {
+        // TypeScript signatures already describe private helper contracts;
+        // reserve JSDoc for exported/public behavior where it adds context.
+        "require-jsdoc": "off",
+        "valid-jsdoc": "off",
+        "max-len": ["error", {"code": 100, "ignoreComments": true}],
+      },
+    },
+    {
+      files: ["src/seo.ts"],
+      rules: {
+        // Crawler HTML/XML templates and the URL-safety character class are
+        // clearer when kept intact than when split to satisfy Google style.
+        "max-len": "off",
+        "no-control-regex": "off",
+      },
+    },
+  ],
 };

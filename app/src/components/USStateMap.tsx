@@ -20,7 +20,7 @@ export default function USStateMap({ data, year }: USStateMapProps) {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
       return (
-        <div className="bg-white p-3 border rounded shadow-lg">
+        <div className="bg-surface p-3 border rounded shadow-lg">
           <p className="font-semibold">{data.state}</p>
           <p className="text-blue-600">
             {data.count} incident{data.count !== 1 ? 's' : ''}

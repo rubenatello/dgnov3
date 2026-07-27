@@ -1,6 +1,8 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { Article } from '../../types/models';
 import { trackSearchEvent, isAnalyticsEnabled } from '../../lib/analytics';
+import { getArticleUrl } from '../articles/getArticleUrl';
+import Dialog from '../ui/Dialog';
 
 interface SearchModalProps {
   open: boolean;
@@ -8,14 +10,11 @@ interface SearchModalProps {
   articles: Article[];
 }
 
-// Detect if user is on macOS
 function useIsMac() {
   return useMemo(() => {
     if (typeof navigator === 'undefined') return false;
-    // Check for Mac in platform or userAgentData
     const platform = navigator.platform?.toLowerCase() || '';
-    const userAgent = navigator.userAgent?.toLowerCase() || '';
-    return platform.includes('mac') || userAgent.includes('mac');
+    return platform.includes('mac') || navigator.userAgent.toLowerCase().includes('mac');
   }, []);
 }
 
@@ -26,16 +25,10 @@ export default function SearchModal({ open, onClose, articles }: SearchModalProp
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLUListElement>(null);
-  const isMac = useIsMac();
-  
-  // Get the modifier key display based on OS
-  const modifierKey = isMac ? '⌘' : 'Ctrl';
+  const listId = `search-results-${useId().replace(/:/g, '')}`;
+  const modifierKey = useIsMac() ? '⌘' : 'Ctrl';
 
-  // Focus input when modal opens
   useEffect(() => {
-    if (open && inputRef.current) {
-      inputRef.current.focus();
-    }
     if (!open) {
       setQuery('');
       setResults([]);
@@ -43,22 +36,9 @@ export default function SearchModal({ open, onClose, articles }: SearchModalProp
     }
   }, [open]);
 
-  // Global keyboard shortcut (Cmd/Ctrl + K)
   useEffect(() => {
-    const handleGlobalKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault();
-        if (!open) {
-          // This would need to be handled by parent - emit an event or use context
-        }
-      }
-    };
-    window.addEventListener('keydown', handleGlobalKeyDown);
-    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
-  }, [open]);
-
-  useEffect(() => {
-    if (query.trim() === '') {
+    const trimmedQuery = query.trim();
+    if (!trimmedQuery) {
       setResults([]);
       setIsSearching(false);
       setSelectedIndex(-1);
@@ -66,246 +46,164 @@ export default function SearchModal({ open, onClose, articles }: SearchModalProp
     }
 
     setIsSearching(true);
-    const searchTimeout = setTimeout(() => {
-      const q = query.toLowerCase().trim();
+    const searchTimeout = window.setTimeout(() => {
+      const normalizedQuery = trimmedQuery.toLowerCase();
       const filteredResults = articles
-        .filter((article: Article) => {
-          // Search in title, subtitle, summary, section, and tags
-          const searchFields = [
+        .filter((article) => {
+          const searchable = [
             article.title,
             article.subtitle,
             article.summary,
             article.section,
-            ...(article.tags || [])
+            ...(article.tags || []),
           ].filter(Boolean).join(' ').toLowerCase();
-          
-          return searchFields.includes(q);
+          return article.status === 'published' && searchable.includes(normalizedQuery);
         })
-        .filter(article => article.status === 'published') // Only show published articles
         .sort((a, b) => {
-          // Prioritize title matches over other fields
-          const aTitle = a.title.toLowerCase().includes(q);
-          const bTitle = b.title.toLowerCase().includes(q);
-          if (aTitle && !bTitle) return -1;
-          if (!aTitle && bTitle) return 1;
-          
-          // Then sort by publish date (newest first)
-          if (a.publishedAt && b.publishedAt) {
-            return b.publishedAt.toMillis() - a.publishedAt.toMillis();
-          }
-          return 0;
+          const aTitleMatch = a.title.toLowerCase().includes(normalizedQuery);
+          const bTitleMatch = b.title.toLowerCase().includes(normalizedQuery);
+          if (aTitleMatch !== bTitleMatch) return aTitleMatch ? -1 : 1;
+          const aTime = a.publishedAt && 'toMillis' in a.publishedAt ? a.publishedAt.toMillis() : 0;
+          const bTime = b.publishedAt && 'toMillis' in b.publishedAt ? b.publishedAt.toMillis() : 0;
+          return bTime - aTime;
         })
-        .slice(0, 8); // Limit to 8 results for performance
+        .slice(0, 8);
 
       setResults(filteredResults);
-      setIsSearching(false);
       setSelectedIndex(-1);
-      // track the search event (best-effort)
+      setIsSearching(false);
       try {
-        if (isAnalyticsEnabled()) trackSearchEvent(q, filteredResults.length);
-      } catch (err) {
-        // don't let analytics break search
-        console.warn('trackSearchEvent failed', err);
+        if (isAnalyticsEnabled()) trackSearchEvent(normalizedQuery, filteredResults.length);
+      } catch (error) {
+        console.warn('trackSearchEvent failed', error);
       }
-    }, 300); // Debounce search by 300ms
+    }, 300);
 
-    return () => clearTimeout(searchTimeout);
-  }, [query, articles]);
+    return () => window.clearTimeout(searchTimeout);
+  }, [articles, query]);
 
-  const handleResultClick = () => {
+  useEffect(() => {
+    if (selectedIndex < 0 || !resultsRef.current) return;
+    resultsRef.current.children[selectedIndex]?.scrollIntoView({ block: 'nearest' });
+  }, [selectedIndex]);
+
+  const closeAndReset = () => {
     setQuery('');
     setResults([]);
+    setSelectedIndex(-1);
     onClose();
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Escape') {
-      onClose();
-    } else if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      setSelectedIndex(prev => 
-        prev < results.length - 1 ? prev + 1 : prev
-      );
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      setSelectedIndex(prev => prev > 0 ? prev - 1 : -1);
-    } else if (e.key === 'Enter' && selectedIndex >= 0 && results[selectedIndex]) {
-      e.preventDefault();
-      window.location.href = `/article/${results[selectedIndex].slug}`;
-      handleResultClick();
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      setSelectedIndex((index) => Math.min(index + 1, results.length - 1));
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      setSelectedIndex((index) => Math.max(index - 1, -1));
+    } else if (event.key === 'Enter' && selectedIndex >= 0 && results[selectedIndex]) {
+      event.preventDefault();
+      window.location.assign(getArticleUrl(results[selectedIndex]));
+      closeAndReset();
     }
   };
 
-  // Scroll selected item into view
-  useEffect(() => {
-    if (selectedIndex >= 0 && resultsRef.current) {
-      const selectedElement = resultsRef.current.children[selectedIndex] as HTMLElement;
-      if (selectedElement) {
-        selectedElement.scrollIntoView({ block: 'nearest' });
-      }
-    }
-  }, [selectedIndex]);
-
-  if (!open) return null;
+  const activeOptionId = selectedIndex >= 0 ? `${listId}-option-${selectedIndex}` : undefined;
 
   return (
-    <>
-      {/* Backdrop */}
-      <div 
-        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9998] transition-opacity"
-        onClick={onClose}
-      />
-      
-      {/* Modal */}
-      <div className="fixed top-0 left-0 w-full flex justify-center z-[9999] pointer-events-none px-4">
-        <div className="mt-[10vh] w-full max-w-2xl bg-white rounded-xl shadow-2xl pointer-events-auto overflow-hidden border border-gray-200">
-          {/* Search Input */}
-          <div className="p-4 border-b border-gray-100">
-            <div className="flex items-center gap-3">
-              <div className="text-gray-400">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-              </div>
-              <input
-                ref={inputRef}
-                type="text"
-                className="flex-1 text-lg text-ink placeholder-gray-400 focus:outline-none bg-transparent"
-                placeholder="Search articles..."
-                value={query}
-                onChange={e => setQuery(e.target.value)}
-                onKeyDown={handleKeyDown}
-              />
-              {query && (
-                <button
-                  onClick={() => setQuery('')}
-                  className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              )}
-              <kbd className="hidden sm:inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-gray-500 bg-gray-100 rounded border border-gray-200">
-                ESC
-              </kbd>
-            </div>
-          </div>
+    <Dialog
+      open={open}
+      onClose={closeAndReset}
+      title="Search DGNO"
+      initialFocusRef={inputRef}
+      className="w-full max-w-2xl overflow-hidden rounded-xl border border-stone"
+    >
+      <div className="flex items-center justify-between gap-4 border-b border-stone px-4 py-3 sm:px-5">
+        <h2 className="text-lg font-bold text-ink">Search DGNO</h2>
+        <button type="button" onClick={closeAndReset} className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-ink-muted hover:bg-stone-light hover:text-ink" aria-label="Close search">
+          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18 18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
 
-          {/* Results Area */}
-          <div className="max-h-[60vh] overflow-y-auto">
-            {query.trim() && (
-              <div className="px-4 py-2 text-xs text-gray-500 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
-                <span>
-                  {isSearching ? (
-                    <span className="flex items-center gap-2">
-                      <span className="w-3 h-3 border-2 border-accent border-t-transparent rounded-full animate-spin" />
-                      Searching...
-                    </span>
-                  ) : (
-                    `${results.length} result${results.length !== 1 ? 's' : ''} found`
-                  )}
-                </span>
-                <span className="hidden sm:inline text-gray-400">
-                  ↑↓ to navigate • Enter to select
-                </span>
-              </div>
-            )}
-
-            {results.length > 0 ? (
-              <ul ref={resultsRef} className="divide-y divide-gray-100">
-                {results.map((article, index) => (
-                  <li 
-                    key={article.id} 
-                    className={`transition-colors ${
-                      index === selectedIndex 
-                        ? 'bg-accent/10' 
-                        : 'hover:bg-gray-50'
-                    }`}
-                  >
-                    <a
-                      href={`/article/${article.slug}`}
-                      className="flex items-start gap-4 p-4"
-                      onClick={handleResultClick}
-                    >
-                      {article.featuredImageUrl ? (
-                        <img 
-                          src={article.featuredImageUrl} 
-                          alt={article.title} 
-                          className="h-16 w-20 rounded-lg object-cover flex-shrink-0 shadow-sm" 
-                        />
-                      ) : (
-                        <div className="h-16 w-20 rounded-lg bg-gray-100 flex-shrink-0 flex items-center justify-center text-gray-400">
-                          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
-                          </svg>
-                        </div>
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <h4 className="font-semibold text-ink text-sm leading-tight mb-1 line-clamp-2">
-                          {article.title}
-                        </h4>
-                        {article.subtitle && (
-                          <p className="text-gray-600 text-xs leading-tight mb-2 line-clamp-1">
-                            {article.subtitle}
-                          </p>
-                        )}
-                        <div className="flex items-center gap-2 text-xs">
-                          {article.section && (
-                            <span className="bg-accent/20 text-accent font-medium px-2 py-0.5 rounded-full">
-                              {article.section}
-                            </span>
-                          )}
-                          {article.publishedAt && (
-                            <span className="text-gray-400">
-                              {new Date(article.publishedAt.toMillis()).toLocaleDateString('en-US', {
-                                month: 'short',
-                                day: 'numeric',
-                                year: 'numeric'
-                              })}
-                            </span>
-                          )}
-                          {article.authorName && (
-                            <span className="text-gray-400">
-                              by {article.authorName}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      {index === selectedIndex && (
-                        <div className="flex-shrink-0 self-center">
-                          <kbd className="px-2 py-1 text-xs text-gray-500 bg-gray-100 rounded border border-gray-200">
-                            ↵
-                          </kbd>
-                        </div>
-                      )}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            ) : query.trim() && !isSearching ? (
-              <div className="text-center py-12 px-4">
-                <div className="text-4xl mb-3">🔍</div>
-                <p className="font-medium text-gray-700 mb-1">No articles found</p>
-                <p className="text-sm text-gray-500">Try different keywords or check your spelling</p>
-              </div>
-            ) : !query.trim() ? (
-              <div className="text-center py-12 px-4">
-                <div className="text-4xl mb-3">💡</div>
-                <p className="font-medium text-gray-700 mb-1">Start typing to search articles...</p>
-                <p className="text-sm text-gray-500">Search by title, section, or keywords</p>
-                <div className="mt-4 flex items-center justify-center gap-4 text-xs text-gray-400">
-                  <span className="flex items-center gap-1">
-                    <kbd className="px-1.5 py-0.5 bg-gray-100 rounded border border-gray-200">{modifierKey}</kbd>
-                    <kbd className="px-1.5 py-0.5 bg-gray-100 rounded border border-gray-200">K</kbd>
-                    <span className="ml-1">to open</span>
-                  </span>
-                </div>
-              </div>
-            ) : null}
-          </div>
+      <div className="border-b border-stone p-4 sm:p-5">
+        <label htmlFor={`${listId}-input`} className="sr-only">Search published articles</label>
+        <div className="flex items-center gap-3 rounded-lg border border-stone bg-surface px-3 focus-within:border-accent-strong focus-within:ring-2 focus-within:ring-accent-strong/25">
+          <svg className="h-5 w-5 flex-none text-ink-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="m21 21-6-6m2-5a7 7 0 1 1-14 0 7 7 0 0 1 14 0Z" />
+          </svg>
+          <input
+            ref={inputRef}
+            id={`${listId}-input`}
+            type="search"
+            role="combobox"
+            aria-autocomplete="list"
+            aria-controls={listId}
+            aria-expanded={results.length > 0}
+            aria-activedescendant={activeOptionId}
+            className="min-w-0 flex-1 bg-transparent py-3 text-base text-ink outline-none placeholder:text-ink-muted"
+            placeholder="Search articles"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            onKeyDown={handleKeyDown}
+            autoComplete="off"
+          />
+          {query && (
+            <button type="button" onClick={() => setQuery('')} className="rounded-md p-2 text-ink-muted hover:bg-stone-light hover:text-ink" aria-label="Clear search">
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18 18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
         </div>
       </div>
-    </>
+
+      <div className="max-h-[60dvh] overflow-y-auto">
+        <div className="flex min-h-10 items-center justify-between border-b border-stone bg-stone-light px-4 py-2 text-xs text-ink-muted" aria-live="polite">
+          <span>{isSearching ? 'Searching…' : query.trim() ? `${results.length} result${results.length === 1 ? '' : 's'}` : 'Search by headline, section, or topic'}</span>
+          <span className="hidden sm:inline">↑↓ navigate · Enter select · Esc close</span>
+        </div>
+
+        {results.length > 0 ? (
+          <ul ref={resultsRef} id={listId} role="listbox" aria-label="Article search results" className="divide-y divide-stone">
+            {results.map((article, index) => (
+              <li key={article.id || article.slug}>
+                <a
+                  id={`${listId}-option-${index}`}
+                  role="option"
+                  aria-selected={index === selectedIndex}
+                  href={getArticleUrl(article)}
+                  onClick={closeAndReset}
+                  className={`flex items-start gap-4 p-4 transition-colors sm:p-5 ${index === selectedIndex ? 'bg-accent-soft' : 'hover:bg-stone-light'}`}
+                >
+                  {article.featuredImageUrl ? (
+                    <img src={article.featuredImageUrl} alt="" loading="lazy" className="h-16 w-20 flex-none rounded-lg object-cover" />
+                  ) : (
+                    <div className="flex h-16 w-20 flex-none items-center justify-center rounded-lg bg-stone-light text-xs text-ink-muted">No image</div>
+                  )}
+                  <span className="min-w-0 flex-1">
+                    <strong className="line-clamp-2 block text-sm leading-snug text-ink">{article.title}</strong>
+                    <span className="mt-2 flex flex-wrap items-center gap-2 text-xs text-ink-muted">
+                      {article.section && <span className="rounded-full bg-accent-soft px-2 py-0.5 font-bold text-accent-dark">{article.section}</span>}
+                      {article.authorName && <span>By {article.authorName}</span>}
+                    </span>
+                  </span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        ) : query.trim() && !isSearching ? (
+          <div className="px-5 py-12 text-center">
+            <p className="font-bold text-ink">No articles found</p>
+            <p className="mt-1 text-sm text-ink-muted">Try a broader topic or check the spelling.</p>
+          </div>
+        ) : (
+          <div className="px-5 py-10 text-center text-sm text-ink-muted">
+            Press <kbd className="rounded border border-stone bg-stone-light px-1.5 py-0.5 font-semibold">{modifierKey}</kbd> + <kbd className="rounded border border-stone bg-stone-light px-1.5 py-0.5 font-semibold">K</kbd> anywhere to open search.
+          </div>
+        )}
+      </div>
+    </Dialog>
   );
 }

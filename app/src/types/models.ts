@@ -1,4 +1,4 @@
-import { Timestamp } from 'firebase/firestore';
+import type { Timestamp } from 'firebase/firestore';
 import type { EditorialAuditEntry, EditorialEvidence } from './editorialInbox';
 
 // User roles
@@ -63,6 +63,8 @@ export interface Article {
   content?: string; // Tiptap HTML content
   featuredImageId?: string;
   featuredImageUrl?: string;
+  socialImageUrl?: string;
+  socialImageSourceUrl?: string;
   featuredImageDescription?: string;
   featuredImageSourceCredit?: string;
   section?: string;

@@ -1,77 +1,112 @@
-import { Link } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { NavLink } from 'react-router-dom';
 import { SECTIONS } from '../../types/models';
 
-export default function NavMenu() {
-	// Split sections into primary and secondary for better organization
-	const primarySections = SECTIONS.slice(0, 6); // Politics, Immigration, Legislation, Foreign Affairs, Economy, White House
-	const secondarySections = SECTIONS.slice(6); // Courts, Congress, Human Rights, Environment, Business, Tech, Finance
+const sections = SECTIONS.filter((section) => section !== 'Trackers');
+const primarySections = sections.slice(0, 6);
+const secondarySections = sections.slice(6);
 
-	return (
-		<>
-			{/* Desktop Navigation Only - Mobile handled by MobileHeader */}
-			<nav className="flex items-center">
-				{/* Primary sections */}
-				<div className="flex items-center space-x-0.5">
-					{primarySections.map((section) => (
-						<Link
-							key={section}
-							to={`/articles/${section.toLowerCase().replace(/\s+/g, '-')}`}
-							className="text-sm font-regular text-inkMuted hover:text-accent hover:underline decoration-blue-100 decoration-2 underline-offset-8 px-2 py-1.5 rounded-md transition-all duration-200"
-						>
-							{section}
-						</Link>
-					))}
-					
-					{/* Trackers link */}
-					<Link
-						to="/trackers"
-						className="text-sm font-bold text-accent hover:text-accent hover:underline decoration-blue-100 decoration-2 underline-offset-8 px-2 py-1.5 rounded-md transition-all duration-200"
-					>
-						Trackers
-					</Link>
-					
-					{/* Reports link */}
-					<Link
-						to="/reports"
-						className="text-sm font-bold text-accent hover:text-accent hover:underline decoration-blue-100 decoration-2 underline-offset-8 px-2 py-1.5 rounded-md transition-all duration-200"
-					>
-						Reports
-					</Link>
-					
-					{/* Investigations board link */}
-					<Link
-						to="/investigations/epstein-files"
-						className="text-sm font-bold text-accent hover:text-accent hover:underline decoration-blue-100 decoration-2 underline-offset-8 px-2 py-1.5 rounded-md transition-all duration-200"
-					>
-						Investigations
-					</Link>
-					
-					{/* More dropdown for secondary sections */}
-					<div className="relative group">
-						<button className="text-sm font-medium text-inkMuted hover:text-accent px-3 py-1.5 rounded-md transition-all duration-200 flex items-center">
-							More
-							<svg className="ml-1 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-								<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-							</svg>
-						</button>
-						
-						{/* Dropdown menu */}
-						<div className="absolute left-0 top-full mt-1 w-56 bg-white rounded-lg shadow-lg border border-stone opacity-0 invisible group-hover:opacity-100 group-hover:visible hover:opacity-100 hover:visible transition-all duration-150 z-50 pointer-events-none group-hover:pointer-events-auto">
-							<div className="py-1">
-								{secondarySections.map((section) => (
-									<Link
-										key={section}
-										to={`/articles/${section.toLowerCase().replace(/\s+/g, '-')}`}
-										className="block px-3 py-1.5 text-sm font-regular text-inkMuted hover:text-accent hover:underline decoration-blue-100 decoration-2 underline-offset-8 transition-colors duration-200"
-									>
-										{section}
-									</Link>
-								))}
-							</div>
-						</div>
-					</div>
-				</div>
-			</nav>
-		</>
-	);
+const sectionPath = (section: string) => `/articles/${section.toLowerCase().replace(/\s+/g, '-')}`;
+
+const linkClass = ({ isActive }: { isActive: boolean }) =>
+  `rounded-md px-2 py-2 text-sm font-medium whitespace-nowrap transition-colors hover:text-accent-strong hover:underline hover:underline-offset-8 ${
+    isActive ? 'text-accent-strong underline underline-offset-8' : 'text-ink-muted'
+  }`;
+
+export default function NavMenu() {
+  const [moreOpen, setMoreOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const firstLinkRef = useRef<HTMLAnchorElement>(null);
+
+  useEffect(() => {
+    if (!moreOpen) return;
+
+    const closeOnOutsidePress = (event: PointerEvent) => {
+      if (!containerRef.current?.contains(event.target as Node)) setMoreOpen(false);
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setMoreOpen(false);
+        buttonRef.current?.focus();
+      }
+    };
+
+    document.addEventListener('pointerdown', closeOnOutsidePress);
+    document.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.removeEventListener('pointerdown', closeOnOutsidePress);
+      document.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [moreOpen]);
+
+  const handleMoreKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>) => {
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      setMoreOpen(true);
+      window.requestAnimationFrame(() => firstLinkRef.current?.focus());
+    }
+  };
+
+  return (
+    <nav aria-label="Primary navigation" className="min-w-0">
+      <div className="flex items-center gap-0.5">
+        {primarySections.map((section) => (
+          <NavLink key={section} to={sectionPath(section)} className={linkClass}>
+            {section}
+          </NavLink>
+        ))}
+
+        <NavLink to="/trackers" className={linkClass}>Trackers</NavLink>
+        <NavLink to="/reports" className={linkClass}>Reports</NavLink>
+        <NavLink to="/investigations" className={linkClass}>Investigations</NavLink>
+
+        <div
+          ref={containerRef}
+          className="relative"
+          onMouseEnter={() => setMoreOpen(true)}
+          onMouseLeave={() => setMoreOpen(false)}
+          onBlur={(event) => {
+            if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setMoreOpen(false);
+          }}
+        >
+          <button
+            ref={buttonRef}
+            type="button"
+            className="flex items-center rounded-md px-2 py-2 text-sm font-medium text-ink-muted transition-colors hover:text-accent-strong"
+            aria-expanded={moreOpen}
+            aria-controls="desktop-more-sections"
+            aria-haspopup="true"
+            onClick={() => setMoreOpen((open) => !open)}
+            onKeyDown={handleMoreKeyDown}
+          >
+            More
+            <svg className={`ml-1 h-4 w-4 transition-transform ${moreOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="m19 9-7 7-7-7" />
+            </svg>
+          </button>
+
+          <div
+            id="desktop-more-sections"
+            hidden={!moreOpen}
+            className="absolute right-0 top-full z-50 mt-1 w-56 rounded-lg border border-stone bg-surface-raised p-1 shadow-raised"
+          >
+            {secondarySections.map((section, index) => (
+              <NavLink
+                ref={index === 0 ? firstLinkRef : undefined}
+                key={section}
+                to={sectionPath(section)}
+                className={({ isActive }) => `block rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-accent-soft hover:text-accent-dark ${
+                  isActive ? 'bg-accent-soft text-accent-dark' : 'text-ink-muted'
+                }`}
+                onClick={() => setMoreOpen(false)}
+              >
+                {section}
+              </NavLink>
+            ))}
+          </div>
+        </div>
+      </div>
+    </nav>
+  );
 }

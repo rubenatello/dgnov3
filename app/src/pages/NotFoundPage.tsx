@@ -1,8 +1,16 @@
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
+import SEOHead from '../components/SEOHead';
 
 export default function NotFoundPage() {
+  const location = useLocation();
   return (
-    <div className="bg-white flex items-center justify-center">
+    <div className="bg-bg flex items-center justify-center">
+      <SEOHead
+        title="Page not found | DGNO"
+        description="The requested DGNO page could not be found."
+        url={`https://dgno.us${location.pathname}`}
+        robots="noindex, nofollow"
+      />
       <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 text-center py-12">
           
           {/* 404 Visual */}
@@ -45,10 +53,10 @@ export default function NotFoundPage() {
               </h3>
               <div className="flex flex-wrap justify-center gap-2">
                 <Link 
-                  to="/articles/breaking-news" 
+                  to="/articles/immigration"
                   className="text-sm px-4 py-2 bg-gray-100 text-gray-700 rounded-full hover:bg-accent hover:text-white transition-colors"
                 >
-                  Breaking News
+                  Immigration
                 </Link>
                 <Link 
                   to="/articles/politics" 
@@ -75,10 +83,10 @@ export default function NotFoundPage() {
                   Environment
                 </Link>
                 <Link 
-                  to="/articles/justice" 
+                  to="/articles/courts"
                   className="text-sm px-4 py-2 bg-gray-100 text-gray-700 rounded-full hover:bg-accent hover:text-white transition-colors"
                 >
-                  Justice
+                  Courts
                 </Link>
               </div>
             </div>
@@ -94,15 +102,15 @@ export default function NotFoundPage() {
                   please let us know so we can fix it.
                 </p>
                 <div className="flex flex-col sm:flex-row gap-2 justify-center">
-                  <a 
-                    href="mailto:contact@dgno.com?subject=Broken Link Report&body=I found a broken link at: [URL]"
+                  <Link
+                    to="/contact"
                     className="text-accent hover:text-accent/80 underline"
                   >
                     Report Broken Link
-                  </a>
+                  </Link>
                   <span className="hidden sm:inline text-gray-300">|</span>
                   <Link 
-                    to="/about" 
+                    to="/contact"
                     className="text-accent hover:text-accent/80 underline"
                   >
                     Contact Support

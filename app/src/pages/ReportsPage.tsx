@@ -203,7 +203,7 @@ const ReportsPage: React.FC = () => {
         </div>
 
         {/* Controls */}
-        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+        <div className="bg-surface rounded-lg shadow-md p-6 mb-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {/* Chart Type */}
             <div>
@@ -314,7 +314,7 @@ const ReportsPage: React.FC = () => {
 
         {/* Loading State */}
         {loading && (
-          <div className="bg-white rounded-lg shadow-md p-12 text-center">
+          <div className="bg-surface rounded-lg shadow-md p-12 text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
             <p className="text-gray-600 text-lg">Loading BLS employment data...</p>
           </div>
@@ -341,7 +341,7 @@ const ReportsPage: React.FC = () => {
 
         {/* Chart */}
         {!loading && !error && chartData.length > 0 ? (
-          <div className="bg-white rounded-lg shadow-md p-6">
+          <div className="bg-surface rounded-lg shadow-md p-6">
             <ResponsiveContainer width="100%" height={500}>
               {chartType === 'line' ? (
                 <LineChart data={chartData}>
@@ -405,7 +405,7 @@ const ReportsPage: React.FC = () => {
             </ResponsiveContainer>
           </div>
         ) : !loading && !error ? (
-          <div className="bg-white rounded-lg shadow-md p-12 text-center">
+          <div className="bg-surface rounded-lg shadow-md p-12 text-center">
             <p className="text-gray-500 text-lg">
               {selectedSeries.length === 0
                 ? 'Select at least one data series to display the chart'

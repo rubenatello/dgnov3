@@ -1,20 +1,24 @@
 import { Link } from 'react-router-dom';
-import { Timestamp } from 'firebase/firestore';
 import type { Article } from '../../types/models';
 import { estimateReadingTime } from '../../utils/helpers';
 import { getArticleUrl} from './getArticleUrl';
 
-function getRelativeTime(dateString: string | Date | Timestamp | undefined): string {
-  if (dateString === undefined || dateString === null) return '';
+function toDate(dateString: unknown): Date | null {
+  if (dateString === undefined || dateString === null) return null;
   let date: Date;
-  if (dateString instanceof Timestamp) {
-    date = dateString.toDate();
-  } else if (dateString instanceof Date) {
+  if (dateString instanceof Date) {
     date = dateString;
+  } else if (typeof dateString === 'object' && 'toDate' in dateString && typeof dateString.toDate === 'function') {
+    date = dateString.toDate();
   } else {
     date = new Date(String(dateString));
   }
-  if (isNaN(date.getTime())) return '';
+  return isNaN(date.getTime()) ? null : date;
+}
+
+function getRelativeTime(dateString: unknown): string {
+  const date = toDate(dateString);
+  if (!date) return '';
   const now = new Date();
   const diff = Math.floor((now.getTime() - date.getTime()) / 1000);
   if (diff < 60) return 'just now';
@@ -34,14 +38,19 @@ interface ArticleCardProps {
 
 export default function ArticleCard({ article, variant = 'compact' }: ArticleCardProps) {
   const publishedAt = article.publishedAt;
+  const publishedDate = toDate(publishedAt);
   const _breakingUntil: unknown = article.breakingUntil;
-  const breakingUntil = _breakingUntil instanceof Timestamp
-    ? _breakingUntil.toDate()
-    : _breakingUntil instanceof Date
+  const breakingUntil = _breakingUntil instanceof Date
       ? _breakingUntil
+      : typeof _breakingUntil === 'object' && _breakingUntil !== null && 'toDate' in _breakingUntil && typeof _breakingUntil.toDate === 'function'
+        ? _breakingUntil.toDate()
       : _breakingUntil ? new Date(String(_breakingUntil)) : null;
   const isBreaking = breakingUntil ? breakingUntil.getTime() > Date.now() : false;
-  const readingTime = estimateReadingTime(article.content || "");
+  const readingTime = article.wordCount
+    ? `${Math.max(1, Math.ceil(article.wordCount / 200))} min read`
+    : article.summary
+      ? estimateReadingTime(article.summary)
+      : '';
   const isExclusive = Array.isArray(article.tags) && article.tags.some(tag =>
     typeof tag === 'string' &&
     ['exclusive', 'Exclusive', 'Exclusive.'].includes(tag.trim())
@@ -56,8 +65,12 @@ export default function ArticleCard({ article, variant = 'compact' }: ArticleCar
             <div className="relative w-full h-64 sm:h-80 md:h-[28rem] overflow-hidden">
               <img
                 src={article.featuredImageUrl}
-                alt={article.title}
-                loading="lazy"
+                alt={article.featuredImageDescription || article.title}
+                loading="eager"
+                fetchPriority="high"
+                decoding="async"
+                width="1600"
+                height="900"
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
@@ -85,20 +98,20 @@ export default function ArticleCard({ article, variant = 'compact' }: ArticleCar
                 </span>
               )}
             </div>
-            <h1 className="font-heading font-bold text-2xl sm:text-3xl md:text-4xl lg:text-5xl mb-3 group-hover:text-accent transition-colors duration-300 leading-tight drop-shadow-lg">
+            <h2 className="font-heading font-bold text-2xl sm:text-3xl md:text-4xl lg:text-5xl mb-3 group-hover:text-accent transition-colors duration-300 leading-tight drop-shadow-lg">
               {article.title}
-            </h1>
+            </h2>
             {article.summary && (
               <p className="text-base sm:text-lg mb-4 opacity-90 line-clamp-2 max-w-3xl drop-shadow-md">
                 {article.summary}
               </p>
             )}
             <div className="flex items-center gap-3 text-sm opacity-80">
-              <span className="font-medium">By {article.authorName}</span>
+              <span className="font-medium">{article.authorName ? `By ${article.authorName}` : 'Byline unavailable'}</span>
               <span className="text-white/50">•</span>
-              <span>{getRelativeTime(publishedAt)}</span>
-              <span className="text-white/50">•</span>
-              <span className="bg-white/20 backdrop-blur-sm px-2 py-0.5 rounded text-xs">{readingTime}</span>
+              {publishedDate && <time dateTime={publishedDate.toISOString()}>{getRelativeTime(publishedAt)}</time>}
+              {readingTime && <span className="text-white/50">•</span>}
+              {readingTime && <span className="bg-white/20 backdrop-blur-sm px-2 py-0.5 rounded text-xs">{readingTime}</span>}
             </div>
           </div>
         </article>
@@ -110,7 +123,7 @@ export default function ArticleCard({ article, variant = 'compact' }: ArticleCar
   if (variant === 'secondary') {
     return (
       <Link to={getArticleUrl(article)} className="block group">
-        <article className="bg-white rounded-lg overflow-hidden hover:shadow-md transition-all duration-300 border border-gray-100 hover:border-gray-200">
+        <article className="bg-surface rounded-lg overflow-hidden hover:shadow-md transition-all duration-300 border border-gray-100 hover:border-gray-200">
           <div className="flex flex-col">
             {article.featuredImageUrl ? (
               <div className="relative w-full h-40 sm:h-48 overflow-hidden">
@@ -135,7 +148,7 @@ export default function ArticleCard({ article, variant = 'compact' }: ArticleCar
                   </span>
                 )}
                 {isExclusive && (
-                  <span className="inline-block bg-ink text-white text-xs font-bold px-2 py-0.5 rounded uppercase tracking-wide">
+                  <span className="inline-block bg-masthead text-white text-xs font-bold px-2 py-0.5 rounded uppercase tracking-wide">
                     Exclusive
                   </span>
                 )}
@@ -154,11 +167,11 @@ export default function ArticleCard({ article, variant = 'compact' }: ArticleCar
                 </p>
               )}
               <div className="flex items-center justify-between text-xs text-sand">
-                <span className="font-medium">By {article.authorName}</span>
+                <span className="font-medium">{article.authorName ? `By ${article.authorName}` : 'Byline unavailable'}</span>
                 <div className="flex items-center gap-2">
-                  <span>{getRelativeTime(publishedAt)}</span>
-                  <span className="text-gray-300">•</span>
-                  <span className="text-accent">{readingTime}</span>
+                  {publishedDate && <time dateTime={publishedDate.toISOString()}>{getRelativeTime(publishedAt)}</time>}
+                  {readingTime && <span className="text-gray-300">•</span>}
+                  {readingTime && <span className="text-accent">{readingTime}</span>}
                 </div>
               </div>
             </div>
@@ -180,7 +193,7 @@ export default function ArticleCard({ article, variant = 'compact' }: ArticleCar
               </span>
             )}
             {isExclusive && (
-              <span className="inline-flex items-center bg-ink text-white text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wide flex-shrink-0 mt-1">
+              <span className="inline-flex items-center bg-masthead text-white text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wide flex-shrink-0 mt-1">
                 Exclusive
               </span>
             )}
@@ -189,11 +202,11 @@ export default function ArticleCard({ article, variant = 'compact' }: ArticleCar
                 {article.title}
               </h3>
               <div className="flex items-center gap-2 text-xs text-sand">
-                <span className="font-medium">{article.authorName}</span>
+                <span className="font-medium">{article.authorName || 'Byline unavailable'}</span>
                 <span className="text-gray-300">•</span>
-                <span>{getRelativeTime(publishedAt)}</span>
-                <span className="text-gray-300">•</span>
-                <span className="text-accent font-medium">{readingTime}</span>
+                {publishedDate && <time dateTime={publishedDate.toISOString()}>{getRelativeTime(publishedAt)}</time>}
+                {readingTime && <span className="text-gray-300">•</span>}
+                {readingTime && <span className="text-accent font-medium">{readingTime}</span>}
               </div>
             </div>
           </div>
@@ -228,7 +241,7 @@ export default function ArticleCard({ article, variant = 'compact' }: ArticleCar
               </span>
             )}
             {isExclusive && (
-              <span className="inline-block bg-ink text-white text-[10px] font-bold px-1.5 py-0.5 mb-1 rounded uppercase tracking-wide">
+              <span className="inline-block bg-masthead text-white text-[10px] font-bold px-1.5 py-0.5 mb-1 rounded uppercase tracking-wide">
                 Exclusive
               </span>
             )}
@@ -236,9 +249,9 @@ export default function ArticleCard({ article, variant = 'compact' }: ArticleCar
               {article.title}
             </h3>
             <div className="flex items-center gap-1.5 text-[11px] text-sand mt-1">
-              <span>{getRelativeTime(publishedAt)}</span>
-              <span className="text-gray-300">•</span>
-              <span className="text-accent">{readingTime}</span>
+              {publishedDate && <time dateTime={publishedDate.toISOString()}>{getRelativeTime(publishedAt)}</time>}
+              {readingTime && <span className="text-gray-300">•</span>}
+              {readingTime && <span className="text-accent">{readingTime}</span>}
             </div>
           </div>
         </div>

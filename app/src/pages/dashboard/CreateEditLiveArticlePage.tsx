@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faSave, faArrowLeft } from '@fortawesome/free-solid-svg-icons';
@@ -32,13 +32,7 @@ export default function CreateEditLiveArticlePage() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    if (isEditing && id) {
-      loadLiveArticle(id);
-    }
-  }, [id, isEditing]);
-
-  async function loadLiveArticle(articleId: string) {
+  const loadLiveArticle = useCallback(async (articleId: string) => {
     setLoading(true);
     try {
       const article = await getLiveArticle(articleId);
@@ -60,7 +54,13 @@ export default function CreateEditLiveArticlePage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [isAdmin, isEditor, navigate, userData?.id]);
+
+  useEffect(() => {
+    if (isEditing && id) {
+      void loadLiveArticle(id);
+    }
+  }, [id, isEditing, loadLiveArticle]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

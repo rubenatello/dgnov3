@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import SubscribeModal from '../components/modals/SubscribeModal';  
 import ForgotPasswordModal from '../components/modals/ForgotPasswordModal';
+import SEOHead from '../components/SEOHead';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -12,7 +12,6 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const { signIn } = useAuth();
   const navigate = useNavigate();
-  const [isSubscribeOpen, setSubscribeOpen] = useState(false);
   const [isForgotPasswordOpen, setForgotPasswordOpen] = useState(false);
 
   const handleSubmit = async (e: FormEvent) => {
@@ -33,17 +32,23 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-bg via-white to-stone/20 flex items-center justify-center px-4 py-8">
+      <SEOHead
+        title="Sign in | DGNO"
+        description="Sign in to an authorized DGNO account."
+        url="https://dgno.us/login"
+        robots="noindex, nofollow"
+      />
       <div className="max-w-md w-full space-y-8">
         {/* Logo/Header/Link to Home page */}
         <div className="text-center">
-          <a href="/" className="inline-block group">
+          <Link to="/" className="inline-block group">
             <img src="/logo.png" alt="DGNO" className="h-16 mx-auto mb-4 transition-all duration-300 group-hover:scale-105" />
-          </a>
-          <h2 className="text-3xl font-heading font-bold text-ink">
+          </Link>
+          <h1 className="text-3xl font-heading font-bold text-ink">
             Welcome Back
-          </h2>
+          </h1>
           <p className="mt-2 text-sm text-inkMuted">
-            Sign in to access your account and dashboard
+            Authorized DGNO staff access
           </p>
         </div>
 
@@ -131,20 +136,10 @@ export default function LoginPage() {
           </button>
         </form>
 
-        {/* Sign Up Link - Use Subscribe Modal */}
+        {/* Public account creation is intentionally closed while DGNO focuses on reporting and data. */}
         <div className="text-center text-sm text-inkMuted bg-white p-4 rounded-lg border border-gray-100">
-          Don't have an account?{' '}
-          <>
-            <button
-              type="button"
-              onClick={() => setSubscribeOpen(true)}
-              className="text-accent hover:text-accent/80 font-semibold cursor-pointer underline-offset-2 hover:underline transition-all"
-            >
-              Create an account
-            </button>
-
-            <SubscribeModal open={isSubscribeOpen} onClose={() => setSubscribeOpen(false)} />
-          </>
+          Public account creation is currently closed. Readers can access DGNO reporting and trackers without signing in.
+          <Link to="/" className="mt-2 block font-semibold text-accent underline underline-offset-2">Return to DGNO</Link>
         </div>
       </div>
     </div>

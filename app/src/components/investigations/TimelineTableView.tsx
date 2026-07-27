@@ -138,7 +138,7 @@ export default function TimelineTableView({
               setEventTypeFilter(e.target.value as typeof eventTypeFilter);
               setCurrentPage(1);
             }}
-            className="px-3 py-2 text-sm rounded-lg border border-stone/30 bg-white"
+            className="px-3 py-2 text-sm rounded-lg border border-stone/30 bg-surface"
           >
             <option value="all">All Events ({events.length})</option>
             {(Object.keys(eventTypeConfig) as TimelineEventType[]).map((type) => {
@@ -161,7 +161,7 @@ export default function TimelineTableView({
               setItemsPerPage(Number(e.target.value));
               setCurrentPage(1);
             }}
-            className="px-3 py-2 text-sm rounded-lg border border-stone/30 bg-white"
+            className="px-3 py-2 text-sm rounded-lg border border-stone/30 bg-surface"
           >
             <option value={10}>10</option>
             <option value={25}>25</option>
@@ -171,7 +171,7 @@ export default function TimelineTableView({
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-xl border border-stone overflow-hidden">
+      <div className="bg-surface rounded-xl border border-stone overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-stone/5 border-b border-stone/20">
@@ -362,7 +362,7 @@ export default function TimelineTableView({
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="bg-white rounded-xl border border-stone p-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div className="bg-surface rounded-xl border border-stone p-4 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="text-sm text-inkMuted">
             Showing {(currentPage - 1) * itemsPerPage + 1} to{' '}
             {Math.min(currentPage * itemsPerPage, filteredAndSortedEvents.length)} of{' '}

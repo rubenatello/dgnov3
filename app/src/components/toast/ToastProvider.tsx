@@ -30,7 +30,7 @@ const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =>
         {toasts.map(t => (
           <div
             key={t.id}
-            className={`max-w-sm w-full rounded shadow-lg p-3 border ${t.type === 'success' ? 'bg-green-50 border-green-200' : t.type === 'error' ? 'bg-red-50 border-red-200' : 'bg-white border-stone-200'}`}>
+            className={`max-w-sm w-full rounded shadow-lg p-3 border ${t.type === 'success' ? 'bg-green-50 border-green-200' : t.type === 'error' ? 'bg-red-50 border-red-200' : 'bg-surface border-stone-200'}`}>
             <div className="flex items-start gap-3">
               <div className="flex-1">
                 <div className="font-medium text-sm text-ink">{t.title}</div>

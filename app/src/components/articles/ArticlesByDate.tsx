@@ -1,7 +1,5 @@
 import { useParams } from 'react-router-dom';
 import { useEffect, useState } from 'react';
-import { query, collection, where, getDocs, orderBy, limit, startAfter, Timestamp } from 'firebase/firestore';
-import { db } from '../../config/firebase';
 import type { Article } from '../../types/models';
 import ArticleCard from './ArticleCard';
 import LoadingScreen from '../LoadingScreen';
@@ -9,23 +7,42 @@ import { useNavigate } from 'react-router-dom';
 import SEOHead from '../SEOHead';
 import { SEO_CONFIG, buildBreadcrumbSchema } from '../../utils/seoConstants';
 import { format } from 'date-fns';
+import { getPublishedArticleSummariesByDate } from '../../services/publicArticleService';
 
-const PAGE_SIZE = 10;
+const ARCHIVE_RESULT_LIMIT = 100;
+
+function validArchiveDate(year?: string, month?: string, day?: string): boolean {
+  if (!year || !month || !day || !/^\d{4}$/.test(year) || !/^\d{2}$/.test(month) || !/^\d{2}$/.test(day)) return false;
+  const date = new Date(Number(year), Number(month) - 1, Number(day));
+  return date.getFullYear() === Number(year) && date.getMonth() === Number(month) - 1 && date.getDate() === Number(day);
+}
 
 export default function ArticlesByDate() {
   const { year, month, day } = useParams<{ year: string; month: string; day: string }>();
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
-  const [lastDoc, setLastDoc] = useState<any>(null);
-  const [hasMore, setHasMore] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
     setArticles([]);
-    setLastDoc(null);
-    setHasMore(true);
-    fetchArticles();
-    // eslint-disable-next-line
+    setError(null);
+    if (!validArchiveDate(year, month, day)) {
+      setLoading(false);
+      return;
+    }
+
+    let active = true;
+    setLoading(true);
+    const publishedOn = `${year}-${month}-${day}`;
+    getPublishedArticleSummariesByDate(publishedOn, ARCHIVE_RESULT_LIMIT)
+      .then((items) => active && setArticles(items))
+      .catch((caught) => {
+        console.error('Archive articles failed to load', caught);
+        if (active) setError('This archive date could not be loaded right now.');
+      })
+      .finally(() => active && setLoading(false));
+    return () => { active = false; };
   }, [year, month, day]);
 
  function getAdjacentDate(offset: number) {
@@ -37,32 +54,10 @@ export default function ArticlesByDate() {
   return `/article/${yyyy}/${mm}/${dd}`;
 }
 
-  async function fetchArticles(loadMore = false) {
-    setLoading(true);
-    const start = Timestamp.fromDate(new Date(`${year}-${month}-${day}T00:00:00`));
-    const end = Timestamp.fromDate(new Date(`${year}-${month}-${day}T23:59:59`));
-    let q = query(
-      collection(db, 'articles'),
-      where('publishedAt', '>=', start),
-      where('publishedAt', '<=', end),
-      where('status', '==', 'published'),
-      orderBy('publishedAt', 'asc'),
-      limit(PAGE_SIZE)
-    );
-    if (loadMore && lastDoc) {
-      q = query(q, startAfter(lastDoc));
-    }
-    const snapshot = await getDocs(q);
-    const newArticles = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Article));
-    setArticles(prev => loadMore ? [...prev, ...newArticles] : newArticles);
-    setLastDoc(snapshot.docs[snapshot.docs.length - 1]);
-    setHasMore(snapshot.docs.length === PAGE_SIZE);
-    setLoading(false);
-  }
-
   // Prepare SEO metadata
+  const isValidDate = validArchiveDate(year, month, day);
   const dateObj = new Date(Number(year), Number(month) - 1, Number(day));
-  const formattedDate = format(dateObj, 'MMMM d, yyyy');
+  const formattedDate = isValidDate ? format(dateObj, 'MMMM d, yyyy') : 'Invalid archive date';
   const dateTitle = `News from ${formattedDate} | DGNO`;
   const dateDescription = `Browse all articles published on ${formattedDate}. Data-driven, independent news coverage from DGNO.`;
   const dateUrl = `${SEO_CONFIG.siteUrl}/article/${year}/${month}/${day}`;
@@ -99,7 +94,8 @@ export default function ArticlesByDate() {
         description={dateDescription}
         url={dateUrl}
         type="website"
-        tags={SEO_CONFIG.coreKeywords}
+        tags={[...SEO_CONFIG.coreKeywords]}
+        robots="noindex, follow"
       />
 
       <div className="max-w-4xl mx-auto px-4 py-8">
@@ -124,26 +120,18 @@ export default function ArticlesByDate() {
      
       {loading && articles.length === 0 ? (
         <LoadingScreen message="Loading articles…" />
+      ) : error ? (
+        <div role="alert" className="rounded-lg border-l-4 border-red-700 bg-red-50 p-4 text-red-900">{error}</div>
       ) : articles.length === 0 ? (
         <div className="text-center text-gray-500">No articles found for this date.</div>
       ) : (
         <div className="space-y-6">
+          <p className="text-sm text-inkMuted">Showing up to {ARCHIVE_RESULT_LIMIT} published stories for this date.</p>
           {articles.map(article => (
-            <div key={article.id} className="bg-white rounded shadow p-4 hover:shadow-lg transition">
+            <div key={article.id} className="bg-surface rounded shadow p-4 hover:shadow-lg transition">
               <ArticleCard article={article} variant="secondary" />
             </div>
-          ))} 
-          {hasMore && (
-            <div className="text-center mt-6">
-              <button
-                className="px-4 py-2 bg-accent text-white rounded shadow hover:bg-accent-dark transition"
-                onClick={() => fetchArticles(true)}
-                disabled={loading}
-              >
-                {loading ? 'Loading…' : 'Load More'}
-              </button>
-            </div>
-          )}
+          ))}
         </div>
       )}
       </div>

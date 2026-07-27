@@ -1,283 +1,160 @@
-import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { useRef, useState } from 'react';
+import { NavLink } from 'react-router-dom';
 import { SECTIONS } from '../../types/models';
-import DashboardOverlayButton from '../DashboardOverlayButton';
-import SearchModal from '../modals/SearchModal';
-import SubscribeModal from '../modals/SubscribeModal';
-import DonationModal from '../modals/DonationModal';
-import useArticles from '../../hooks/useArticles';
+import Dialog from '../ui/Dialog';
+import ThemeToggle from '../ThemeToggle';
 
-export default function MobileHeader() {
-	const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-	const [searchOpen, setSearchOpen] = useState(false);
-	const [subscribeModalOpen, setSubscribeModalOpen] = useState(false);
-	const [donationModalOpen, setDonationModalOpen] = useState(false);
-	const [isScrolled, setIsScrolled] = useState(false);
-	const { articles } = useArticles();
+interface MobileHeaderProps {
+  onSearch: () => void;
+  onDonate: () => void;
+}
 
-	// Handle scroll effects
-	useEffect(() => {
-		const handleScroll = () => {
-			setIsScrolled(window.scrollY > 10);
-		};
+const sections = SECTIONS.filter((section) => section !== 'Trackers');
+const primarySections = sections.slice(0, 6);
+const secondarySections = sections.slice(6);
+const sectionPath = (section: string) => `/articles/${section.toLowerCase().replace(/\s+/g, '-')}`;
 
-		window.addEventListener('scroll', handleScroll);
-		return () => window.removeEventListener('scroll', handleScroll);
-	}, []);
+const drawerLinkClass = ({ isActive }: { isActive: boolean }) =>
+  `flex min-h-11 items-center rounded-lg px-3 py-2.5 text-base font-semibold transition-colors ${
+    isActive ? 'bg-accent-soft text-accent-dark' : 'text-ink hover:bg-stone-light hover:text-accent-dark'
+  }`;
 
-	// Close mobile menu on resize to desktop
-	useEffect(() => {
-		const handleResize = () => {
-			if (window.innerWidth >= 1024) {
-				setMobileMenuOpen(false);
-			}
-		};
+export default function MobileHeader({ onSearch, onDonate }: MobileHeaderProps) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const today = new Date();
+  const dateTime = today.toISOString().slice(0, 10);
 
-		window.addEventListener('resize', handleResize);
-		return () => window.removeEventListener('resize', handleResize);
-	}, []);
+  const closeMenu = () => setMenuOpen(false);
+  const runAndClose = (action: () => void) => {
+    closeMenu();
+    window.requestAnimationFrame(action);
+  };
 
-	// Split sections for better mobile organization
-	const primarySections = SECTIONS.slice(0, 6);
-	const secondarySections = SECTIONS.slice(6);
+  return (
+    <>
+      <header className="sticky top-0 z-40 border-b border-stone/70 bg-surface/95 shadow-sm backdrop-blur-xl">
+        <div className="safe-inline flex min-h-[4.5rem] items-center justify-between gap-2 py-2">
+          <a href="/" className="flex min-w-0 items-center rounded-md" aria-label="DGNO home">
+            <img src="/logo.png" alt="" className="theme-logo h-11 w-11 flex-none object-contain" />
+            <span className="ml-2 line-clamp-2 max-w-[10rem] text-xs font-semibold leading-tight text-ink sm:max-w-xs sm:text-sm">
+              Independent, Pro-Democracy News
+            </span>
+          </a>
 
-	return (
-		<>
-			{/* Mobile Header */}
-			<header className={`bg-white sticky top-0 z-40 transition-all duration-200 ${
-				isScrolled ? 'shadow-lg border-b border-stone/30' : 'border-b border-stone/20'
-			}`}>
-				<div className="px-4 py-3">
-					<div className="flex items-center justify-between">
-						{/* Logo */}
-						<div className="flex items-center">
-							<a href="/" className="flex items-center group">
-								<img 
-									src="/logo.png" 
-									alt="DGNO" 
-									className="h-12 transition-transform duration-200 hover:invert-30" 
-								/>
-                                <h1 className="ml-3 text-xs font-heading font-regular text-ink">Independent, Pro-Democracy News</h1>
-							</a>
-						</div>
+          <div className="flex flex-none items-center gap-1">
+            <ThemeToggle />
+            <button
+              type="button"
+              onClick={onSearch}
+              className="inline-flex h-11 w-11 items-center justify-center rounded-full text-ink-muted transition-colors hover:bg-stone-light hover:text-accent-dark"
+              aria-label="Search articles"
+            >
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                <circle cx="11" cy="11" r="8" strokeWidth="2" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" strokeWidth="2" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              onClick={() => setMenuOpen(true)}
+              className="inline-flex h-11 w-11 items-center justify-center rounded-full text-ink-muted transition-colors hover:bg-stone-light hover:text-accent-dark"
+              aria-expanded={menuOpen}
+              aria-controls="mobile-navigation-dialog"
+              aria-label="Open navigation menu"
+            >
+              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+          </div>
+        </div>
 
-						{/* Right side actions */}
-						<div className="flex items-center gap-2">
-							{/* Search button */}
-							<button
-								onClick={() => setSearchOpen(true)}
-								className="p-2 rounded-full text-inkMuted hover:text-accent hover:bg-stone/20 active:bg-stone/30 transition-all duration-200"
-								aria-label="Search articles"
-							>
-								<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-									<circle cx="11" cy="11" r="8" stroke="currentColor" strokeWidth="2" fill="none" />
-									<line x1="21" y1="21" x2="16.65" y2="16.65" stroke="currentColor" strokeWidth="2" />
-								</svg>
-							</button>
+        <div className="safe-inline flex min-h-12 items-center justify-between gap-3 border-t border-stone/50 bg-stone-light/70 py-2">
+          <time dateTime={dateTime} className="hidden text-xs font-semibold text-ink-muted sm:block">
+            {today.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+          </time>
+          <div className="flex items-center gap-2 text-xs font-bold">
+            <NavLink to="/trackers" className="min-h-9 rounded-full border border-accent-strong px-3 py-2 text-accent-dark hover:bg-accent-soft">
+              Trackers
+            </NavLink>
+            <button type="button" onClick={onDonate} className="min-h-9 rounded-full bg-tracker px-3 py-2 text-white hover:bg-[#8f4208]">
+              Donate
+            </button>
+            <a href="/rss.xml" className="min-h-9 rounded-full bg-accent-strong px-3 py-2 text-white hover:bg-accent-dark">
+              RSS
+            </a>
+          </div>
+        </div>
+      </header>
 
-							{/* Menu button */}
-							<button
-								onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-								className="p-2 rounded-full text-inkMuted hover:text-accent hover:bg-stone/20 active:bg-stone/30 transition-all duration-200"
-								aria-expanded={mobileMenuOpen}
-								aria-label="Toggle navigation menu"
-							>
-								<svg 
-									className={`${mobileMenuOpen ? 'hidden' : 'block'} h-6 w-6`} 
-									fill="none" 
-									viewBox="0 0 24 24" 
-									stroke="currentColor"
-								>
-									<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-								</svg>
-								<svg 
-									className={`${mobileMenuOpen ? 'block' : 'hidden'} h-6 w-6`} 
-									fill="none" 
-									viewBox="0 0 24 24" 
-									stroke="currentColor"
-								>
-									<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-								</svg>
-							</button>
-						</div>
-					</div>
-				</div>
+      <Dialog
+        id="mobile-navigation-dialog"
+        open={menuOpen}
+        onClose={closeMenu}
+        title="Site navigation"
+        placement="right"
+        initialFocusRef={closeButtonRef}
+        className="flex h-[100dvh] w-full max-w-sm flex-col rounded-none"
+      >
+        <div className="safe-inline flex items-center justify-between border-b border-stone px-2 py-3">
+          <a href="/" className="flex min-w-0 items-center rounded-md" aria-label="DGNO home" onClick={closeMenu}>
+            <img src="/logo.png" alt="" className="theme-logo h-11 w-11 flex-none object-contain" />
+            <span className="ml-2 line-clamp-2 text-xs font-semibold text-ink">Independent, Pro-Democracy News</span>
+          </a>
+          <button
+            ref={closeButtonRef}
+            type="button"
+            onClick={closeMenu}
+            className="inline-flex h-11 w-11 flex-none items-center justify-center rounded-lg text-ink-muted hover:bg-stone-light hover:text-ink"
+            aria-label="Close navigation menu"
+          >
+            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18 18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
 
-				{/* Mobile Quick Actions Bar */}
-				<div className="bg-ink/5 px-4 py-2 border-t border-stone/20">
-					<div className="flex items-center justify-between">
-						<div className="text-xs text-sand font-medium">
-							{new Date().toLocaleDateString('en-US', { 
-								weekday: 'short', 
-								month: 'short', 
-								day: 'numeric' 
-			})}
-						</div>
-						<div className="flex gap-2">
-							<button
-								onClick={() => setSubscribeModalOpen(true)}
-								className="text-xs px-3 py-1.5 border border-accent/30 text-accent rounded-full font-medium active:bg-accent active:text-white transition-all duration-200"
-							>
-								Subscribe
-							</button>
-							<button
-								onClick={() => setDonationModalOpen(true)}
-								className="text-xs px-3 py-1.5 bg-accent text-white rounded-full font-medium active:bg-accent/80 transition-all duration-200"
-							>
-								Donate
-							</button>
-						</div>
-					</div>
-				</div>
-			</header>
+        <div className="flex-1 overflow-y-auto px-5 py-5">
+          <h2 className="mb-2 text-sm font-extrabold uppercase tracking-wider text-accent-dark">Top stories</h2>
+          <nav aria-label="Primary mobile navigation" className="space-y-1">
+            {primarySections.map((section) => (
+              <NavLink key={section} to={sectionPath(section)} className={drawerLinkClass} onClick={closeMenu}>
+                {section}
+              </NavLink>
+            ))}
+            <NavLink to="/trackers" className={drawerLinkClass} onClick={closeMenu}>Trackers</NavLink>
+            <NavLink to="/reports" className={drawerLinkClass} onClick={closeMenu}>Reports</NavLink>
+            <NavLink to="/investigations" className={drawerLinkClass} onClick={closeMenu}>Investigations</NavLink>
+          </nav>
 
-			{/* Mobile menu overlay */}
-			{mobileMenuOpen && (
-				<>
-					{/* Backdrop */}
-					<div 
-						className="fixed inset-0 bg-ink/60 backdrop-blur-sm z-40 transition-opacity duration-300"
-						onClick={() => setMobileMenuOpen(false)}
-					/>
-					
-					{/* Mobile menu panel */}
-					<div className="fixed top-0 right-0 h-full w-full max-w-sm bg-white shadow-2xl z-50 transform transition-all duration-300 ease-out overflow-hidden">
-						<div className="flex flex-col h-full">
-							{/* Header */}
-							<div className="flex items-center justify-between px-6 py-4 border-b border-stone/30 bg-white">
-								<div className="flex items-center">
-									<img src="/logo.png" alt="DGNO" className="h-11" />
-                                    <h1 className="ml-3 text-xs font-heading font-regular text-ink">Independent, Pro-Democracy News</h1>
-								</div>
-								<button
-									onClick={() => setMobileMenuOpen(false)}
-									className="p-2 rounded-lg text-inkMuted hover:text-ink hover:bg-stone/20 transition-all duration-200"
-									aria-label="Close menu"
-								>
-									<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-										<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-									</svg>
-								</button>
-							</div>
+          <h2 className="mb-2 mt-6 border-t border-stone pt-5 text-sm font-extrabold uppercase tracking-wider text-accent-dark">More coverage</h2>
+          <nav aria-label="More mobile navigation" className="space-y-1">
+            {secondarySections.map((section) => (
+              <NavLink key={section} to={sectionPath(section)} className={drawerLinkClass} onClick={closeMenu}>
+                {section}
+              </NavLink>
+            ))}
+          </nav>
+        </div>
 
-							{/* Navigation Sections */}
-							<div className="flex-1 overflow-y-auto">
-								{/* Primary sections */}
-								<div className="px-6 py-4">
-									<h3 className="text-sm font-bold text-accent uppercase tracking-wider mb-3">
-										Top Stories
-									</h3>
-									<nav className="space-y-1">
-										{primarySections.map((section) => (
-											<Link
-												key={section}
-												to={`/articles/${section.toLowerCase().replace(/\s+/g, '-')}`}
-												className="flex items-center px-3 py-3 text-base font-medium text-ink hover:text-accent hover:bg-white/80 rounded-lg transition-all duration-200 active:bg-white"
-												onClick={() => setMobileMenuOpen(false)}
-											>
-												<span>{section}</span>
-											</Link>
-										))}
-										
-										{/* Trackers link */}
-										<Link
-											to="/trackers"
-											className="flex items-center px-3 py-3 text-base font-medium text-ink hover:text-accent hover:bg-white/80 rounded-lg transition-all duration-200 active:bg-white"
-											onClick={() => setMobileMenuOpen(false)}
-										>
-											<span>Trackers</span>
-										</Link>
-										
-										{/* Reports link */}
-										<Link
-											to="/reports"
-											className="flex items-center px-3 py-3 text-base font-medium text-ink hover:text-accent hover:bg-white/80 rounded-lg transition-all duration-200 active:bg-white"
-											onClick={() => setMobileMenuOpen(false)}
-										>
-											<span>Reports</span>
-										</Link>
-									
-										{/* Investigations board link */}
-										<Link
-											to="/investigations/epstein-files"
-											className="flex items-center px-3 py-3 text-base font-medium text-ink hover:text-accent hover:bg-white/80 rounded-lg transition-all duration-200 active:bg-white"
-											onClick={() => setMobileMenuOpen(false)}
-										>
-											<span>Investigations</span>
-										</Link>
-									</nav>
-								</div>
-
-								{/* Secondary sections */}
-								<div className="px-6 py-4 border-t-1 border-stone/50">
-									<h3 className="text-sm font-bold text-accent uppercase tracking-wider mb-3">
-										More Coverage
-									</h3>
-									<nav className="space-y-1">
-										{secondarySections.map((section) => (
-											<Link
-												key={section}
-												to={`/articles/${section.toLowerCase().replace(/\s+/g, '-')}`}
-												className="flex items-center px-3 py-3 text-base font-medium text-ink hover:text-accent hover:bg-white/80 rounded-lg transition-all duration-200 active:bg-white"
-												onClick={() => setMobileMenuOpen(false)}
-											>
-												<span>{section}</span>
-											</Link>
-										))}
-									</nav>
-								</div>
-							</div>
-
-							{/* Footer actions */}
-							<div className="border-t border-stone/20 bg-white px-6 py-5 space-y-3">
-								<a 
-									href="/login"
-									className="block w-full bg-accent text-white text-center py-3 px-4 rounded-lg font-semibold hover:bg-accent/90 active:bg-accent/80 transition-all duration-200"
-								>
-									Login
-								</a>
-								<div className="grid grid-cols-2 gap-3">
-									<button 
-										onClick={() => {
-											setSubscribeModalOpen(true);
-											setMobileMenuOpen(false);
-										}}
-										className="border border-accent/30 text-accent text-center py-2.5 px-3 rounded-lg text-sm font-semibold hover:bg-accent hover:text-white active:bg-accent/80 transition-all duration-200"
-									>
-										Subscribe
-									</button>
-									<button 
-										onClick={() => {
-											setDonationModalOpen(true);
-											setMobileMenuOpen(false);
-										}}
-										className="bg-ink text-white text-center py-2.5 px-3 rounded-lg text-sm font-semibold hover:bg-inkMuted active:bg-inkMuted/80 transition-all duration-200"
-									>
-										Donate
-									</button>
-								</div>
-							</div>
-						</div>
-					</div>
-				</>
-			)}
-
-			<DashboardOverlayButton />
-
-			{/* Modals */}
-			<SearchModal 
-				open={searchOpen} 
-				onClose={() => setSearchOpen(false)} 
-				articles={articles} 
-			/>
-			<SubscribeModal 
-				open={subscribeModalOpen} 
-				onClose={() => setSubscribeModalOpen(false)} 
-			/>
-			<DonationModal 
-				isOpen={donationModalOpen} 
-				onClose={() => setDonationModalOpen(false)} 
-			/>
-		</>
-	);
+        <div className="safe-inline safe-bottom border-t border-stone bg-surface px-5 pt-4">
+          <div className="grid grid-cols-2 gap-3">
+            <NavLink to="/trackers" onClick={closeMenu} className="min-h-11 rounded-lg bg-accent-strong px-3 py-3 text-center text-sm font-bold text-white hover:bg-accent-dark">
+              Explore data
+            </NavLink>
+            <a href="/rss.xml" className="min-h-11 rounded-lg border border-accent-strong px-3 py-3 text-center text-sm font-bold text-accent-dark hover:bg-accent-soft">
+              Follow by RSS
+            </a>
+          </div>
+          <div className="mt-3 grid grid-cols-2 gap-3">
+            <button type="button" onClick={() => runAndClose(onDonate)} className="min-h-11 rounded-lg bg-tracker px-3 py-2.5 text-sm font-bold text-white hover:bg-[#8f4208]">
+              Support DGNO
+            </button>
+            <a href="/login" className="min-h-11 rounded-lg px-3 py-2.5 text-center text-sm font-semibold text-inkMuted hover:bg-stone-light hover:text-ink">Staff login</a>
+          </div>
+        </div>
+      </Dialog>
+    </>
+  );
 }

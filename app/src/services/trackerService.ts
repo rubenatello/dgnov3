@@ -128,11 +128,16 @@ export async function getIncidentCount(trackerId: string): Promise<number> {
 }
 
 export async function updateIncident(id: string, updates: Partial<TrackerIncident>): Promise<void> {
+  const existingIncident = await getIncident(id);
   const cleanedUpdates = removeUndefinedFields({
     ...updates,
     updatedAt: Timestamp.fromDate(new Date()),
   });
   await updateDoc(doc(db, 'trackerIncidents', id), cleanedUpdates);
+  if (existingIncident?.trackerId) {
+    // Dataset freshness changes when any published record is corrected.
+    await updateTracker(existingIncident.trackerId, {});
+  }
 }
 
 export async function deleteIncident(id: string): Promise<void> {

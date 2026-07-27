@@ -4,6 +4,18 @@ import type { NodeViewProps } from "@tiptap/react";
 import { NodeViewWrapper } from "@tiptap/react";
 import "./embed-code.scss";
 
+interface TwitterWidgetApi {
+  widgets?: {
+    load: (container?: HTMLElement | null) => void;
+  };
+}
+
+declare global {
+  interface Window {
+    twttr?: TwitterWidgetApi;
+  }
+}
+
 export const EmbedCodeView: React.FC<NodeViewProps> = ({ node }) => {
   const { code, type, displayName, username } = node.attrs as {
     code: string;
@@ -22,15 +34,15 @@ export const EmbedCodeView: React.FC<NodeViewProps> = ({ node }) => {
 
     // Special handling for X/Twitter
     if (type === "twitter") {
-      if (typeof window !== "undefined" && !(window as any).twttr) {
+      if (typeof window !== "undefined" && !window.twttr) {
         const script = document.createElement("script");
         script.src = "https://platform.twitter.com/widgets.js";
         script.async = true;
         script.charset = "utf-8";
         document.head.appendChild(script);
-        script.onload = () => (window as any).twttr?.widgets?.load(embedRef.current);
+        script.onload = () => window.twttr?.widgets?.load(embedRef.current);
       } else {
-        (window as any).twttr?.widgets?.load(embedRef.current);
+        window.twttr?.widgets?.load(embedRef.current);
       }
     }
   }, [code, type]);

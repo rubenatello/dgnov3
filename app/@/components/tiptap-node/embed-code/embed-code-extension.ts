@@ -11,7 +11,7 @@ export interface EmbedCodeAttrs {
 }
 
 export interface EmbedCodeOptions {
-  HTMLAttributes: Record<string, any>;
+  HTMLAttributes: Record<string, unknown>;
 }
 
 declare module "@tiptap/core" {

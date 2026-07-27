@@ -50,7 +50,7 @@ export default function PeopleGridView({
             <div
               key={person.id}
               onClick={() => onPersonClick(person.id)}
-              className="bg-white rounded-xl border-2 border-sky-200 p-4 hover:shadow-lg hover:border-sky-400 transition-all cursor-pointer group"
+              className="bg-surface rounded-xl border-2 border-sky-200 p-4 hover:shadow-lg hover:border-sky-400 transition-all cursor-pointer group"
             >
               <div className="flex flex-col items-center mb-3">
                 {person.imageUrl ? (

@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:e2e": "npm run build && playwright test",
+    "test:release": "npm run lint && npm run test:e2e"
   },
   "dependencies": {
     "@floating-ui/react": "^0.27.16",
@@ -34,14 +36,15 @@
     "firebase": "^12.4.0",
     "lodash.throttle": "^4.1.1",
     "react": "^19.1.1",
-    "react-cookie-consent": "^9.0.0",
     "react-dom": "^19.1.1",
     "react-hotkeys-hook": "^5.2.1",
     "react-router-dom": "^7.9.4",
     "recharts": "^3.3.0"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.12.1",
     "@eslint/js": "^9.36.0",
+    "@playwright/test": "^1.61.1",
     "@tailwindcss/postcss": "^4.1.14",
     "@types/lodash.throttle": "^4.1.9",
     "@types/node": "^24.6.0",

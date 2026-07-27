@@ -9,13 +9,49 @@ import {
   where, 
   orderBy,
   serverTimestamp,
-  limit as firestoreLimit
+  limit as firestoreLimit,
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import type { Article, ArticleStatus } from '../types/models';
 import { generateSlug } from '../utils/helpers';
+import { normalizeArticleSlug } from '../utils/seoConstants';
+import { getPublishedArticleSummaries, getPublishedArticleSummariesByAuthor } from './publicArticleService';
 
 const ARTICLES_COLLECTION = 'articles';
+const DEFAULT_PUBLIC_ARTICLE_LIMIT = 48;
+
+/**
+ * Keep public lists and search results intentionally lightweight in memory.
+ * Firestore's browser SDK does not support field projections, so the query is
+ * also bounded; full article bodies are retained only by single-article reads.
+ */
+export function toArticleSummary(id: string, data: Partial<Article>): Article {
+  return {
+    id,
+    title: data.title || '',
+    slug: data.slug || '',
+    subtitle: data.subtitle,
+    summary: data.summary,
+    featuredImageId: data.featuredImageId,
+    featuredImageUrl: data.featuredImageUrl,
+    featuredImageDescription: data.featuredImageDescription,
+    featuredImageSourceCredit: data.featuredImageSourceCredit,
+    section: data.section,
+    tags: data.tags || [],
+    authorId: data.authorId,
+    coAuthorId: data.coAuthorId,
+    authorName: data.authorName,
+    coAuthorName: data.coAuthorName,
+    status: data.status,
+    publishedAt: data.publishedAt,
+    breakingUntil: data.breakingUntil,
+    viewCount: data.viewCount,
+    likeCount: data.likeCount,
+    commentCount: data.commentCount,
+    wordCount: data.wordCount,
+    lastUpdatedAt: data.lastUpdatedAt,
+  };
+}
 
 // Type for autosave documents
 export interface ArticleAutosave {
@@ -70,9 +106,14 @@ export async function createArticle(
 
 /** Check all article states for an existing generated slug before importing. */
 export async function articleSlugExists(slug: string): Promise<boolean> {
-  const q = query(collection(db, ARTICLES_COLLECTION), where('slug', '==', slug), firestoreLimit(1));
-  const querySnapshot = await getDocs(q);
-  return !querySnapshot.empty;
+  const originalSlug = slug.replace(/^\/+|\/+$/g, '');
+  const normalizedSlug = originalSlug.split('/').filter(Boolean).pop() || originalSlug;
+  const candidates = [originalSlug, normalizedSlug].filter((candidate, index, all) => candidate && all.indexOf(candidate) === index);
+  for (const candidate of candidates) {
+    const q = query(collection(db, ARTICLES_COLLECTION), where('slug', '==', candidate), firestoreLimit(1));
+    if (!(await getDocs(q)).empty) return true;
+  }
+  return false;
 }
 
 /**
@@ -109,18 +150,8 @@ export async function getArticle(articleId: string): Promise<Article | null> {
 /**
  * Get published articles
  */
-export async function getPublishedArticles(): Promise<Article[]> {
-  const q = query(
-    collection(db, ARTICLES_COLLECTION),
-    where('status', '==', 'published'),
-    orderBy('publishedAt', 'desc')
-  );
-  
-  const querySnapshot = await getDocs(q);
-  return querySnapshot.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data()
-  } as Article));
+export async function getPublishedArticles(maxResults = DEFAULT_PUBLIC_ARTICLE_LIMIT): Promise<Article[]> {
+  return getPublishedArticleSummaries(maxResults);
 }
 
 /**
@@ -142,19 +173,57 @@ export async function getBreakingArticles(): Promise<Article[]> {
 /**
  * Get a single article by slug
  */
-export async function getArticleBySlug(slug: string): Promise<Article | null> {
-  const q = query(
-    collection(db, ARTICLES_COLLECTION),
-    // Add status filter so Firestore rules can evaluate query for anonymous users
-    // Public readers are allowed to fetch only published articles
-    where('slug', '==', slug),
-    where('status', '==', 'published'),
-  );
+export async function getArticleBySlug(slug: string, legacyDatePath?: string): Promise<Article | null> {
+  const titleSlug = slug.split('/').filter(Boolean).pop();
+  if (!titleSlug) return null;
 
-  const querySnapshot = await getDocs(q);
-  if (querySnapshot.empty) return null;
-  const docSnap = querySnapshot.docs[0];
-  return { id: docSnap.id, ...docSnap.data() } as Article;
+  // New records store only the title segment. The second candidate preserves
+  // published legacy records that stored YYYY/MM/DD/title in the slug field.
+  const candidates = [
+    titleSlug,
+    legacyDatePath ? `${legacyDatePath.replace(/^\/+|\/+$/g, '')}/${titleSlug}` : null,
+  ].filter((candidate, index, all): candidate is string => Boolean(candidate) && all.indexOf(candidate) === index);
+
+  for (const candidate of candidates) {
+    const q = query(
+      collection(db, ARTICLES_COLLECTION),
+      where('slug', '==', candidate),
+      where('status', '==', 'published'),
+      firestoreLimit(1),
+    );
+    const querySnapshot = await getDocs(q);
+    if (!querySnapshot.empty) {
+      const docSnap = querySnapshot.docs[0];
+      return { id: docSnap.id, ...docSnap.data() } as Article;
+    }
+  }
+
+  // Some legacy records embedded a draft/creation date in `slug` that differs
+  // from the truthful publishedAt date now used by the canonical route. If the
+  // two exact candidates miss, inspect only a bounded publication-date window
+  // on this single-article route and compare the normalized title segment.
+  if (legacyDatePath && /^\d{4}\/\d{2}\/\d{2}$/.test(legacyDatePath)) {
+    const routeDate = new Date(`${legacyDatePath.replaceAll('/', '-')}T00:00:00.000Z`);
+    if (!Number.isNaN(routeDate.getTime())) {
+      const start = new Date(routeDate.getTime() - 24 * 60 * 60 * 1000);
+      const end = new Date(routeDate.getTime() + 48 * 60 * 60 * 1000);
+      const dateQuery = query(
+        collection(db, ARTICLES_COLLECTION),
+        where('status', '==', 'published'),
+        where('publishedAt', '>=', start),
+        where('publishedAt', '<', end),
+        orderBy('publishedAt', 'desc'),
+        firestoreLimit(100),
+      );
+      const dateSnapshot = await getDocs(dateQuery);
+      const legacyMatch = dateSnapshot.docs.find((document) =>
+        normalizeArticleSlug(String(document.data().slug || '')) === titleSlug,
+      );
+      if (legacyMatch) return { id: legacyMatch.id, ...legacyMatch.data() } as Article;
+    }
+  }
+
+  return null;
 }
 
 /**
@@ -176,7 +245,7 @@ export async function getRelatedArticles(tags: string[], excludeId: string, limi
   
   const querySnapshot = await getDocs(q);
   const articles = querySnapshot.docs
-    .map(doc => ({ id: doc.id, ...doc.data() } as Article))
+    .map(doc => toArticleSummary(doc.id, doc.data() as Partial<Article>))
     .filter(article => article.id !== excludeId)
     .slice(0, limit);
   
@@ -187,17 +256,7 @@ export async function getRelatedArticles(tags: string[], excludeId: string, limi
  * Get articles by author
  */
 export async function getArticlesByAuthor(authorId: string): Promise<Article[]> {
-  const q = query(
-    collection(db, ARTICLES_COLLECTION),
-    where('authorId', '==', authorId),
-    orderBy('createdAt', 'desc')
-  );
-  
-  const querySnapshot = await getDocs(q);
-  return querySnapshot.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data()
-  } as Article));
+  return getPublishedArticleSummariesByAuthor(authorId, 24);
 }
 
 /**

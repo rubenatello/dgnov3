@@ -161,7 +161,7 @@ export default function DynamicTable({
                       </div>
                     ) : (
                       <div className="max-w-xs">
-                        {formatCellValue(field, incident.customData?.[field.id] || '')}
+                        {formatCellValue(field, incident.customData?.[field.id] ?? '')}
                       </div>
                     )}
                   </td>

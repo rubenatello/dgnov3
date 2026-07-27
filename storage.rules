@@ -62,6 +62,13 @@ service firebase.storage {
   allow update, delete: if isEditor() || (isWriter() && request.auth.uid == resource.metadata.customMetadata.uploadedBy);
     }
 
+    // Generated public sharing images. Cloud Functions uses Admin SDK writes,
+    // which bypass rules; clients can never create or replace these assets.
+    match /social-cards/{allPaths=**} {
+      allow read: if true;
+      allow write: if false;
+    }
+
     // Videos folder (article videos)
     match /videos/{allPaths=**} {
       // Anyone can read

@@ -113,6 +113,7 @@ export function updateConsent({ analyticsGranted, adGranted }: { analyticsGrante
 
 export function trackEvent(action: string, params?: Record<string, unknown>) {
   try {
+    if (!isAnalyticsEnabled()) return;
     if (!window.gtag) {
       console.warn('Analytics: gtag not available for event:', action);
       return;
@@ -162,6 +163,7 @@ export function trackSearchEvent(term: string, resultsCount: number) {
 
 export function trackPageView(path?: string) {
   try {
+    if (!isAnalyticsEnabled()) return;
     if (!window.gtag) {
       console.warn('Analytics: gtag not available for page view');
       return;
@@ -202,7 +204,17 @@ export function disableAnalytics(): void {
 }
 
 export function isAnalyticsEnabled(): boolean {
-  return typeof window !== 'undefined' && typeof window.gtag === 'function';
+  if (typeof window === 'undefined') return false;
+  try {
+    const consent = document.cookie
+      .split(';')
+      .map((cookie) => cookie.trim())
+      .find((cookie) => cookie.startsWith('dgnov3CookieConsent='))
+      ?.slice('dgnov3CookieConsent='.length);
+    return consent === 'true';
+  } catch {
+    return false;
+  }
 }
 
 export default {

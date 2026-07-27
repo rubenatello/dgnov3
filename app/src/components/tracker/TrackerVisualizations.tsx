@@ -19,6 +19,13 @@ const CHART_COLORS = [
   '#06B6D4', '#F97316', '#84CC16', '#EC4899', '#6366F1'
 ];
 
+function toFiniteNumber(value: unknown): number | null {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+  if (typeof value !== 'string' || value.trim() === '') return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 export default function TrackerVisualizations({ tracker, incidents, yearFilter }: TrackerVisualizationsProps) {
   // Helper function to get field value from incident (supports both custom and legacy fields)
   const getFieldValue = (incident: TrackerIncident, fieldId: string) => {
@@ -133,7 +140,7 @@ export default function TrackerVisualizations({ tracker, incidents, yearFilter }
   // Calculate KPI values
   const calculateKPIValue = (kpi: TrackerKPI): string => {
     const field = tracker.customFields?.find(f => f.id === kpi.fieldId);
-    if (!field) return '0';
+    if (!field) return 'Not available';
 
     const values = filteredIncidents
       .map(incident => getFieldValue(incident, kpi.fieldId))
@@ -141,17 +148,11 @@ export default function TrackerVisualizations({ tracker, incidents, yearFilter }
 
     switch (kpi.calculation) {
       case 'sum': {
-        const sum = values.reduce((acc: number, val) => {
-          // Auto-cast text that looks like numbers
-          let num = 0;
-          if (typeof val === 'number') {
-            num = val;
-          } else {
-            const parsed = parseFloat(String(val));
-            num = !isNaN(parsed) ? parsed : 0;
-          }
-          return acc + num;
-        }, 0);
+        const numbers = values
+          .map(toFiniteNumber)
+          .filter((value): value is number => value !== null);
+        if (numbers.length === 0) return 'Not available';
+        const sum = numbers.reduce((acc, value) => acc + value, 0);
         return kpi.format === 'percentage' ? `${sum}%` : sum.toString();
       }
 
@@ -159,24 +160,22 @@ export default function TrackerVisualizations({ tracker, incidents, yearFilter }
         return values.length.toString();
 
       case 'average': {
-        const numbers = values.map(val => {
-          if (typeof val === 'number') return val;
-          const parsed = parseFloat(String(val));
-          return !isNaN(parsed) ? parsed : null;
-        }).filter(n => n !== null) as number[];
-        const avg = numbers.length > 0 ? numbers.reduce((a, b) => a + b) / numbers.length : 0;
+        const numbers = values
+          .map(toFiniteNumber)
+          .filter((value): value is number => value !== null);
+        if (numbers.length === 0) return 'Not available';
+        const avg = numbers.reduce((a, b) => a + b, 0) / numbers.length;
         return kpi.format === 'percentage' ? `${Math.round(avg)}%` : (Math.round(avg * 100) / 100).toString();
       }
 
       case 'percentage': {
-        const totalCount = filteredIncidents.length;
-        if (totalCount === 0) return '0%';
-        
-        const positiveCount = field.type === 'checkbox' 
+        if (values.length === 0) return 'Not available';
+        const positiveCount = field.type === 'checkbox'
           ? values.filter(val => val === true || val === 'true').length
           : values.length;
-        
-        return `${Math.round((positiveCount / totalCount) * 100)}%`;
+        const denominator = field.type === 'checkbox' ? values.length : filteredIncidents.length;
+        if (denominator === 0) return 'Not available';
+        return `${Math.round((positiveCount / denominator) * 100)}%`;
       }
 
       default:
@@ -194,6 +193,7 @@ export default function TrackerVisualizations({ tracker, incidents, yearFilter }
     // Group data by time periods for time-based grouping
     if (chart.timeGrouping && xField.type === 'date') {
       const groups = new Map<string, number>();
+      const groupCounts = new Map<string, number>();
       
       filteredIncidents.forEach(incident => {
         if (!chart.xAxisField || !chart.yAxisField) return;
@@ -235,23 +235,22 @@ export default function TrackerVisualizations({ tracker, incidents, yearFilter }
         
         if (chart.calculation === 'count') {
           groups.set(groupKey, (groups.get(groupKey) || 0) + 1);
-        } else if (chart.calculation === 'sum') {
-          // Auto-cast text numbers for sum calculations
-          let numValue = 0;
-          if (typeof yValue === 'number') {
-            numValue = yValue;
-          } else {
-            const parsed = parseFloat(String(yValue));
-            numValue = !isNaN(parsed) ? parsed : 0;
-          }
+        } else if (chart.calculation === 'sum' || chart.calculation === 'average') {
+          const numValue = toFiniteNumber(yValue);
+          if (numValue === null) return;
           groups.set(groupKey, (groups.get(groupKey) || 0) + numValue);
+          if (chart.calculation === 'average') {
+            groupCounts.set(groupKey, (groupCounts.get(groupKey) || 0) + 1);
+          }
         }
       });
       
       return Array.from(groups.entries())
-        .map(([key, value]) => ({
+        .map(([key, total]) => ({
           name: formatGroupKey(key, chart.timeGrouping!),
-          value,
+          value: chart.calculation === 'average'
+            ? total / (groupCounts.get(key) || 1)
+            : total,
           sortKey: key // Keep original key for proper chronological sorting
         }))
         .sort((a, b) => a.sortKey.localeCompare(b.sortKey)) // Sort by original date key
@@ -260,6 +259,7 @@ export default function TrackerVisualizations({ tracker, incidents, yearFilter }
     
     // Regular grouping by field values
     const groups = new Map<string, number>();
+    const groupCounts = new Map<string, number>();
     
     filteredIncidents.forEach(incident => {
       if (!chart.xAxisField || !chart.yAxisField) return;
@@ -275,36 +275,27 @@ export default function TrackerVisualizations({ tracker, incidents, yearFilter }
           groups.set(groupKey, (groups.get(groupKey) || 0) + 1);
           break;
         case 'sum': {
-          // Auto-cast text numbers for sum calculations
-          let numValue = 0;
-          if (typeof yValue === 'number') {
-            numValue = yValue;
-          } else {
-            const parsed = parseFloat(String(yValue));
-            numValue = !isNaN(parsed) ? parsed : 0;
-          }
+          const numValue = toFiniteNumber(yValue);
+          if (numValue === null) break;
           groups.set(groupKey, (groups.get(groupKey) || 0) + numValue);
           break;
         }
         case 'average': {
-          // For average, auto-cast text numbers
-          let numValue = 0;
-          if (typeof yValue === 'number') {
-            numValue = yValue;
-          } else {
-            const parsed = parseFloat(String(yValue));
-            numValue = !isNaN(parsed) ? parsed : 0;
-          }
+          const numValue = toFiniteNumber(yValue);
+          if (numValue === null) break;
           const currentData = groups.get(groupKey) || 0;
           groups.set(groupKey, currentData + numValue);
+          groupCounts.set(groupKey, (groupCounts.get(groupKey) || 0) + 1);
           break;
         }
       }
     });
     
-    return Array.from(groups.entries()).map(([key, value]) => ({
+    return Array.from(groups.entries()).map(([key, total]) => ({
       name: key,
-      value
+      value: chart.calculation === 'average'
+        ? total / (groupCounts.get(key) || 1)
+        : total
     }));
   };
 
@@ -426,7 +417,7 @@ export default function TrackerVisualizations({ tracker, incidents, yearFilter }
             {tracker.kpiCards!.map((kpi, index) => {
               const value = calculateKPIValue(kpi);
               return (
-                <div key={index} className="bg-white rounded-lg shadow p-4">
+                <div key={index} className="bg-surface rounded-lg shadow p-4">
                   <div className={`text-2xl font-bold ${kpi.color || 'text-blue-600'}`}>
                     {value}
                   </div>
@@ -451,7 +442,7 @@ export default function TrackerVisualizations({ tracker, incidents, yearFilter }
             {tracker.charts!.map((chart, index) => {
               const chartData = generateChartData(chart);
               return (
-                <div key={index} className="bg-white rounded-lg shadow p-6">
+                <div key={index} className="bg-surface rounded-lg shadow p-6">
                   <h3 className="text-lg font-medium mb-4 flex items-center gap-2">
                     <FontAwesomeIcon icon={getChartIcon(chart.type)} />
                     {chart.title}

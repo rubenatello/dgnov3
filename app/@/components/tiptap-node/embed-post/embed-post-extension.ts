@@ -87,7 +87,7 @@ export default Node.create<EmbedPostOptions>({
                 
                 if (url) {
                     // Extract from X/Twitter URL patterns
-                    const xMatch = url.match(/(?:twitter\.com|x\.com)\/([^\/]+)\/status\/(\d+)/);
+                    const xMatch = url.match(/(?:twitter\.com|x\.com)\/([^/]+)\/status\/(\d+)/);
                     if (xMatch) {
                         username = xMatch[1];
                         postId = xMatch[2];

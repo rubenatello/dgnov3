@@ -104,7 +104,7 @@ export default function CreateEditArticlePage() {
         }
       })();
     }
-  }, [title, userData, draftId, isEditing]); // Simplified dependencies
+  }, [content, draftId, featuredImageId, isEditing, section, subtitle, summary, tags, title, userData]);
 
   // Simple Autosave: updates the same article document every 3 seconds
   useEffect(() => {
@@ -144,7 +144,7 @@ export default function CreateEditArticlePage() {
         clearTimeout(autosaveTimerRef.current);
       }
     };
-  }, [draftId, title, subtitle, summary, content, section, tags, featuredImageId, userData, isAutoSaving]);
+  }, [draftId, title, subtitle, summary, content, section, tags, featuredImageId, featuredImageUrl, userData, isAutoSaving]);
 
   async function loadArticle(articleId: string) {
     try {

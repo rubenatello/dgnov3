@@ -680,7 +680,7 @@ export default function InvestigationBoardEditorV2({ readOnly = false }: Props) 
 
   if (!isActive && !canEdit) {
     return (
-      <div className="max-w-2xl mx-auto bg-white border border-stone/30 rounded-2xl p-8 text-center">
+      <div className="max-w-2xl mx-auto bg-surface border border-stone/30 rounded-2xl p-8 text-center">
         <h1 className="text-3xl font-bold text-ink">Investigation Unavailable</h1>
         <p className="text-inkMuted mt-3">
           This investigation is temporarily offline while updates are in progress.
@@ -695,7 +695,7 @@ export default function InvestigationBoardEditorV2({ readOnly = false }: Props) 
   return (
     <div className="relative h-full w-full">
       {/* Header */}
-      <div className="bg-white border-b border-stone/20 px-4 sm:px-6 py-3">
+      <div className="bg-surface border-b border-stone/20 px-4 sm:px-6 py-3">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex-1 min-w-0">
             {editMode ? (
@@ -716,7 +716,7 @@ export default function InvestigationBoardEditorV2({ readOnly = false }: Props) 
                   aria-label={editMode ? 'Switch to preview mode' : 'Switch to edit mode'}
                   className={`px-4 py-2 text-sm rounded-full flex items-center gap-2 transition-all ${
                     editMode
-                      ? 'bg-ink text-white'
+                      ? 'bg-masthead text-white'
                       : 'border border-stone/40 text-ink hover:bg-stone/10'
                   }`}
                 >
@@ -764,7 +764,7 @@ export default function InvestigationBoardEditorV2({ readOnly = false }: Props) 
                 className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors whitespace-nowrap ${
                   viewMode === 'board'
                     ? 'bg-accent text-white'
-                    : 'text-inkMuted hover:text-ink hover:bg-white'
+                    : 'text-inkMuted hover:text-ink hover:bg-surface'
                 }`}
               >
                 <FontAwesomeIcon icon={faMapMarkerAlt} className="mr-2 text-xs" />
@@ -775,7 +775,7 @@ export default function InvestigationBoardEditorV2({ readOnly = false }: Props) 
                 className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors whitespace-nowrap ${
                   viewMode === 'timeline'
                     ? 'bg-accent text-white'
-                    : 'text-inkMuted hover:text-ink hover:bg-white'
+                    : 'text-inkMuted hover:text-ink hover:bg-surface'
                 }`}
               >
                 <FontAwesomeIcon icon={faCalendar} className="mr-2 text-xs" />
@@ -786,7 +786,7 @@ export default function InvestigationBoardEditorV2({ readOnly = false }: Props) 
                 className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors whitespace-nowrap ${
                   viewMode === 'people'
                     ? 'bg-accent text-white'
-                    : 'text-inkMuted hover:text-ink hover:bg-white'
+                    : 'text-inkMuted hover:text-ink hover:bg-surface'
                 }`}
               >
                 <FontAwesomeIcon icon={faUsers} className="mr-2 text-xs" />
@@ -815,7 +815,7 @@ export default function InvestigationBoardEditorV2({ readOnly = false }: Props) 
                     value={filterType}
                     onChange={(e) => setFilterType(e.target.value as typeof filterType)}
                     aria-label="Filter board entities by type"
-                    className="px-3 py-2 text-sm rounded-lg border border-stone/30 bg-white w-full sm:w-auto"
+                    className="px-3 py-2 text-sm rounded-lg border border-stone/30 bg-surface w-full sm:w-auto"
                   >
                     <option value="all">All</option>
                     <option value="people">People</option>
@@ -825,10 +825,10 @@ export default function InvestigationBoardEditorV2({ readOnly = false }: Props) 
 
                   {/* Zoom */}
                   <div className="flex items-center gap-1 border-l border-stone/30 pl-3" role="group" aria-label="Zoom controls">
-                    <button onClick={zoomOut} className="p-2 hover:bg-white rounded" title="Zoom out" aria-label="Zoom out">−</button>
+                    <button onClick={zoomOut} className="p-2 hover:bg-surface rounded" title="Zoom out" aria-label="Zoom out">−</button>
                     <span className="text-xs text-inkMuted w-12 text-center" aria-live="polite">{Math.round(scale * 100)}%</span>
-                    <button onClick={zoomIn} className="p-2 hover:bg-white rounded" title="Zoom in" aria-label="Zoom in">+</button>
-                    <button onClick={resetView} className="p-2 hover:bg-white rounded text-xs" title="Reset view">
+                    <button onClick={zoomIn} className="p-2 hover:bg-surface rounded" title="Zoom in" aria-label="Zoom in">+</button>
+                    <button onClick={resetView} className="p-2 hover:bg-surface rounded text-xs" title="Reset view">
                       <FontAwesomeIcon icon={faExpand} />
                     </button>
                   </div>
@@ -839,7 +839,7 @@ export default function InvestigationBoardEditorV2({ readOnly = false }: Props) 
                       <button
                         onClick={undo}
                         disabled={!canUndo}
-                        className="p-2 hover:bg-white rounded disabled:opacity-30"
+                        className="p-2 hover:bg-surface rounded disabled:opacity-30"
                         title="Undo (Ctrl+Z)"
                         aria-label="Undo last action"
                       >
@@ -848,7 +848,7 @@ export default function InvestigationBoardEditorV2({ readOnly = false }: Props) 
                       <button
                         onClick={redo}
                         disabled={!canRedo}
-                        className="p-2 hover:bg-white rounded disabled:opacity-30"
+                        className="p-2 hover:bg-surface rounded disabled:opacity-30"
                         title="Redo (Ctrl+Shift+Z)"
                         aria-label="Redo last undone action"
                       >
@@ -867,7 +867,7 @@ export default function InvestigationBoardEditorV2({ readOnly = false }: Props) 
                     className={`px-3 py-2 text-sm rounded-lg flex items-center gap-2 ${
                       activePanel === 'people'
                         ? 'bg-sky-500 text-white'
-                        : 'border border-stone/30 hover:bg-white'
+                        : 'border border-stone/30 hover:bg-surface'
                     }`}
                   >
                     <FontAwesomeIcon icon={faUser} className="text-xs" />
@@ -878,7 +878,7 @@ export default function InvestigationBoardEditorV2({ readOnly = false }: Props) 
                     className={`px-3 py-2 text-sm rounded-lg flex items-center gap-2 ${
                       activePanel === 'locations'
                         ? 'bg-emerald-500 text-white'
-                        : 'border border-stone/30 hover:bg-white'
+                        : 'border border-stone/30 hover:bg-surface'
                     }`}
                   >
                     <FontAwesomeIcon icon={faMapMarkerAlt} className="text-xs" />
@@ -889,7 +889,7 @@ export default function InvestigationBoardEditorV2({ readOnly = false }: Props) 
                     className={`px-3 py-2 text-sm rounded-lg flex items-center gap-2 ${
                       activePanel === 'events'
                         ? 'bg-violet-500 text-white'
-                        : 'border border-stone/30 hover:bg-white'
+                        : 'border border-stone/30 hover:bg-surface'
                     }`}
                   >
                     <FontAwesomeIcon icon={faCalendar} className="text-xs" />
@@ -976,7 +976,7 @@ export default function InvestigationBoardEditorV2({ readOnly = false }: Props) 
       {/* Floating Detail Modal */}
       {/* ============================================ */}
       {selectedEntity && (selectedPerson || selectedLocation || selectedEvent) && (
-        <div className="fixed bottom-4 right-4 w-96 max-h-[70vh] bg-white rounded-2xl shadow-2xl border border-stone/20 z-40 overflow-hidden flex flex-col animate-in slide-in-from-bottom-4">
+        <div className="fixed bottom-4 right-4 w-96 max-h-[70vh] bg-surface rounded-2xl shadow-2xl border border-stone/20 z-40 overflow-hidden flex flex-col animate-in slide-in-from-bottom-4">
           {/* Modal Header */}
           <div className={`px-4 py-3 flex items-center justify-between flex-shrink-0 ${
             selectedEntity.type === 'person' ? 'bg-sky-500' :
@@ -1205,7 +1205,7 @@ export default function InvestigationBoardEditorV2({ readOnly = false }: Props) 
       {/* Slide-out Panel for People */}
       {/* ============================================ */}
       {activePanel === 'people' && editMode && (
-        <div className="fixed inset-y-0 right-0 w-96 bg-white shadow-2xl z-50 overflow-y-auto">
+        <div className="fixed inset-y-0 right-0 w-96 bg-surface shadow-2xl z-50 overflow-y-auto">
           <div className="sticky top-0 bg-gradient-to-r from-sky-500 to-sky-600 text-white p-4">
             <div className="flex items-center justify-between">
               <h2 className="font-bold text-lg flex items-center gap-2">
@@ -1393,7 +1393,7 @@ export default function InvestigationBoardEditorV2({ readOnly = false }: Props) 
       {/* Slide-out Panel for Locations */}
       {/* ============================================ */}
       {activePanel === 'locations' && editMode && (
-        <div className="fixed inset-y-0 right-0 w-96 bg-white shadow-2xl z-50 overflow-y-auto">
+        <div className="fixed inset-y-0 right-0 w-96 bg-surface shadow-2xl z-50 overflow-y-auto">
           <div className="sticky top-0 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white p-4">
             <div className="flex items-center justify-between">
               <h2 className="font-bold text-lg flex items-center gap-2">
@@ -1602,7 +1602,7 @@ export default function InvestigationBoardEditorV2({ readOnly = false }: Props) 
       {/* Slide-out Panel for Events */}
       {/* ============================================ */}
       {activePanel === 'events' && editMode && (
-        <div className="fixed inset-y-0 right-0 w-[480px] bg-white shadow-2xl z-50 overflow-y-auto">
+        <div className="fixed inset-y-0 right-0 w-[480px] bg-surface shadow-2xl z-50 overflow-y-auto">
           <div className="sticky top-0 bg-gradient-to-r from-violet-500 to-violet-600 text-white p-4 z-10">
             <div className="flex items-center justify-between">
               <h2 className="font-bold text-lg flex items-center gap-2">
@@ -1970,7 +1970,7 @@ export default function InvestigationBoardEditorV2({ readOnly = false }: Props) 
       {/* ============================================ */}
       {showDocumentUploadModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
+          <div className="bg-surface rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
             {/* Modal Header */}
             <div className="bg-gradient-to-r from-violet-500 to-violet-600 text-white p-4">
               <div className="flex items-center justify-between">
@@ -2058,7 +2058,7 @@ export default function InvestigationBoardEditorV2({ readOnly = false }: Props) 
             <div className="border-t border-stone/20 px-6 py-4 bg-stone/5">
               <button
                 onClick={() => setShowDocumentUploadModal(false)}
-                className="w-full px-4 py-2 rounded-lg border border-stone/30 hover:bg-white transition-colors"
+                className="w-full px-4 py-2 rounded-lg border border-stone/30 hover:bg-surface transition-colors"
               >
                 Cancel
               </button>

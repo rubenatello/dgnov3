@@ -1,13 +1,10 @@
-# Allow all search engines to crawl all content
+# DGNO public crawl policy
 User-agent: *
 Allow: /
 
-# Disallow crawling of admin/dashboard areas
+Disallow: /dashboard
 Disallow: /dashboard/
 Disallow: /login
 
-# Sitemap location (update this once sitemap is generated)
 Sitemap: https://dgno.us/sitemap.xml
-
-# Crawl-delay for respectful crawling (optional)
-Crawl-delay: 1
+Sitemap: https://dgno.us/news-sitemap.xml

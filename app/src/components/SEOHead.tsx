@@ -1,188 +1,203 @@
 import { useEffect } from 'react';
-import { buildKeywords, SEO_CONFIG } from '../utils/seoConstants';
+import {
+  buildKeywords,
+  inferImageMimeType,
+  SEO_CONFIG,
+} from '../utils/seoConstants';
 
 interface SEOHeadProps {
   title?: string;
+  headline?: string;
   description?: string;
   image?: string;
   url?: string;
   type?: 'website' | 'article';
+  robots?: string;
   publishedTime?: string;
   modifiedTime?: string;
   author?: string;
   section?: string;
-  tags?: string[];
+  tags?: readonly string[];
   includeOrganization?: boolean;
 }
 
+const SEO_OWNER = 'seo-head';
+
+function removeMeta(attribute: 'name' | 'property', key: string) {
+  document.querySelectorAll(`meta[${attribute}="${key}"]`).forEach((node) => node.remove());
+}
+
+function upsertMeta(
+  attribute: 'name' | 'property',
+  key: string,
+  content: string,
+  articleSpecific = false,
+) {
+  let element = document.querySelector(`meta[${attribute}="${key}"]`) as HTMLMetaElement | null;
+  if (!element) {
+    element = document.createElement('meta');
+    element.setAttribute(attribute, key);
+    document.head.appendChild(element);
+  }
+  element.content = content;
+  if (articleSpecific) element.dataset.seoArticle = 'true';
+}
+
+function upsertCanonical(href: string) {
+  let element = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
+  if (!element) {
+    element = document.createElement('link');
+    element.rel = 'canonical';
+    document.head.appendChild(element);
+  }
+  element.href = href;
+}
+
+function appendOwnedSchema(schemaName: string, value: unknown): HTMLScriptElement {
+  const script = document.createElement('script');
+  script.type = 'application/ld+json';
+  script.dataset.seoOwner = SEO_OWNER;
+  script.dataset.schema = schemaName;
+  script.textContent = JSON.stringify(value).replace(/</g, '\\u003c');
+  document.head.appendChild(script);
+  return script;
+}
+
+function representativeArticleImage(image: string): boolean {
+  try {
+    const pathname = new URL(image, `${SEO_CONFIG.siteUrl}/`).pathname.toLowerCase();
+    return !pathname.endsWith('/favicon.png') && !pathname.endsWith('/logo.png');
+  } catch {
+    return false;
+  }
+}
+
 export default function SEOHead({
-  title = 'DGNO - Independent, Pro-Democracy and Anti-Corruption News',
-  description = 'Politics • Immigration • Legislation • Foreign Affairs • Economy • White House • Courts • Congress • Human Rights • Environment • Business • Tech • Finance • Opinion • Sports • Fact-Check • Health • Science • Trackers',
-  image = 'https://dgno.us/favicon.png',
-  url = 'https://dgno.us/',
+  title = SEO_CONFIG.defaultTitle,
+  headline,
+  description = SEO_CONFIG.defaultDescription,
+  image = SEO_CONFIG.defaultImage,
+  url = `${SEO_CONFIG.siteUrl}/`,
   type = 'website',
+  robots = 'index, follow, max-image-preview:large',
   publishedTime,
   modifiedTime,
   author,
   section,
   tags = [],
-  includeOrganization = false
+  includeOrganization = false,
 }: SEOHeadProps) {
-  
   useEffect(() => {
-    // Update document title
+    document.querySelectorAll(`script[data-seo-owner="${SEO_OWNER}"]`)
+      .forEach((node) => node.remove());
+    document.querySelectorAll('meta[data-seo-article="true"]')
+      .forEach((node) => node.remove());
+    document.querySelectorAll('script[data-seo-server]')
+      .forEach((node) => node.remove());
+
+    // Remove the old non-standard Twitter form before writing name attributes.
+    ['card', 'url', 'title', 'description', 'image'].forEach((field) =>
+      removeMeta('property', `twitter:${field}`));
+
     document.title = title;
-    
-    // Helper function to update meta tag
-    const updateMeta = (selector: string, content: string) => {
-      let element = document.querySelector(selector) as HTMLMetaElement;
-      if (element) {
-        element.content = content;
-      } else {
-        element = document.createElement('meta');
-        if (selector.includes('property=')) {
-          element.setAttribute('property', selector.match(/"([^"]*)"/)![1]);
-        } else if (selector.includes('name=')) {
-          element.setAttribute('name', selector.match(/"([^"]*)"/)![1]);
-        }
-        element.content = content;
-        document.head.appendChild(element);
-      }
-    };
-    
-    // Helper function to update link tag
-    const updateLink = (rel: string, href: string) => {
-      let element = document.querySelector(`link[rel="${rel}"]`) as HTMLLinkElement;
-      if (element) {
-        element.href = href;
-      } else {
-        element = document.createElement('link');
-        element.rel = rel;
-        element.href = href;
-        document.head.appendChild(element);
-      }
-    };
-    
-    // Update basic meta tags
-    updateMeta('meta[name="title"]', title);
-    updateMeta('meta[name="description"]', description);
-    
-    // Update keywords - combine article tags with core keywords
-    const keywords = buildKeywords(tags);
-    updateMeta('meta[name="keywords"]', keywords);
-    
-    // Update Open Graph tags
-    updateMeta('meta[property="og:title"]', title);
-    updateMeta('meta[property="og:description"]', description);
-    updateMeta('meta[property="og:image"]', image);
-    updateMeta('meta[property="og:url"]', url);
-    updateMeta('meta[property="og:type"]', type);
+    upsertMeta('name', 'title', title);
+    upsertMeta('name', 'description', description);
+    upsertMeta('name', 'robots', robots);
+    upsertMeta('name', 'keywords', buildKeywords(tags));
 
-    // Add image dimensions for better social media previews
-    updateMeta('meta[property="og:image:width"]', '1200');
-    updateMeta('meta[property="og:image:height"]', '630');
-    updateMeta('meta[property="og:image:type"]', 'image/png');
+    upsertMeta('property', 'og:site_name', SEO_CONFIG.siteName);
+    upsertMeta('property', 'og:title', title);
+    upsertMeta('property', 'og:description', description);
+    upsertMeta('property', 'og:image', image);
+    upsertMeta('property', 'og:url', url);
+    upsertMeta('property', 'og:type', type);
+    removeMeta('property', 'og:image:width');
+    removeMeta('property', 'og:image:height');
+    removeMeta('property', 'og:image:type');
+    const imageType = inferImageMimeType(image);
+    if (imageType) upsertMeta('property', 'og:image:type', imageType);
 
-    // Update Twitter tags
-    updateMeta('meta[property="twitter:title"]', title);
-    updateMeta('meta[property="twitter:description"]', description);
-    updateMeta('meta[property="twitter:image"]', image);
-    updateMeta('meta[property="twitter:url"]', url);
-    
-    // Article-specific meta tags
+    upsertMeta('name', 'twitter:card', 'summary_large_image');
+    upsertMeta('name', 'twitter:title', title);
+    upsertMeta('name', 'twitter:description', description);
+    upsertMeta('name', 'twitter:image', image);
+    upsertMeta('name', 'twitter:url', url);
+    upsertCanonical(url);
+
+    const ownedSchemas: HTMLScriptElement[] = [];
     if (type === 'article') {
       if (publishedTime) {
-        updateMeta('meta[property="article:published_time"]', publishedTime);
+        upsertMeta('property', 'article:published_time', publishedTime, true);
       }
       if (modifiedTime) {
-        updateMeta('meta[property="article:modified_time"]', modifiedTime);
+        upsertMeta('property', 'article:modified_time', modifiedTime, true);
       }
-      if (author) {
-        updateMeta('meta[property="article:author"]', author);
-      }
-      if (section) {
-        updateMeta('meta[property="article:section"]', section);
-      }
-      if (tags.length > 0) {
-        // Remove existing article:tag meta tags
-        document.querySelectorAll('meta[property="article:tag"]').forEach(el => el.remove());
-        // Add new ones
-        tags.forEach(tag => {
-          const tagMeta = document.createElement('meta');
-          tagMeta.setAttribute('property', 'article:tag');
-          tagMeta.content = tag;
-          document.head.appendChild(tagMeta);
-        });
-      }
-    }
-    
-    // Update canonical URL
-    updateLink('canonical', url);
-    
-    // Add JSON-LD structured data for articles
-    if (type === 'article') {
-      const existingScript = document.querySelector('script[type="application/ld+json"]');
-      if (existingScript) {
-        existingScript.remove();
-      }
-      
-      const structuredData = {
-        "@context": "https://schema.org",
-        "@type": "NewsArticle",
-        "headline": title,
-        "description": description,
-        "image": [image],
-        "datePublished": publishedTime,
-        "dateModified": modifiedTime || publishedTime,
-        "author": {
-          "@type": "Person",
-          "name": author || "DGNO Editorial Team"
+      if (author) upsertMeta('property', 'article:author', author, true);
+      if (section) upsertMeta('property', 'article:section', section, true);
+      tags.forEach((tag) => {
+        const tagMeta = document.createElement('meta');
+        tagMeta.setAttribute('property', 'article:tag');
+        tagMeta.dataset.seoArticle = 'true';
+        tagMeta.content = tag;
+        document.head.appendChild(tagMeta);
+      });
+
+      const articleSchema: Record<string, unknown> = {
+        '@context': 'https://schema.org',
+        '@type': 'NewsArticle',
+        '@id': `${url}#article`,
+        url,
+        headline: headline || title.replace(/\s+\|\s+DGNO$/i, ''),
+        description,
+        mainEntityOfPage: {'@type': 'WebPage', '@id': url},
+        publisher: {
+          '@type': SEO_CONFIG.organization['@type'],
+          '@id': SEO_CONFIG.organization['@id'],
+          name: SEO_CONFIG.organization.name,
+          url: SEO_CONFIG.organization.url,
+          logo: SEO_CONFIG.organization.logo,
         },
-        "publisher": {
-          "@type": "Organization",
-          "name": "DGNO",
-          "url": "https://dgno.us",
-          "logo": {
-            "@type": "ImageObject",
-            "url": "https://dgno.us/favicon.png"
-          }
-        },
-        "mainEntityOfPage": {
-          "@type": "WebPage",
-          "@id": url
-        },
-        "inLanguage": "en-US",
-        "articleSection": section,
-        "keywords": tags.join(', ')
+        inLanguage: 'en-US',
       };
-      
-      const script = document.createElement('script');
-      script.type = 'application/ld+json';
-      script.textContent = JSON.stringify(structuredData);
-      document.head.appendChild(script);
-    }
-
-    // Add Organization schema if requested
-    if (includeOrganization) {
-      const existingOrgSchema = document.querySelector('script[type="application/ld+json"][data-schema="organization"]');
-      if (existingOrgSchema) {
-        existingOrgSchema.remove();
+      if (representativeArticleImage(image)) articleSchema.image = [image];
+      if (publishedTime) articleSchema.datePublished = publishedTime;
+      if (modifiedTime) articleSchema.dateModified = modifiedTime;
+      if (author && author !== 'DGNO Editorial Team') {
+        articleSchema.author = {'@type': 'Person', name: author};
       }
-
-      const orgScript = document.createElement('script');
-      orgScript.type = 'application/ld+json';
-      orgScript.setAttribute('data-schema', 'organization');
-      orgScript.textContent = JSON.stringify(SEO_CONFIG.organization);
-      document.head.appendChild(orgScript);
+      if (section) articleSchema.articleSection = section;
+      if (tags.length > 0) articleSchema.keywords = [...tags];
+      ownedSchemas.push(appendOwnedSchema('news-article', articleSchema));
     }
 
-    // Cleanup function
-    return () => {
-      const orgCleanup = document.querySelector('script[type="application/ld+json"][data-schema="organization"]');
-      if (orgCleanup) orgCleanup.remove();
-    };
+    if (includeOrganization &&
+      !document.querySelector('script[data-schema="site-identity"]') &&
+      !document.querySelector('script[data-schema="organization"]')) {
+      ownedSchemas.push(appendOwnedSchema('organization', SEO_CONFIG.organization));
+    }
 
-  }, [title, description, image, url, type, publishedTime, modifiedTime, author, section, tags, includeOrganization]);
-  
-  return null; // This component doesn't render anything
+    return () => {
+      ownedSchemas.forEach((schema) => schema.remove());
+      if (type === 'article') {
+        document.querySelectorAll('meta[data-seo-article="true"]')
+          .forEach((node) => node.remove());
+      }
+    };
+  }, [
+    title,
+    headline,
+    description,
+    image,
+    url,
+    type,
+    robots,
+    publishedTime,
+    modifiedTime,
+    author,
+    section,
+    tags,
+    includeOrganization,
+  ]);
+
+  return null;
 }

@@ -1,13 +1,13 @@
 // Layout provides Header/Footer
 import { useState, useEffect } from 'react'
-import { collection, query, where, getDocs } from 'firebase/firestore'
-import { db } from '../config/firebase'
 import DonationModal from '../components/modals/DonationModal'
-import SubscribeModal from '../components/modals/SubscribeModal'
 import SEOHead from '../components/SEOHead'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faChevronDown, faChevronUp } from '@fortawesome/free-solid-svg-icons'
-import type { User } from '../types/models'
+import { Link } from 'react-router-dom'
+import useArticles from '../hooks/useArticles'
+import { getPublicAuthor } from '../services/publicAuthorService'
+import type { PublicAuthorProfile } from '../services/publicAuthorService'
 
 
 
@@ -19,51 +19,45 @@ interface FAQ {
 const faqs: FAQ[] = [
   {
     question: 'Who owns DGNO?',
-    answer: 'DGNO is a privately owned and operated independent news outlet growing and trying to gain the public\'s trust back by providing pro-democracy, anti-corruption information for the American people and the world. Our personal views will never supersede our mission to call out corruption.'
+    answer: 'DGNO is independently operated. A verified public disclosure naming the legal operator has not yet been added, so readers should treat ownership transparency as incomplete until that disclosure is published.'
   },
   {
     question: 'How we use AI for our reporting',
-    answer: 'We use a handful of AI models with strict parameters, citing a handful of trusted sources to enhance our reporting accuracy and efficiency.'
+    answer: 'AI tools may assist with research organization, source comparison, scraping, tracker normalization, or drafting. A human with publishing authority reviews work before publication, and model output is never treated as a source.'
   },
   {
     question: 'How can I support DGNO?',
-    answer: 'Times are hard, and news subscriptions are pricey. We accept one-time donations or a small monthly subscription of $3/month to help keep our journalism independent and accessible.'
+    answer: 'Read and share sourced reporting, use DGNO trackers, follow the RSS feed, send evidence-backed corrections, or make a donation when you can.'
   },
   {
     question: 'What does my money go towards?',
-    answer: 'Funds donated will go to deployment, hosting and operating costs for our developers, website sustainability, journalists and maintenance of website. As of now, we have a small team of contributors who work full time and assist DGNO as a passion project. Our goal is to make these believers full-time employees if growth allows.'
+    answer: 'Donations are intended to support documented operating costs such as hosting, software, reporting, data maintenance, and contributor work. DGNO has not yet published an audited allocation report; the funding page will be updated as material arrangements change.'
   },
   {
     question: 'Why should I trust DGNO?',
-    answer: 'We will admit our biases, we will explain why, but we will also use our Constitution and advice from experts as a measuring stick. We are also willing and believe calling out all figures—political, elite, etc.—are not above reproach.'
+    answer: 'Trust should be earned through accurate sourcing, visible uncertainty, corrections, and scrutiny without partisan exemptions. DGNO distinguishes constitutional text and controlling law from its own analysis and invites evidence-backed correction requests.'
   }
 ]
 
 export default function AboutPage() {
   const [isDonationOpen, setDonationOpen] = useState(false)
-  const [isSubscribeOpen, setSubscribeOpen] = useState(false)
-  const [staffMembers, setStaffMembers] = useState<User[]>([])
+  const [publicAuthors, setPublicAuthors] = useState<PublicAuthorProfile[]>([])
   const [expandedFAQ, setExpandedFAQ] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
+  const { articles, loading: articlesLoading } = useArticles()
 
   useEffect(() => {
-    const fetchStaff = async () => {
-      try {
-        const usersRef = collection(db, 'users')
-        const q = query(usersRef, where('isStaff', '==', true))
-        const snapshot = await getDocs(q)
-        const staff = snapshot.docs
-          .map(doc => ({ id: doc.id, ...doc.data() } as User))
-          .sort((a, b) => a.displayName.localeCompare(b.displayName))
-        setStaffMembers(staff)
-      } catch (error) {
-        console.error('Error fetching staff:', error)
-      } finally {
-        setLoading(false)
-      }
-    }
-    fetchStaff()
-  }, [])
+    if (articlesLoading) return
+    let active = true
+    const authorIds = Array.from(new Set(articles.map((article) => article.authorId).filter((id): id is string => Boolean(id)))).slice(0, 12)
+    Promise.all(authorIds.map((authorId) => getPublicAuthor(authorId).catch(() => null)))
+      .then((profiles) => {
+        if (!active) return
+        setPublicAuthors(profiles.filter((profile): profile is PublicAuthorProfile => Boolean(profile)).sort((a, b) => a.displayName.localeCompare(b.displayName)))
+      })
+      .finally(() => active && setLoading(false))
+    return () => { active = false }
+  }, [articles, articlesLoading])
 
   const toggleFAQ = (index: number) => {
     setExpandedFAQ(expandedFAQ === index ? null : index)
@@ -95,20 +89,19 @@ export default function AboutPage() {
   }, [])
 
   return (
-    <div className="bg-white">
+    <div className="bg-bg">
       <SEOHead
         title="About DGNO - Independent, Pro-Democracy News"
         description="Learn about DGNO's mission to deliver independent journalism and news with integrity. Our commitment to democracy, anti-corruption reporting, and delivering information that calls out the corruption on all sides."
         url="https://dgno.us/about"
       />
-      <main>
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           
           {/* Hero Section */}
           <div className="text-center mb-16">
             <h1 className="text-5xl font-bold text-ink mb-6">About DGNO</h1>
             <p className="text-2xl text-inkMuted leading-relaxed max-w-4xl mx-auto font-light">
-              Independent, data-driven, Constitution-backed journalism dedicated to truth, transparency, and accountability.
+              Independent, data-driven journalism with constitutional analysis, source transparency, and accountability.
             </p>
           </div>
 
@@ -118,15 +111,10 @@ export default function AboutPage() {
               <h2 className="text-4xl font-bold text-ink mb-8">Our Story</h2>
               <div className="prose prose-lg max-w-none">
                 <p className="text-lg text-inkMuted leading-relaxed mb-6 font-light">
-                  DGNO is an independent, data-driven, Constitution-backed and pro-democracy news and data outlet 
-                  dedicated to providing truth in all reporting where we noticed mass media isn't. A few examples 
-                  include the omission of American media attempting to hold Israel accountable for committing genocide 
-                  against Palestinians, and the Trump administration brokering media deals for him to look more favorable.
+                  DGNO is an independent, data-driven, pro-democracy news and public-data outlet focused on rights, corruption, and the exercise of public power. We aim to add evidence and context where coverage is incomplete while staying honest about what our own reporting has not established.
                 </p>
                 <p className="text-lg text-inkMuted leading-relaxed mb-6 font-light">
-                  In other words, we want to provide information, we will give you our take, but ultimately, you decide 
-                  what you believe and we tie in how the Constitution fits in. Since August 2025, we have committed our 
-                  time and resources to building a news platform that serves the people, not special interests.
+                  We separate what happened, what is confirmed, and what remains speculative. When constitutional issues are involved, we distinguish legal text, controlling decisions, competing arguments, and DGNO's analysis. Our public archive and trackers let readers inspect that work directly.
                 </p>
                 <p className="text-lg text-inkMuted leading-relaxed font-light">
                   We believe in the power of informed citizens to create positive change, and we're committed to 
@@ -145,7 +133,7 @@ export default function AboutPage() {
                   <span className="text-white text-3xl font-bold">I</span>
                 </div>
                 <h3 className="text-large font-regular text-ink mb-3 uppercase">Integrity</h3>
-                <p className="text-inkMuted font-light">We report the truth, even when it's inconvenient.</p>
+                <p className="text-inkMuted font-light">We correct the record when evidence shows we are wrong.</p>
               </div>
               
               <div className="text-center p-7 bg-gradient-to-br from-accent/10 to-accent/5 rounded-lg border border-accent/20 hover:shadow-lg transition-shadow">
@@ -153,7 +141,7 @@ export default function AboutPage() {
                   <span className="text-white text-3xl font-bold">I</span>
                 </div>
                 <h3 className="text-large font-regular text-ink mb-3 uppercase">Independence</h3>
-                <p className="text-inkMuted font-light">Free from political and corporate influence.</p>
+                <p className="text-inkMuted font-light">Editorial conclusions are not offered in exchange for political or financial support.</p>
               </div>
               
               <div className="text-center p-7 bg-gradient-to-br from-accent/10 to-accent/5 rounded-lg border border-accent/20 hover:shadow-lg transition-shadow">
@@ -176,19 +164,19 @@ export default function AboutPage() {
 
           {/* Staff Section */}
           <section className="mb-20">
-            <h2 className="text-3xl font-bold text-ink mb-4 text-center">Our Team</h2>
+            <h2 className="text-3xl font-bold text-ink mb-4 text-center">Recent Public Bylines</h2>
             <p className="text-center text-lg text-inkMuted mb-12 max-w-2xl mx-auto">
-              Meet the journalists, editors, and contributors who make DGNO possible.
+              Public author profiles attached to recent published DGNO stories. This is not represented as a complete staff or ownership directory.
             </p>
             
             {loading ? (
               <div className="text-center py-12">
-                <p className="text-inkMuted">Loading team members...</p>
+                <p className="text-inkMuted">Loading public bylines...</p>
               </div>
-            ) : staffMembers.length > 0 ? (
+            ) : publicAuthors.length > 0 ? (
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
-                {staffMembers.map((member) => (
-                  <div key={member.id} className="text-center group">
+                {publicAuthors.map((member) => (
+                  <Link to={`/author/${encodeURIComponent(member.id)}`} key={member.id} className="text-center group">
                     <div className="mb-4 overflow-hidden rounded-full w-32 h-32 mx-auto border-4 border-stone/20 group-hover:border-accent/50 transition-colors">
                       {member.profileImageUrl || member.avatarUrl ? (
                         <img 
@@ -206,12 +194,12 @@ export default function AboutPage() {
                       )}
                     </div>
                     <h3 className="text-lg font-semibold text-ink mb-1">{member.displayName}</h3>
-                  </div>
+                  </Link>
                 ))}
               </div>
             ) : (
               <div className="text-center py-12 bg-stone/10 rounded-lg">
-                <p className="text-inkMuted">Our team information will be available soon.</p>
+                <p className="text-inkMuted">No public author profiles are available in the recent article window.</p>
               </div>
             )}
           </section>
@@ -227,7 +215,7 @@ export default function AboutPage() {
               {faqs.map((faq, index) => (
                 <div 
                   key={index} 
-                  className="border border-stone/30 rounded-lg overflow-hidden bg-white hover:shadow-md transition-shadow"
+                  className="border border-stone/30 rounded-lg overflow-hidden bg-surface hover:shadow-md transition-shadow"
                 >
                   <button
                     onClick={() => toggleFAQ(index)}
@@ -318,24 +306,26 @@ export default function AboutPage() {
 
           {/* Support Section */}
           <section className="mb-16 bg-gradient-to-r from-accent/10 to-accent/5 rounded-2xl p-12 text-center border border-accent/20">
-            <h2 className="text-4xl font-bold text-ink mb-6">Support Independent Journalism</h2>
+            <h2 className="text-4xl font-bold text-ink mb-6">Keep Independent Journalism Useful</h2>
             <p className="text-xl text-inkMuted mb-10 max-w-3xl mx-auto leading-relaxed">
-              Quality journalism requires resources. Your support helps us maintain our independence 
-              and continue delivering the news that matters most to you.
+              Read the reporting, inspect the data, share work you find useful, and challenge us with evidence. Financial support helps DGNO maintain its independence when it is possible for you.
             </p>
-            <div className="flex flex-col sm:flex-row gap-6 justify-center">
+            <div className="flex flex-col sm:flex-row flex-wrap gap-4 justify-center">
               <button
                 onClick={() => setDonationOpen(true)}
-                className="bg-accent text-white px-8 py-4 rounded-full text-lg font-semibold hover:bg-accent/90 hover:shadow-lg transition-all transform hover:scale-105"
+                className="min-h-11 bg-accent text-white px-7 py-3 rounded-full text-base font-semibold hover:bg-accent/90 hover:shadow-lg transition-all"
               >
                 Make a Donation
               </button>
-              <button
-                onClick={() => setSubscribeOpen(true)}
-                className="border-2 border-accent text-accent px-8 py-4 rounded-full text-lg font-semibold hover:bg-accent hover:text-white hover:shadow-lg transition-all transform hover:scale-105"
+              <Link
+                to="/trackers"
+                className="inline-flex min-h-11 items-center justify-center border-2 border-accent text-accent px-7 py-3 rounded-full text-base font-semibold hover:bg-accent hover:text-white transition-all"
               >
-                Subscribe to Newsletter
-              </button>
+                Explore Public Data
+              </Link>
+              <a href="/rss.xml" className="inline-flex min-h-11 items-center justify-center px-7 py-3 rounded-full text-base font-semibold text-ink underline underline-offset-4 hover:text-accent">
+                Follow by RSS
+              </a>
             </div>
           </section>
 
@@ -343,10 +333,8 @@ export default function AboutPage() {
 
           {/* Modals */}
           <DonationModal isOpen={isDonationOpen} onClose={() => setDonationOpen(false)} />
-          <SubscribeModal open={isSubscribeOpen} onClose={() => setSubscribeOpen(false)} />
           
         </div>
-      </main>
     </div>
   );
 }

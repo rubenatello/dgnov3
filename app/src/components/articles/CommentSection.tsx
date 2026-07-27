@@ -34,7 +34,7 @@ function UserBadge({ roles, userId, articleAuthorId }: {
       return { label: 'Author', color: 'bg-accent text-white' };
     }
     if (roles?.includes('superuser') || roles?.includes('admin')) {
-      return { label: 'Staff', color: 'bg-ink text-white' };
+      return { label: 'Staff', color: 'bg-masthead text-white' };
     }
     if (roles?.includes('editor')) {
       return { label: 'Editor', color: 'bg-blue-600 text-white' };
@@ -485,7 +485,7 @@ export default function CommentSection({ articleId, articleAuthorId }: CommentSe
               onClick={() => setSortBy('recent')}
               className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
                 sortBy === 'recent'
-                  ? 'bg-white text-ink shadow-sm'
+                  ? 'bg-surface text-ink shadow-sm'
                   : 'text-gray-500 hover:text-gray-700'
               }`}
             >
@@ -495,7 +495,7 @@ export default function CommentSection({ articleId, articleAuthorId }: CommentSe
               onClick={() => setSortBy('top')}
               className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
                 sortBy === 'top'
-                  ? 'bg-white text-ink shadow-sm'
+                  ? 'bg-surface text-ink shadow-sm'
                   : 'text-gray-500 hover:text-gray-700'
               }`}
             >

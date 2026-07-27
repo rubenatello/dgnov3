@@ -12,8 +12,8 @@ export default function SubscriberGoal({ target = 50000 }: SubscriberGoalProps) 
   useEffect(() => {
     const ref = doc(db, 'stats', 'subscribers');
     const unsub = onSnapshot(ref, (snap) => {
-      const data = snap.data() as any;
-      setCount((data?.count && typeof data.count === 'number') ? data.count : 0);
+      const data = snap.data() as { count?: unknown } | undefined;
+      setCount(typeof data?.count === 'number' ? data.count : 0);
     }, (err) => {
       console.warn('SubscriberGoal snapshot error', err);
     });

@@ -86,24 +86,18 @@ export function getSidebarArticles(articles: Article[], excludeIds: string[] = [
 }
 
 /**
- * Generate a URL-friendly slug from a title
- * Format: YYYY/MM/DD/article-title-here (without 'articles/' prefix)
- * Routes expect /article/:yyyy/:mm/:dd/:slug pattern
+ * Generate the stable, date-independent slug stored on an article record.
+ * The public URL helper adds a truthful date path from `publishedAt` once the
+ * article is published; keeping the stored value date-free prevents duplicate
+ * date segments and avoids assigning draft creation dates to published URLs.
  */
-export function generateSlug(title: string, date?: Date): string {
-  const publishDate = date || new Date();
-  const year = publishDate.getFullYear();
-  const month = String(publishDate.getMonth() + 1).padStart(2, '0');
-  const day = String(publishDate.getDate()).padStart(2, '0');
-  
-  const titleSlug = title
+export function generateSlug(title: string): string {
+  return title
     .toLowerCase()
     .replace(/[^\w\s-]/g, '') // Remove special characters
     .replace(/\s+/g, '-') // Replace spaces with hyphens
     .replace(/--+/g, '-') // Replace multiple hyphens with single
-    .trim();
-  
-  return `${year}/${month}/${day}/${titleSlug}`;
+    .replace(/^-+|-+$/g, ''); // Trim leading/trailing hyphens
 }
 
 /**
@@ -259,7 +253,7 @@ function generateCustomFieldsCSV(fields: TrackerField[], incidents: TrackerIncid
   // Create data rows
   const dataRows = incidents.map(incident => {
     const values = sortedFields.map(field => {
-      const value = incident.customData?.[field.id] || '';
+      const value = incident.customData?.[field.id] ?? '';
       return escapeCSVField(formatFieldValue(field, value));
     });
     return values.join(',');

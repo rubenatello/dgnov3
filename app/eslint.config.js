@@ -6,7 +6,7 @@ import tseslint from 'typescript-eslint'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist']),
+  globalIgnores(['dist', 'playwright-report', 'test-results']),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [
@@ -18,6 +18,14 @@ export default defineConfig([
     languageOptions: {
       ecmaVersion: 2020,
       globals: globals.browser,
+    },
+  },
+  {
+    // Tiptap's generated barrel modules intentionally re-export hooks and
+    // utilities alongside components; the Fast Refresh rule cannot infer that.
+    files: ['@/components/**/index.tsx'],
+    rules: {
+      'react-refresh/only-export-components': 'off',
     },
   },
 ])
