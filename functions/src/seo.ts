@@ -40,6 +40,24 @@ export interface SitemapEntry {
   lastmod?: Date;
 }
 
+export interface PublicPageLink {
+  href: string;
+  label: string;
+  description?: string;
+}
+
+export interface PublicPageDefinition {
+  path: string;
+  title: string;
+  description: string;
+  heading: string;
+  eyebrow: string;
+  robots: "index, follow" | "noindex, follow";
+  kind: "page" | "collection" | "section";
+  sectionName?: string;
+  links?: PublicPageLink[];
+}
+
 interface DateParts {
   year: string;
   month: string;
@@ -474,6 +492,323 @@ function appAssets(): string {
     `<link rel="stylesheet" href="${APP_STYLE_PATH}">`,
     `<script type="module" src="${APP_SCRIPT_PATH}"></script>`,
   ].join("\n    ");
+}
+
+const PUBLIC_PAGE_DEFINITIONS: Record<string, PublicPageDefinition> = {
+  "/trackers": {
+    path: "/trackers",
+    title: "Public-interest data trackers | DGNO",
+    description: "Explore DGNO's active incident and accountability trackers, including methodology, source records, and downloadable public data.",
+    heading: "DGNO Trackers",
+    eyebrow: "Public-interest data",
+    robots: "index, follow",
+    kind: "collection",
+  },
+  "/reports": {
+    path: "/reports",
+    title: "BLS Jobs Report - Economic Data & Analysis | DGNO",
+    description: "Interactive Bureau of Labor Statistics employment data visualization. Track unemployment, job growth, labor participation, wages, and economic trends.",
+    heading: "BLS Jobs Report",
+    eyebrow: "Public economic data",
+    robots: "index, follow",
+    kind: "page",
+  },
+  "/investigations": {
+    path: "/investigations",
+    title: "Investigations | DGNO",
+    description: "Browse DGNO investigations featuring documented sources, timelines, and key relationships.",
+    heading: "Investigations",
+    eyebrow: "Documented reporting",
+    robots: "index, follow",
+    kind: "collection",
+    links: [{
+      href: "/investigations/epstein-files",
+      label: "Epstein Files investigation board",
+      description: "Explore people, documents, timelines, and source links.",
+    }],
+  },
+  "/investigations/epstein-files": {
+    path: "/investigations/epstein-files",
+    title: "Epstein Files Investigation Board | DGNO",
+    description: "Explore DGNO's Epstein Files investigation board: an interactive map of people, documents, timelines, and verified source links.",
+    heading: "Epstein Files Investigation Board",
+    eyebrow: "Interactive investigation",
+    robots: "index, follow",
+    kind: "page",
+  },
+  "/about": {
+    path: "/about",
+    title: "About DGNO - Independent, Pro-Democracy News",
+    description: "Learn about DGNO's independent, evidence-led journalism, public-interest data, editorial mission, and commitment to accountable government.",
+    heading: "About DGNO",
+    eyebrow: "Independent journalism",
+    robots: "index, follow",
+    kind: "page",
+  },
+  "/contact": {
+    path: "/contact",
+    title: "Contact DGNO | DGNO",
+    description: "Reach the newsroom about reporting, corrections, tracker records, accessibility, or general questions.",
+    heading: "Contact DGNO",
+    eyebrow: "Newsroom contact",
+    robots: "index, follow",
+    kind: "page",
+  },
+  "/editorial-standards": {
+    path: "/editorial-standards",
+    title: "Editorial Standards | DGNO",
+    description: "Read DGNO's standards for skeptical, constitutional, evidence-led reporting and honest treatment of uncertainty.",
+    heading: "Editorial Standards",
+    eyebrow: "How DGNO reports",
+    robots: "index, follow",
+    kind: "page",
+  },
+  "/corrections": {
+    path: "/corrections",
+    title: "Corrections and Updates | DGNO",
+    description: "Read how DGNO handles factual corrections, clarifications, and later developments so readers can understand what changed and why.",
+    heading: "Corrections and Updates",
+    eyebrow: "Accountability",
+    robots: "index, follow",
+    kind: "page",
+  },
+  "/funding": {
+    path: "/funding",
+    title: "Funding and Independence | DGNO",
+    description: "Learn how DGNO approaches reader support, editorial independence, ownership transparency, and conflicts of interest.",
+    heading: "Funding and Independence",
+    eyebrow: "Reader-supported journalism",
+    robots: "index, follow",
+    kind: "page",
+  },
+  "/privacy": {
+    path: "/privacy",
+    title: "Privacy Policy - DGNO",
+    description: "DGNO's privacy policy explains how personal information, cookies, analytics choices, and reader privacy are handled.",
+    heading: "Privacy Policy",
+    eyebrow: "Reader privacy",
+    robots: "index, follow",
+    kind: "page",
+  },
+  "/search": {
+    path: "/search",
+    title: "Search DGNO",
+    description: "Search DGNO reporting, accountability trackers, investigations, and public data resources.",
+    heading: "Search DGNO",
+    eyebrow: "Reporting and public data",
+    robots: "noindex, follow",
+    kind: "collection",
+  },
+};
+
+const PUBLIC_SECTION_NAMES: Record<string, string> = {
+  "politics": "Politics",
+  "immigration": "Immigration",
+  "legislation": "Legislation",
+  "foreign-affairs": "Foreign Affairs",
+  "economy": "Economy",
+  "white-house": "White House",
+  "courts": "Courts",
+  "congress": "Congress",
+  "human-rights": "Human Rights",
+  "environment": "Environment",
+  "business": "Business",
+  "tech": "Tech",
+  "finance": "Finance",
+  "trump-presidency": "Trump Presidency",
+  "data-analysis": "Data Analysis",
+  "opinion": "Opinion",
+  "fact-check": "Fact-Check",
+  "health": "Health",
+  "science": "Science",
+  "sports": "Sports",
+};
+
+function normalizedPublicPath(value: string): string {
+  const pathname = value.split(/[?#]/, 1)[0] || "/";
+  return pathname === "/" ? pathname : pathname.replace(/\/+$/, "");
+}
+
+function tagLabel(slug: string): string {
+  return slug.split("-")
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
+export function publicPageDefinition(
+  requestPath: string,
+): PublicPageDefinition | null {
+  const path = normalizedPublicPath(requestPath);
+  const exact = PUBLIC_PAGE_DEFINITIONS[path];
+  if (exact) return {...exact};
+
+  const sectionMatch = path.match(/^\/articles\/([a-z0-9-]+)$/);
+  if (sectionMatch) {
+    const sectionName = PUBLIC_SECTION_NAMES[sectionMatch[1]];
+    if (!sectionName) return null;
+    return {
+      path,
+      title: `${sectionName} News - Data-Driven Coverage | DGNO`,
+      description: `Latest ${sectionName.toLowerCase()} news and analysis. Independent, evidence-led coverage from DGNO.`,
+      heading: `${sectionName} News`,
+      eyebrow: "DGNO reporting",
+      robots: "index, follow",
+      kind: "section",
+      sectionName,
+    };
+  }
+
+  const tagMatch = path.match(/^\/tag\/([a-z0-9-]{1,100})$/);
+  if (tagMatch) {
+    const label = tagLabel(tagMatch[1]);
+    return {
+      path,
+      title: `${label} news and analysis | DGNO`,
+      description: `Recent DGNO reporting filed under ${label}.`,
+      heading: label,
+      eyebrow: "Topic archive",
+      robots: "index, follow",
+      kind: "collection",
+    };
+  }
+
+  return null;
+}
+
+function publicPageBreadcrumbs(
+  definition: PublicPageDefinition,
+  canonicalUrl: string,
+): JsonRecord {
+  return {
+    "@type": "BreadcrumbList",
+    "@id": `${canonicalUrl}#breadcrumb`,
+    "itemListElement": [
+      {
+        "@type": "ListItem",
+        "position": 1,
+        "name": "DGNO",
+        "item": `${SITE_URL}/`,
+      },
+      {
+        "@type": "ListItem",
+        "position": 2,
+        "name": definition.heading,
+        "item": canonicalUrl,
+      },
+    ],
+  };
+}
+
+export function renderPublicPageDocument(
+  definition: PublicPageDefinition,
+  dynamicLinks: PublicPageLink[] = [],
+): string {
+  const canonicalUrl = `${SITE_URL}${definition.path}`;
+  const links = [...(definition.links || []), ...dynamicLinks];
+  const pageType = definition.kind === "page" ? "WebPage" : "CollectionPage";
+  const pageSchema: JsonRecord = {
+    "@type": pageType,
+    "@id": `${canonicalUrl}#page`,
+    "url": canonicalUrl,
+    "name": definition.heading,
+    "description": definition.description,
+    "isPartOf": {"@id": `${SITE_URL}/#website`},
+    "inLanguage": "en-US",
+  };
+  if (links.length > 0) {
+    pageSchema.mainEntity = {
+      "@type": "ItemList",
+      "itemListElement": links.map((link, index) => ({
+        "@type": "ListItem",
+        "position": index + 1,
+        "name": link.label,
+        "url": new URL(link.href, SITE_URL).toString(),
+      })),
+    };
+  }
+  const graph = {
+    "@context": "https://schema.org",
+    "@graph": [
+      organizationSchema(),
+      websiteSchema(),
+      pageSchema,
+      publicPageBreadcrumbs(definition, canonicalUrl),
+    ],
+  };
+  const linkMarkup = links.map((link) => `
+          <li>
+            <a href="${escapeHtml(link.href)}">${escapeHtml(link.label)}</a>
+            ${link.description ? `<p>${escapeHtml(link.description)}</p>` : ""}
+          </li>`).join("");
+
+  return `<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${escapeHtml(definition.title)}</title>
+    <meta name="description" content="${escapeHtml(definition.description)}">
+    <meta name="robots" content="${definition.robots}">
+    <link rel="canonical" href="${escapeHtml(canonicalUrl)}">
+    <link rel="icon" type="image/png" href="/favicon.png">
+    <link rel="alternate" type="application/rss+xml" title="DGNO RSS" href="${SITE_URL}/rss.xml">
+    <link rel="alternate" type="application/atom+xml" title="DGNO Atom" href="${SITE_URL}/atom.xml">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="${SITE_NAME}">
+    <meta property="og:url" content="${escapeHtml(canonicalUrl)}">
+    <meta property="og:title" content="${escapeHtml(definition.title)}">
+    <meta property="og:description" content="${escapeHtml(definition.description)}">
+    <meta property="og:image" content="${SITE_URL}/logo.png">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="${escapeHtml(definition.title)}">
+    <meta name="twitter:description" content="${escapeHtml(definition.description)}">
+    <meta name="twitter:image" content="${SITE_URL}/logo.png">
+    <meta name="theme-color" content="#6e86ff">
+    <script type="application/ld+json" data-seo-server="public-page">${safeJson(graph)}</script>
+    ${appAssets()}
+  </head>
+  <body>
+    <div id="root" data-server-rendered="public-page">
+      <header class="border-b border-stone/30 bg-white">
+        <div class="mx-auto max-w-7xl px-4 py-4">
+          <a href="/" aria-label="DGNO home"><img src="/logo.png" alt="DGNO" width="48" height="48"></a>
+        </div>
+      </header>
+      <main class="mx-auto max-w-5xl px-4 py-8">
+        <p>${escapeHtml(definition.eyebrow)}</p>
+        <h1>${escapeHtml(definition.heading)}</h1>
+        <p>${escapeHtml(definition.description)}</p>
+        ${linkMarkup ? `<ul>${linkMarkup}\n        </ul>` : ""}
+      </main>
+    </div>
+  </body>
+</html>`;
+}
+
+export function renderPublicPageNotFoundDocument(requestPath: string): string {
+  const safePath = escapeHtml(requestPath);
+  return `<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Page Not Found | DGNO</title>
+    <meta name="description" content="The requested DGNO page could not be found.">
+    <meta name="robots" content="noindex, nofollow">
+    <link rel="icon" type="image/png" href="/favicon.png">
+    ${appAssets()}
+  </head>
+  <body>
+    <div id="root" data-server-rendered="not-found">
+      <main class="mx-auto max-w-3xl px-4 py-16">
+        <h1>Page not found</h1>
+        <p>No public page exists at <code>${safePath}</code>.</p>
+        <p><a href="/">Return to the DGNO homepage</a></p>
+      </main>
+    </div>
+  </body>
+</html>`;
 }
 
 export function renderArticleDocument(article: PublicArticle): string {

@@ -3,8 +3,11 @@ import react from '@vitejs/plugin-react'
 import path from 'path'
 
 // https://vite.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [react()],
+  define: {
+    'import.meta.env.VITE_USE_FIREBASE_EMULATORS': JSON.stringify(mode === 'test' ? 'true' : 'false'),
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './@'),
@@ -35,4 +38,4 @@ export default defineConfig({
       },
     },
   },
-})
+}))

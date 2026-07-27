@@ -43,15 +43,29 @@ export default function PublicTrackersPage() {
           </div>
         </header>
 
+        <div className="mt-12 min-h-[34rem] md:min-h-[20rem]">
         {loading ? (
-          <p className="mt-12 text-inkMuted" role="status">Loading trackers…</p>
+          <section className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3" aria-label="Loading active DGNO trackers" role="status">
+            {[0, 1].map((item) => (
+              <div key={item} className="min-h-64 animate-pulse rounded-xl border border-stone/50 bg-surface p-6">
+                <div className="h-6 w-4/5 rounded bg-stone-light" />
+                <div className="mt-4 h-4 w-full rounded bg-stone-light" />
+                <div className="mt-2 h-4 w-3/4 rounded bg-stone-light" />
+                <div className="mt-8 grid grid-cols-2 gap-4">
+                  <div className="h-12 rounded bg-stone-light" />
+                  <div className="h-12 rounded bg-stone-light" />
+                </div>
+                <span className="sr-only">Loading tracker summaries…</span>
+              </div>
+            ))}
+          </section>
         ) : error ? (
-          <div role="alert" className="mt-12 rounded-lg border-l-4 border-red-600 bg-red-50 p-5 text-red-900">
+          <div role="alert" className="rounded-lg border-l-4 border-red-600 bg-red-50 p-5 text-red-900">
             <p className="font-semibold">Unable to load trackers</p>
             <p className="mt-1 text-sm">{error}</p>
           </div>
         ) : trackers.length ? (
-          <section className="mt-12 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6" aria-label="Active DGNO trackers">
+          <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6" aria-label="Active DGNO trackers">
             {trackers.map((tracker) => {
               const updatedAt = toDate(tracker.updatedAt);
               return (
@@ -83,8 +97,9 @@ export default function PublicTrackersPage() {
             })}
           </section>
         ) : (
-          <p className="mt-12 rounded-lg bg-surface border border-stone/50 p-6 text-inkMuted">No active public trackers are available at this time.</p>
+          <p className="rounded-lg bg-surface border border-stone/50 p-6 text-inkMuted">No active public trackers are available at this time.</p>
         )}
+        </div>
 
         <section className="mt-14 bg-surface rounded-xl border border-stone/50 p-6 sm:p-8" aria-labelledby="tracker-method-heading">
           <h2 id="tracker-method-heading" className="text-2xl font-bold text-ink">How to read these trackers</h2>

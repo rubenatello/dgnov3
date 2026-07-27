@@ -28,7 +28,7 @@ export default function ArticleAccordion({
           {title}
         </h2>
         <div className="flex-1 h-px bg-gradient-to-r from-accent/20 to-transparent" />
-        <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">{articles.length} articles</span>
+        <span className="rounded-full bg-stone-light px-2 py-1 text-xs font-semibold text-ink-muted">{articles.length} articles</span>
       </div>
       
       <div className="space-y-0">

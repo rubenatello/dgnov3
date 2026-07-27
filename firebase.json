@@ -93,8 +93,24 @@
     ],
     "rewrites": [
       {
+        "source": "/login",
+        "destination": "/index.html"
+      },
+      {
+        "source": "/dashboard",
+        "destination": "/index.html"
+      },
+      {
+        "source": "/dashboard/**",
+        "destination": "/index.html"
+      },
+      {
         "source": "/api/articles",
         "function": "publicArticles"
+      },
+      {
+        "source": "/api/search",
+        "function": "publicSearch"
       },
       {
         "source": "/api/authors/**",
@@ -111,6 +127,62 @@
       {
         "source": "/tracker/**",
         "function": "trackerPage"
+      },
+      {
+        "source": "/trackers",
+        "function": "publicPage"
+      },
+      {
+        "source": "/reports",
+        "function": "publicPage"
+      },
+      {
+        "source": "/investigations",
+        "function": "publicPage"
+      },
+      {
+        "source": "/investigations/**",
+        "function": "publicPage"
+      },
+      {
+        "source": "/articles/**",
+        "function": "publicPage"
+      },
+      {
+        "source": "/tag/**",
+        "function": "publicPage"
+      },
+      {
+        "source": "/author/**",
+        "function": "publicPage"
+      },
+      {
+        "source": "/about",
+        "function": "publicPage"
+      },
+      {
+        "source": "/contact",
+        "function": "publicPage"
+      },
+      {
+        "source": "/editorial-standards",
+        "function": "publicPage"
+      },
+      {
+        "source": "/corrections",
+        "function": "publicPage"
+      },
+      {
+        "source": "/funding",
+        "function": "publicPage"
+      },
+      {
+        "source": "/privacy",
+        "function": "publicPage"
+      },
+      {
+        "source": "/search",
+        "function": "publicPage"
       },
       {
         "source": "/sitemap.xml",
@@ -134,7 +206,7 @@
       },
       {
         "source": "**",
-        "destination": "/index.html"
+        "function": "publicPage"
       }
     ]
   }

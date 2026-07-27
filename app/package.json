@@ -6,9 +6,10 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:test": "tsc -b && vite build --mode test",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test:e2e": "npm run build && playwright test",
+    "test:e2e": "npm run build:test && playwright test",
     "test:release": "npm run lint && npm run test:e2e"
   },
   "dependencies": {

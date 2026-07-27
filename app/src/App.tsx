@@ -22,6 +22,7 @@ const PrivacyPolicyPage = lazy(() => import('./pages/PrivacyPolicyPage'));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 const TagArticlesPage = lazy(() => import('./pages/TagArticlesPage'));
 const AuthorPage = lazy(() => import('./pages/AuthorPage'));
+const SearchPage = lazy(() => import('./pages/SearchPage'));
 const ContactPage = lazy(() => import('./pages/NewsroomTrustPages').then((module) => ({ default: module.ContactPage })));
 const EditorialStandardsPage = lazy(() => import('./pages/NewsroomTrustPages').then((module) => ({ default: module.EditorialStandardsPage })));
 const CorrectionsPage = lazy(() => import('./pages/NewsroomTrustPages').then((module) => ({ default: module.CorrectionsPage })));
@@ -69,12 +70,13 @@ function App() {
         <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><p className="text-gray-500">Loading...</p></div>}>
         <Routes>
           {/* Public Routes using shared Layout (Header/Footer/CookieConsentBanner) */}
-          <Route element={<ArticlesProvider><Layout /></ArticlesProvider>}>
-            <Route path="/" element={<HomePage />} />
+          <Route element={<Layout />}>
+            <Route path="/" element={<ArticlesProvider><HomePage /></ArticlesProvider>} />
             <Route path="/article/:slug" element={<ArticleView />} />
             <Route path="/articles/:section" element={<ArticlesSection />} />
             <Route path="/tag/:tag" element={<TagArticlesPage />} />
             <Route path="/author/:authorId" element={<AuthorPage />} />
+            <Route path="/search" element={<SearchPage />} />
             {/* Optionally support date-prefixed slugs: /article/yyyy/mm/dd/slug */}
             <Route path="/article/:yyyy/:mm/:dd/:slug" element={<ArticleView />} />
             <Route path="/article/:year/:month/:day" element={<ArticlesByDate />} />
@@ -88,7 +90,7 @@ function App() {
             {/* Investigations board */}
             <Route path="/investigations/epstein-files" element={<InvestigationsBoardPage />} />
             {/* Informational pages that should include site chrome */}
-            <Route path="/about" element={<AboutPage />} />
+            <Route path="/about" element={<ArticlesProvider><AboutPage /></ArticlesProvider>} />
             <Route path="/contact" element={<ContactPage />} />
             <Route path="/editorial-standards" element={<EditorialStandardsPage />} />
             <Route path="/corrections" element={<CorrectionsPage />} />

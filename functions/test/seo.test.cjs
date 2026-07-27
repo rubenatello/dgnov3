@@ -70,6 +70,29 @@ test('daily archive HTML is canonical, noindex, and lists canonical stories', ()
   assert.match(html, /data-seo-server="archive-page"/);
 });
 
+test('public collection HTML owns its canonical and crawlable links', () => {
+  const definition = seo.publicPageDefinition('/trackers');
+  assert.ok(definition);
+  const html = seo.renderPublicPageDocument(definition, [{
+    href: '/tracker/release-test-tracker',
+    label: 'Release Test Tracker',
+    description: 'A source-backed public tracker.',
+  }]);
+  assert.match(html, /<title>Public-interest data trackers \| DGNO<\/title>/);
+  assert.match(html, /<link rel="canonical" href="https:\/\/dgno\.us\/trackers">/);
+  assert.match(html, /<meta property="og:url" content="https:\/\/dgno\.us\/trackers">/);
+  assert.match(html, /href="\/tracker\/release-test-tracker"/);
+  assert.match(html, /data-seo-server="public-page"/);
+
+  const search = seo.publicPageDefinition('/search');
+  assert.ok(search);
+  assert.match(
+    seo.renderPublicPageDocument(search),
+    /<meta name="robots" content="noindex, follow">/,
+  );
+  assert.equal(seo.publicPageDefinition('/articles/not-a-section'), null);
+});
+
 test('Firebase rewrites preserve dynamic article and tracker delivery', () => {
   const firebase = JSON.parse(fs.readFileSync('../firebase.json', 'utf8'));
   assert.ok(firebase.hosting.rewrites.some((entry) =>
@@ -78,6 +101,20 @@ test('Firebase rewrites preserve dynamic article and tracker delivery', () => {
     entry.source === '/tracker/**' && entry.function === 'trackerPage'));
   assert.ok(firebase.hosting.rewrites.some((entry) =>
     entry.source === '/api/contact' && entry.function === 'contact'));
+  assert.ok(firebase.hosting.rewrites.some((entry) =>
+    entry.source === '/api/search' && entry.function === 'publicSearch'));
+  assert.ok(firebase.hosting.rewrites.some((entry) =>
+    entry.source === '/trackers' && entry.function === 'publicPage'));
+  assert.ok(firebase.hosting.rewrites.some((entry) =>
+    entry.source === '/articles/**' && entry.function === 'publicPage'));
+  assert.ok(firebase.hosting.rewrites.some((entry) =>
+    entry.source === '/author/**' && entry.function === 'publicPage'));
+  assert.ok(firebase.hosting.rewrites.some((entry) =>
+    entry.source === '**' && entry.function === 'publicPage'));
+  assert.ok(firebase.hosting.rewrites.some((entry) =>
+    entry.source === '/login' && entry.destination === '/index.html'));
+  assert.ok(firebase.hosting.rewrites.some((entry) =>
+    entry.source === '/dashboard/**' && entry.destination === '/index.html'));
   assert.ok(firebase.hosting.headers.some((entry) =>
     entry.source === '/dashboard' && entry.headers.some((header) =>
       header.key === 'X-Robots-Tag' && header.value.includes('noindex'))));

@@ -10,16 +10,21 @@ import {newsletterEmailEnabled} from "./email-policy";
 import {
   SITE_URL,
   PublicArticle,
+  PublicPageDefinition,
+  PublicPageLink,
   PublicTracker,
   canonicalArticlePath,
   canonicalArticleUrl,
   normalizeArticleSlug,
+  publicPageDefinition,
   publicationDayRange,
   renderArchiveDocument,
   renderArticleDocument,
   renderAtomFeed,
   renderNewsSitemap,
   renderNotFoundDocument,
+  renderPublicPageDocument,
+  renderPublicPageNotFoundDocument,
   renderRssFeed,
   renderSitemap,
   renderTrackerDocument,
@@ -728,6 +733,224 @@ const PUBLIC_ARTICLE_SECTIONS = new Set([
   "Sports",
 ]);
 
+type PublicSearchResultType = "article" | "tracker" | "resource";
+
+interface PublicSearchResult {
+  id: string;
+  type: PublicSearchResultType;
+  title: string;
+  description: string;
+  url: string;
+  kicker: string;
+  imageUrl?: string;
+  publishedAt?: string;
+  updatedAt?: string;
+  searchText: string;
+}
+
+const PUBLIC_SEARCH_ARTICLE_LIMIT = 500;
+const PUBLIC_SEARCH_RESULT_LIMIT = 30;
+const PUBLIC_SEARCH_CACHE_TTL_MS = 5 * 60 * 1000;
+const PUBLIC_SEARCH_RESOURCES: PublicSearchResult[] = [
+  {
+    id: "resource-trackers",
+    type: "resource",
+    title: "DGNO accountability trackers",
+    description: "Incident datasets with methodology, source records, and " +
+      "downloadable public data.",
+    url: "/trackers",
+    kicker: "Public-interest data",
+    searchText: "trackers accountability incidents public data methodology sources",
+  },
+  {
+    id: "resource-reports",
+    type: "resource",
+    title: "BLS Jobs Report",
+    description: "Interactive employment, unemployment, wage, and " +
+      "labor-force data from the Bureau of Labor Statistics.",
+    url: "/reports",
+    kicker: "Economic data",
+    searchText: "bls jobs employment unemployment wages labor economy reports",
+  },
+  {
+    id: "resource-investigations",
+    type: "resource",
+    title: "DGNO investigations",
+    description: "Long-form investigations with documented sources, " +
+      "timelines, and key relationships.",
+    url: "/investigations",
+    kicker: "Investigations",
+    searchText: "investigations documents timelines sources relationships",
+  },
+  {
+    id: "resource-epstein-board",
+    type: "resource",
+    title: "Epstein Files Investigation Board",
+    description: "An interactive map of people, documents, timelines, and verified source links.",
+    url: "/investigations/epstein-files",
+    kicker: "Interactive investigation",
+    searchText: "epstein files investigation people documents timeline sources",
+  },
+  {
+    id: "resource-standards",
+    type: "resource",
+    title: "DGNO Editorial Standards",
+    description: "How DGNO distinguishes confirmed facts, disputed claims, " +
+      "analysis, and speculation.",
+    url: "/editorial-standards",
+    kicker: "Newsroom standards",
+    searchText: "editorial standards confirmed facts speculation corrections sourcing",
+  },
+  {
+    id: "resource-corrections",
+    type: "resource",
+    title: "Corrections and Updates",
+    description: "DGNO's public process for corrections, clarifications, " +
+      "and later developments.",
+    url: "/corrections",
+    kicker: "Accountability",
+    searchText: "corrections updates clarification policy contact newsroom",
+  },
+];
+
+let publicSearchCache: {
+  expiresAt: number;
+  results: PublicSearchResult[];
+} | null = null;
+
+function normalizeSearchText(value: unknown): string {
+  return String(value || "")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function publicTagSlug(value: unknown): string {
+  return normalizeSearchText(value).replace(/\s+/g, "-");
+}
+
+function publicSearchQuery(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const query = normalizeSearchText(value);
+  return query.length >= 2 && query.length <= 120 ? query : null;
+}
+
+function publicSearchType(value: unknown): PublicSearchResultType | "all" | null {
+  if (value === undefined) return "all";
+  return value === "all" || value === "article" || value === "tracker" ||
+    value === "resource" ? value : null;
+}
+
+function publicSearchLimit(value: unknown): number | null {
+  if (value === undefined) return 12;
+  if (typeof value !== "string" || !/^\d{1,2}$/.test(value)) return null;
+  const parsed = Number(value);
+  return parsed >= 1 && parsed <= PUBLIC_SEARCH_RESULT_LIMIT ? parsed : null;
+}
+
+function searchScore(result: PublicSearchResult, query: string): number {
+  const terms = query.split(" ").filter(Boolean);
+  if (!terms.every((term) => result.searchText.includes(term))) return 0;
+  const title = normalizeSearchText(result.title);
+  let score = 10;
+  if (title === query) score += 100;
+  else if (title.includes(query)) score += 60;
+  score += terms.filter((term) => title.includes(term)).length * 12;
+  if (result.type === "article") score += 3;
+  return score;
+}
+
+async function loadPublicSearchResults(): Promise<PublicSearchResult[]> {
+  if (publicSearchCache && publicSearchCache.expiresAt > Date.now()) {
+    return publicSearchCache.results;
+  }
+
+  const [articleSnapshot, trackerSnapshot] = await Promise.all([
+    admin.firestore().collection("articles")
+      .where("status", "==", "published")
+      .orderBy("publishedAt", "desc")
+      .limit(PUBLIC_SEARCH_ARTICLE_LIMIT)
+      .select(...PUBLIC_ARTICLE_SUMMARY_FIELDS)
+      .get(),
+    admin.firestore().collection("trackers")
+      .where("isActive", "==", true)
+      .orderBy("updatedAt", "desc")
+      .limit(100)
+      .get(),
+  ]);
+
+  const articles = articleSnapshot.docs.flatMap((doc) => {
+    const article = {id: doc.id, ...doc.data()} as PublicArticle & {
+      authorName?: string;
+      featuredImageUrl?: string;
+      [key: string]: unknown;
+    };
+    const url = canonicalArticlePath(article);
+    if (article.isActive === false || !url || !article.title?.trim()) return [];
+    const tags = Array.isArray(article.tags) ? article.tags.join(" ") : "";
+    const searchText = normalizeSearchText([
+      article.title,
+      article.subtitle,
+      article.summary,
+      article.section,
+      tags,
+      article.authorName,
+    ].filter(Boolean).join(" "));
+    return [{
+      id: `article-${doc.id}`,
+      type: "article" as const,
+      title: article.title.trim(),
+      description: article.summary?.trim() || article.subtitle?.trim() ||
+        "Read this DGNO report.",
+      url,
+      kicker: article.section?.trim() || "Article",
+      imageUrl: article.featuredImageUrl || undefined,
+      publishedAt: isoDate(article.publishedAt) || undefined,
+      updatedAt: isoDate(article.lastUpdatedAt) || undefined,
+      searchText,
+    }];
+  });
+
+  const trackers = trackerSnapshot.docs.flatMap((doc) => {
+    const tracker = doc.data() as PublicTracker;
+    if (!tracker.slug?.trim() || !tracker.name?.trim()) return [];
+    const searchText = normalizeSearchText([
+      tracker.name,
+      tracker.description,
+      "tracker public data incidents methodology sources",
+    ].filter(Boolean).join(" "));
+    return [{
+      id: `tracker-${doc.id}`,
+      type: "tracker" as const,
+      title: tracker.name.trim(),
+      description: tracker.description?.trim() ||
+        "Explore this DGNO public-interest dataset.",
+      url: `/tracker/${encodeURIComponent(tracker.slug.trim())}`,
+      kicker: "Accountability tracker",
+      updatedAt: isoDate(tracker.updatedAt) || undefined,
+      searchText,
+    }];
+  });
+
+  const results = [...articles, ...trackers, ...PUBLIC_SEARCH_RESOURCES]
+    .map((result) => ({
+      ...result,
+      searchText: normalizeSearchText([
+        result.title,
+        result.description,
+        result.kicker,
+        result.searchText,
+      ].join(" ")),
+    }));
+  publicSearchCache = {
+    results,
+    expiresAt: Date.now() + PUBLIC_SEARCH_CACHE_TTL_MS,
+  };
+  return results;
+}
+
 function publicArticleLimit(value: unknown): number | null {
   if (value === undefined) return 24;
   if (typeof value !== "string" || !/^\d{1,3}$/.test(value)) return null;
@@ -907,6 +1130,83 @@ export const publicArticles = functions.https.onRequest(async (req, res) => {
 });
 
 /**
+ * Search the bounded public catalog without exposing article bodies or private
+ * tracker fields. The short cache keeps the no-vendor implementation practical
+ * while DGNO's archive remains below the documented scan ceiling.
+ */
+export const publicSearch = functions.https.onRequest(async (req, res) => {
+  if (req.method !== "GET" && req.method !== "HEAD") {
+    res.set("Allow", "GET, HEAD");
+    res.set("Cache-Control", "no-store");
+    res.status(405).json({error: "Method not allowed"});
+    return;
+  }
+
+  const query = publicSearchQuery(req.query.q);
+  if (!query) {
+    res.set("Cache-Control", "no-store");
+    res.status(400).json({error: "q must contain 2 to 120 searchable characters"});
+    return;
+  }
+  const requestedType = publicSearchType(req.query.type);
+  if (!requestedType) {
+    res.set("Cache-Control", "no-store");
+    res.status(400).json({error: "type must be all, article, tracker, or resource"});
+    return;
+  }
+  const requestedLimit = publicSearchLimit(req.query.limit);
+  if (!requestedLimit) {
+    res.set("Cache-Control", "no-store");
+    res.status(400).json({error: "limit must be an integer from 1 to 30"});
+    return;
+  }
+
+  try {
+    const catalog = await loadPublicSearchResults();
+    const ranked = catalog
+      .filter((result) => requestedType === "all" ||
+        result.type === requestedType)
+      .map((result) => ({result, score: searchScore(result, query)}))
+      .filter((entry) => entry.score > 0)
+      .sort((a, b) => {
+        if (a.score !== b.score) return b.score - a.score;
+        const aDate = Date.parse(a.result.updatedAt ||
+          a.result.publishedAt || "") || 0;
+        const bDate = Date.parse(b.result.updatedAt ||
+          b.result.publishedAt || "") || 0;
+        return bDate - aDate;
+      });
+    const results = ranked.slice(0, requestedLimit).map(({result}) => ({
+      id: result.id,
+      type: result.type,
+      title: result.title,
+      description: result.description,
+      url: result.url,
+      kicker: result.kicker,
+      imageUrl: result.imageUrl,
+      publishedAt: result.publishedAt,
+      updatedAt: result.updatedAt,
+    }));
+
+    res.set("Content-Type", "application/json; charset=utf-8");
+    res.set("Cache-Control", "public, max-age=60, s-maxage=300, " +
+      "stale-while-revalidate=1800");
+    res.set("X-Content-Type-Options", "nosniff");
+    res.status(200).json({
+      query,
+      type: requestedType,
+      results,
+      total: ranked.length,
+      catalogLimit: PUBLIC_SEARCH_ARTICLE_LIMIT,
+    });
+  } catch (error) {
+    console.error("Public search error:", error);
+    res.set("Cache-Control", "no-store");
+    res.status(500).json({error: "Search is temporarily unavailable"});
+  }
+});
+
+/**
  * Return a public author profile without exposing the private users document.
  * A profile is eligible only when its UID is attached to published reporting.
  */
@@ -938,19 +1238,9 @@ export const publicAuthor = functions.https.onRequest(async (req, res) => {
       return;
     }
 
-    const userSnapshot = await admin.firestore().collection("users")
-      .where(admin.firestore.FieldPath.documentId(), "==", authorId)
-      .limit(1)
-      .select(
-        "displayName",
-        "bio",
-        "avatarUrl",
-        "profileImageUrl",
-        "website",
-        "isActive",
-      )
+    const userDocument = await admin.firestore().collection("users")
+      .doc(authorId)
       .get();
-    const userDocument = userSnapshot.docs[0];
     const user = userDocument?.data();
     if (!user || user.isActive === false ||
       typeof user.displayName !== "string" || !user.displayName.trim()) {
@@ -977,6 +1267,158 @@ export const publicAuthor = functions.https.onRequest(async (req, res) => {
     console.error("Public author profile error:", error);
     res.set("Cache-Control", "no-store");
     res.status(500).json({error: "Unable to load author profile"});
+  }
+});
+
+async function loadPublicAuthorPage(requestedPath: string): Promise<{
+  definition: PublicPageDefinition;
+  links: PublicPageLink[];
+} | null> {
+  const match = requestedPath.match(
+    /^\/author\/([A-Za-z0-9_-]{1,128})\/?$/,
+  );
+  if (!match) return null;
+
+  const authorId = match[1];
+  const [articleSnapshot, userSnapshot] = await Promise.all([
+    admin.firestore().collection("articles")
+      .where("status", "==", "published")
+      .where("authorId", "==", authorId)
+      .orderBy("publishedAt", "desc")
+      .limit(24)
+      .select(...PUBLIC_ARTICLE_SUMMARY_FIELDS)
+      .get(),
+    admin.firestore().collection("users").doc(authorId).get(),
+  ]);
+  const user = userSnapshot.data();
+  const displayName = typeof user?.displayName === "string" ?
+    user.displayName.trim() : "";
+  const links = articleSnapshot.docs.flatMap((doc) => {
+    const article = {id: doc.id, ...doc.data()} as PublicArticle;
+    const href = canonicalArticlePath(article);
+    if (article.isActive === false || !href || !article.title?.trim()) {
+      return [];
+    }
+    return [{
+      href,
+      label: article.title.trim(),
+      description: article.summary?.trim() || article.subtitle?.trim(),
+    }];
+  });
+  if (!user || !displayName || user.isActive === false || links.length === 0) {
+    return null;
+  }
+
+  const bio = typeof user.bio === "string" ? user.bio.trim() : "";
+  return {
+    definition: {
+      path: `/author/${encodeURIComponent(authorId)}`,
+      title: `${displayName} | DGNO`,
+      description: bio || `Published reporting by ${displayName} at DGNO.`,
+      heading: displayName,
+      eyebrow: "DGNO contributor",
+      robots: "index, follow",
+      kind: "collection",
+    },
+    links,
+  };
+}
+
+/**
+ * Serve route-owned HTML for public collection, section, search, and trust
+ * pages. React replaces the compact first response after boot, while crawlers
+ * and link unfurlers receive the same canonical identity immediately.
+ */
+export const publicPage = functions.https.onRequest(async (req, res) => {
+  res.set("X-Content-Type-Options", "nosniff");
+  res.set("X-Frame-Options", "DENY");
+  res.set("Referrer-Policy", "strict-origin-when-cross-origin");
+
+  if (req.method !== "GET" && req.method !== "HEAD") {
+    res.set("Allow", "GET, HEAD");
+    res.set("Cache-Control", "no-store");
+    res.status(405).send("Method not allowed");
+    return;
+  }
+
+  const requestedPath = new URL(req.originalUrl, SITE_URL).pathname;
+  let definition = publicPageDefinition(requestedPath);
+
+  try {
+    let links: PublicPageLink[] = [];
+    if (!definition) {
+      const authorPage = await loadPublicAuthorPage(requestedPath);
+      if (!authorPage) {
+        res.set("Content-Type", "text/html; charset=utf-8");
+        res.set("Cache-Control", "public, max-age=60");
+        res.set("X-Robots-Tag", "noindex, nofollow");
+        res.status(404).send(renderPublicPageNotFoundDocument(requestedPath));
+        return;
+      }
+      definition = authorPage.definition;
+      links = authorPage.links;
+    } else if (definition.path === "/trackers") {
+      const trackers = await getActiveTrackers();
+      links = trackers
+        .sort((a, b) => (toDate(b.updatedAt)?.getTime() || 0) -
+          (toDate(a.updatedAt)?.getTime() || 0))
+        .flatMap((tracker) => {
+          const slug = tracker.slug?.trim();
+          const name = tracker.name?.trim();
+          if (!slug || !name) return [];
+          return [{
+            href: `/tracker/${encodeURIComponent(slug)}`,
+            label: name,
+            description: tracker.description?.trim(),
+          }];
+        });
+    } else if (definition.sectionName) {
+      const snapshot = await admin.firestore().collection("articles")
+        .where("status", "==", "published")
+        .where("section", "==", definition.sectionName)
+        .orderBy("publishedAt", "desc")
+        .limit(24)
+        .select(...PUBLIC_ARTICLE_SUMMARY_FIELDS)
+        .get();
+      links = snapshot.docs.flatMap((doc) => {
+        const article = {id: doc.id, ...doc.data()} as PublicArticle;
+        const href = canonicalArticlePath(article);
+        if (article.isActive === false || !href || !article.title?.trim()) {
+          return [];
+        }
+        return [{
+          href,
+          label: article.title.trim(),
+          description: article.summary?.trim() || article.subtitle?.trim(),
+        }];
+      });
+    } else if (definition.path.startsWith("/tag/")) {
+      const requestedTag = definition.path.slice("/tag/".length);
+      const articles = await getPublishedArticles();
+      links = articles.flatMap((article) => {
+        const matches = Array.isArray(article.tags) && article.tags.some((tag) =>
+          publicTagSlug(tag) === requestedTag);
+        const href = matches ? canonicalArticlePath(article) : null;
+        if (!href || !article.title?.trim()) return [];
+        return [{
+          href,
+          label: article.title.trim(),
+          description: article.summary?.trim() || article.subtitle?.trim(),
+        }];
+      }).sort((a, b) => a.label.localeCompare(b.label)).slice(0, 50);
+    }
+
+    res.set("Content-Type", "text/html; charset=utf-8");
+    res.set("Cache-Control", "public, max-age=300, s-maxage=600, " +
+      "stale-while-revalidate=86400");
+    res.set("X-Robots-Tag", definition.robots);
+    res.status(200).send(renderPublicPageDocument(definition, links));
+  } catch (error) {
+    console.error("Public page renderer error:", error);
+    res.set("Content-Type", "text/html; charset=utf-8");
+    res.set("Cache-Control", "no-store");
+    res.set("X-Robots-Tag", "noindex, nofollow");
+    res.status(500).send("Unable to load this public page");
   }
 });
 

@@ -1,6 +1,10 @@
 export default function LoadingScreen({ message = 'Loading…' }: { message?: string }) {
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-gradient-to-br from-white via-gray-50 to-stone/20">
+    <div
+      className="grid min-h-[calc(100dvh-4.5rem)] place-items-center bg-gradient-to-br from-surface via-bg to-stone-light"
+      role="status"
+      aria-live="polite"
+    >
       <div className="flex flex-col items-center gap-4 p-8">
         {/* Logo */}
         <img 
@@ -13,7 +17,7 @@ export default function LoadingScreen({ message = 'Loading…' }: { message?: st
           <div className="w-12 h-12 border-4 border-gray-200 rounded-full"></div>
           <div className="absolute top-0 left-0 w-12 h-12 border-4 border-transparent border-t-accent rounded-full animate-spin"></div>
         </div>
-        <div className="text-sm text-inkMuted font-medium">{message}</div>
+        <div className="text-sm text-ink-muted font-medium">{message}</div>
       </div>
     </div>
   );

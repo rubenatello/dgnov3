@@ -31,6 +31,7 @@ test.beforeAll(async ({ request }) => {
     content: { stringValue: '<p>Verified article body.</p>' },
     featuredImageUrl: { stringValue: 'https://images.example.org/reporting/photo.jpg' },
     featuredImageDescription: { stringValue: 'A representative reporting image.' },
+    authorId: { stringValue: 'release-test-author' },
     authorName: { stringValue: 'Test Reporter' },
     section: { stringValue: 'Politics' },
     tags: { arrayValue: { values: [{ stringValue: 'civil rights' }] } },
@@ -38,6 +39,11 @@ test.beforeAll(async ({ request }) => {
     isActive: { booleanValue: true },
     publishedAt: { timestampValue: '2026-07-24T19:00:00.000Z' },
     lastUpdatedAt: { timestampValue: '2026-07-24T20:00:00.000Z' },
+  });
+  await seedDocument(request, 'users', 'release-test-author', {
+    displayName: { stringValue: 'Test Reporter' },
+    bio: { stringValue: 'A DGNO reporter profile used only in emulator tests.' },
+    isActive: { booleanValue: true },
   });
   await seedDocument(request, 'trackers', 'release-test-tracker', {
     name: { stringValue: 'Release Test Tracker' },
@@ -77,8 +83,8 @@ test('article aliases redirect and crawler HTML owns canonical metadata', async 
   expect(html).toContain('<meta property="og:image" content="https://images.example.org/reporting/photo.jpg">');
 });
 
-test('missing article and tracker routes return real noindex 404 responses', async ({ request }) => {
-  for (const path of ['/article/does-not-exist', '/tracker/does-not-exist']) {
+test('missing public routes return real noindex 404 responses', async ({ request }) => {
+  for (const path of ['/article/does-not-exist', '/tracker/does-not-exist', '/not-a-real-public-page']) {
     const response = await request.get(path);
     expect(response.status(), path).toBe(404);
     expect(response.headers()['x-robots-tag'], path).toContain('noindex');
@@ -122,6 +128,60 @@ test('bounded article API validates and applies section/date filters', async ({ 
   expect((await request.get('/api/articles?publishedOn=2026-02-30')).status()).toBe(400);
   expect((await request.get('/api/articles?section=NotASection')).status()).toBe(400);
   expect((await request.get('/api/articles?section=Politics&publishedOn=2026-07-24')).status()).toBe(400);
+});
+
+test('public collection routes return self-canonical crawler HTML', async ({ request }) => {
+  const cases = [
+    ['/trackers', 'https://dgno.us/trackers', 'DGNO Trackers'],
+    ['/articles/politics', 'https://dgno.us/articles/politics', 'Politics News'],
+    ['/author/release-test-author', 'https://dgno.us/author/release-test-author', 'Test Reporter'],
+    ['/about', 'https://dgno.us/about', 'About DGNO'],
+  ];
+  for (const [path, canonical, heading] of cases) {
+    const response = await request.get(path);
+    expect(response.status(), path).toBe(200);
+    const html = await response.text();
+    expect(html, path).toContain(`<link rel="canonical" href="${canonical}">`);
+    expect(html, path).toContain(`<meta property="og:url" content="${canonical}">`);
+    expect(html, path).toContain(`>${heading}</h1>`);
+    expect(html, path).toContain('data-seo-server="public-page"');
+  }
+
+  expect(await (await request.get('/trackers')).text()).toContain('/tracker/release-test-tracker');
+  expect(await (await request.get('/articles/politics')).text()).toContain('/article/2026/07/24/release-test-story');
+  const search = await request.get('/search?q=verified');
+  expect(search.headers()['x-robots-tag']).toContain('noindex');
+  expect((await request.get('/login')).status()).toBe(200);
+  expect((await request.get('/dashboard')).status()).toBe(200);
+});
+
+test('public search covers articles, trackers, and static resources', async ({ request }) => {
+  const article = await request.get('/api/search?q=verified&type=article&limit=10');
+  expect(article.status()).toBe(200);
+  const articlePayload = await article.json();
+  expect(articlePayload.results).toEqual(expect.arrayContaining([
+    expect.objectContaining({
+      type: 'article',
+      title: 'A verified DGNO test article',
+      url: '/article/2026/07/24/release-test-story',
+    }),
+  ]));
+  expect(articlePayload.results[0]).not.toHaveProperty('searchText');
+
+  const tracker = await request.get('/api/search?q=release%20test%20tracker&type=tracker');
+  expect(tracker.status()).toBe(200);
+  expect((await tracker.json()).results).toEqual(expect.arrayContaining([
+    expect.objectContaining({ type: 'tracker', url: '/tracker/release-test-tracker' }),
+  ]));
+
+  const resource = await request.get('/api/search?q=unemployment&type=resource');
+  expect(resource.status()).toBe(200);
+  expect((await resource.json()).results).toEqual(expect.arrayContaining([
+    expect.objectContaining({ type: 'resource', url: '/reports' }),
+  ]));
+
+  expect((await request.get('/api/search?q=a')).status()).toBe(400);
+  expect((await request.get('/api/search?q=verified&type=private')).status()).toBe(400);
 });
 
 test('contact API rejects unsafe requests before delivery', async ({ request }) => {
@@ -203,6 +263,35 @@ test('shared shell stays within target viewports with one heading and main landm
   }
 });
 
+test('article and tracker loading keep mobile layout shifts below the good threshold', async ({ page, context }) => {
+  await context.addCookies([CONSENT_COOKIE]);
+  await page.setViewportSize({ width: 390, height: 900 });
+  await page.addInitScript(() => {
+    const metrics = window as typeof window & { __dgnoCls?: number };
+    metrics.__dgnoCls = 0;
+    new PerformanceObserver((list) => {
+      for (const entry of list.getEntries()) {
+        const shift = entry as PerformanceEntry & { hadRecentInput?: boolean; value?: number };
+        if (!shift.hadRecentInput) metrics.__dgnoCls = (metrics.__dgnoCls || 0) + (shift.value || 0);
+      }
+    }).observe({ type: 'layout-shift', buffered: true });
+  });
+
+  await page.goto('/article/2026/07/24/release-test-story');
+  await expect(page.getByRole('button', { name: 'Open navigation menu' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'A verified DGNO test article' })).toBeVisible();
+  await page.waitForTimeout(750);
+  expect(await page.evaluate(() => (window as typeof window & { __dgnoCls?: number }).__dgnoCls || 0))
+    .toBeLessThan(0.1);
+
+  await page.goto('/trackers');
+  await expect(page.getByRole('button', { name: 'Open navigation menu' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Release Test Tracker' })).toBeVisible();
+  await page.waitForTimeout(750);
+  expect(await page.evaluate(() => (window as typeof window & { __dgnoCls?: number }).__dgnoCls || 0))
+    .toBeLessThan(0.1);
+});
+
 test('homepage exposes reporting, public data, RSS, and no subscription pitch', async ({ page, context }) => {
   await context.addCookies([CONSENT_COOKIE]);
   await page.setViewportSize({ width: 390, height: 900 });
@@ -211,15 +300,16 @@ test('homepage exposes reporting, public data, RSS, and no subscription pitch', 
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({
-        articles: [{
-          id: 'homepage-ui-article',
-          title: 'A verified DGNO homepage article',
-          slug: 'homepage-ui-article',
+        articles: Array.from({ length: 20 }, (_, index) => ({
+          id: `homepage-ui-article-${index}`,
+          title: `A verified DGNO homepage article ${index}`,
+          slug: `homepage-ui-article-${index}`,
           summary: 'A source-backed summary for the consumer homepage test.',
           authorName: 'Test Reporter',
           section: 'Politics',
-          publishedAt: '2026-07-24T19:00:00.000Z',
-        }],
+          tags: [2, 6].includes(index) ? ['Trump Administration'] : ['accountability'],
+          publishedAt: new Date(Date.UTC(2026, 6, 24 - index, 19)).toISOString(),
+        })),
       }),
     });
   });
@@ -232,6 +322,9 @@ test('homepage exposes reporting, public data, RSS, and no subscription pitch', 
   await expect(page.getByText(/subscribe to newsletter/i)).toHaveCount(0);
   await expect(page.locator('main')).toHaveCount(1);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+  const articleLinks = await page.locator('main a[href*="/article/"]').evaluateAll((links) =>
+    links.map((link) => link.getAttribute('href')).filter(Boolean));
+  expect(new Set(articleLinks).size).toBe(articleLinks.length);
 
   for (const theme of ['light', 'dark']) {
     await page.evaluate((selectedTheme) => window.localStorage.setItem('dgno-public-theme', selectedTheme), theme);
@@ -275,6 +368,49 @@ test('donation flow is public and links to Stripe checkout', async ({ page, cont
     .toHaveAttribute('href', 'https://donate.stripe.com/6oU28rgKpd6leZxb53bQY00');
   await expect(dialog.getByRole('link', { name: 'Donate monthly' }))
     .toHaveAttribute('href', 'https://buy.stripe.com/28E3cvgKp4zPdVt0qpbQY01');
+});
+
+test('search page presents mixed public results and remains noindex', async ({ page, context }) => {
+  await context.addCookies([CONSENT_COOKIE]);
+  await page.route('**/api/search?**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        query: 'verified',
+        type: 'all',
+        total: 2,
+        results: [
+          {
+            id: 'article-result',
+            type: 'article',
+            title: 'Verified public reporting',
+            description: 'A source-backed article result.',
+            url: '/article/2026/07/24/release-test-story',
+            kicker: 'Politics',
+            publishedAt: '2026-07-24T19:00:00.000Z',
+          },
+          {
+            id: 'tracker-result',
+            type: 'tracker',
+            title: 'Verified accountability tracker',
+            description: 'A source-backed tracker result.',
+            url: '/tracker/release-test-tracker',
+            kicker: 'Accountability tracker',
+            updatedAt: '2026-07-24T20:00:00.000Z',
+          },
+        ],
+      }),
+    });
+  });
+
+  await page.setViewportSize({ width: 390, height: 900 });
+  await page.goto('/search?q=verified');
+  await expect(page.getByRole('heading', { level: 1, name: 'Search DGNO' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 3, name: 'Verified public reporting' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 3, name: 'Verified accountability tracker' })).toBeVisible();
+  await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'noindex, follow');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });
 
 test('mobile navigation and desktop search trap focus, close on Escape, and restore focus', async ({ page, context }) => {

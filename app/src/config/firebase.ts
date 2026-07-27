@@ -1,15 +1,17 @@
 import { initializeApp } from 'firebase/app';
-import { getFirestore } from 'firebase/firestore';
-import { getAuth } from 'firebase/auth';
+import { connectFirestoreEmulator, getFirestore } from 'firebase/firestore';
+import { connectAuthEmulator, getAuth } from 'firebase/auth';
 import { getStorage } from 'firebase/storage';
 import { setPersistence, browserLocalPersistence } from 'firebase/auth';
 
 // Firebase project configuration
 // These values are safe to expose in client-side code
+const useFirebaseEmulators = import.meta.env.VITE_USE_FIREBASE_EMULATORS === 'true';
+
 const firebaseConfig = {
   apiKey: "AIzaSyBn5GWdFHfWsdC8utmhZcXX9hMMnQG3xgU",
   authDomain: "dgno-675a8.firebaseapp.com",
-  projectId: "dgno-675a8",
+  projectId: useFirebaseEmulators ? "demo-dgno" : "dgno-675a8",
   storageBucket: "dgno-675a8.firebasestorage.app", // Updated to new Firebase Storage domain
   messagingSenderId: "626313501573",
   appId: "1:626313501573:web:AIzaSyBn5GWdFHfWsdC8utmhZcXX9hMMnQG3xgU"
@@ -22,6 +24,11 @@ const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
 export const auth = getAuth(app);
 export const storage = getStorage(app);
+
+if (useFirebaseEmulators) {
+  connectFirestoreEmulator(db, '127.0.0.1', 8080);
+  connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
+}
 
 export default app;
 

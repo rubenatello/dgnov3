@@ -21,7 +21,7 @@ export default defineConfig({
     trace: 'retain-on-failure',
   },
   webServer: {
-    command: 'npm --prefix functions run build && firebase emulators:start --only "hosting,functions,firestore" --project demo-dgno',
+    command: 'npm --prefix functions run build && firebase emulators:start --only "hosting,functions,firestore,auth" --project demo-dgno',
     cwd: path.resolve(appDirectory, '..'),
     url: 'http://127.0.0.1:5000',
     reuseExistingServer: false,

@@ -10,6 +10,23 @@ import {
 import SEOHead from '../SEOHead';
 import { SEO_CONFIG } from '../../utils/seoConstants';
 import useArticles from '../../hooks/useArticles';
+import { toDate } from '../../utils/dateUtils';
+
+function claimUniqueArticles<T extends { id?: string; slug: string }>(
+  candidates: T[],
+  used: Set<string>,
+  limit: number,
+): T[] {
+  const claimed: T[] = [];
+  for (const article of candidates) {
+    const identity = article.id || article.slug;
+    if (!identity || used.has(identity)) continue;
+    used.add(identity);
+    claimed.push(article);
+    if (claimed.length === limit) break;
+  }
+  return claimed;
+}
 
 const reportingStandards = [
   {
@@ -32,17 +49,32 @@ export default function HomePage() {
   // The summary endpoint is newest-first. Avoid editorial or popularity labels
   // that the stored data cannot currently substantiate.
   const featured = articles[0];
-  const topStories = articles.slice(1, 5);
-  const todaysArticles = getTodaysArticles(articles);
-  const trumpArticles = getTrumpPresidencyArticles(articles);
-
-  const excludeIds = [featured?.id, ...topStories.map((article) => article.id)].filter(Boolean) as string[];
-  const latestArticles = getLatestArticles(articles, excludeIds, 8);
-  const sidebarArticles = getLatestArticles(
-    articles,
-    [...excludeIds, ...latestArticles.map((article) => article.id || '')],
+  const usedArticles = new Set<string>();
+  if (featured) usedArticles.add(featured.id || featured.slug);
+  const topStories = claimUniqueArticles(articles.slice(1), usedArticles, 4);
+  const todaysArticles = claimUniqueArticles(
+    getTodaysArticles(articles),
+    usedArticles,
+    8,
+  );
+  const trumpArticles = claimUniqueArticles(
+    getTrumpPresidencyArticles(articles),
+    usedArticles,
+    8,
+  );
+  const latestArticles = claimUniqueArticles(
+    getLatestArticles(articles, [], articles.length),
+    usedArticles,
+    8,
+  );
+  const sidebarArticles = claimUniqueArticles(
+    getLatestArticles(articles, [], articles.length),
+    usedArticles,
     6,
   );
+  const featuredDate = toDate(featured?.publishedAt);
+  const featuredIsRecent = Boolean(featuredDate &&
+    Date.now() - featuredDate.getTime() <= 14 * 24 * 60 * 60 * 1000);
 
   return (
     <>
@@ -122,8 +154,12 @@ export default function HomePage() {
                 <section className="mb-10 sm:mb-14" aria-labelledby="latest-heading">
                   <div className="mb-5 flex items-end justify-between gap-4 border-b-2 border-accent pb-3">
                     <div>
-                      <p className="text-xs font-black uppercase tracking-[0.2em] text-accent">The latest</p>
-                      <h2 id="latest-heading" className="mt-1 text-2xl font-bold text-ink sm:text-3xl">Reporting now</h2>
+                      <p className="text-xs font-black uppercase tracking-[0.2em] text-accent">
+                        {featuredIsRecent ? 'The latest' : 'From the archive'}
+                      </p>
+                      <h2 id="latest-heading" className="mt-1 text-2xl font-bold text-ink sm:text-3xl">
+                        {featuredIsRecent ? 'Latest reporting' : 'Most recent DGNO report'}
+                      </h2>
                     </div>
                   </div>
                   <ArticleCard article={featured} variant="featured" />

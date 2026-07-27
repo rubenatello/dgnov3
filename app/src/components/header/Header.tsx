@@ -1,5 +1,4 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
-import useArticles from '../../hooks/useArticles';
 import DashboardOverlayButton from '../DashboardOverlayButton';
 import MobileHeader from './MobileHeader';
 import NavMenu from './NavMenu';
@@ -12,7 +11,6 @@ export default function Header() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [donationOpen, setDonationOpen] = useState(false);
-  const { articles } = useArticles();
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 0);
@@ -72,7 +70,7 @@ export default function Header() {
 
       <Suspense fallback={null}>
         {searchOpen && (
-          <SearchModal open onClose={() => setSearchOpen(false)} articles={articles} />
+          <SearchModal open onClose={() => setSearchOpen(false)} />
         )}
         {donationOpen && (
           <DonationModal isOpen onClose={() => setDonationOpen(false)} />

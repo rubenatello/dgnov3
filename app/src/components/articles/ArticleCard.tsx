@@ -16,17 +16,22 @@ function toDate(dateString: unknown): Date | null {
   return isNaN(date.getTime()) ? null : date;
 }
 
-function getRelativeTime(dateString: unknown): string {
+function getDisplayDate(dateString: unknown): string {
   const date = toDate(dateString);
   if (!date) return '';
   const now = new Date();
   const diff = Math.floor((now.getTime() - date.getTime()) / 1000);
+  if (diff < 0 || diff >= 604800) {
+    return new Intl.DateTimeFormat('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    }).format(date);
+  }
   if (diff < 60) return 'just now';
   if (diff < 3600) return `${Math.floor(diff / 60)} min ago`;
   if (diff < 86400) return `${Math.floor(diff / 3600)} hr ago`;
-  if (diff < 2592000) return `${Math.floor(diff / 86400)} days ago`;
-  if (diff < 31536000) return `${Math.floor(diff / 2592000)} months ago`;
-  return `${Math.floor(diff / 31536000)} years ago`;
+  return `${Math.floor(diff / 86400)} days ago`;
 }
 
 type ArticleCardVariant = 'featured' | 'secondary' | 'compact' | 'list';
@@ -109,7 +114,7 @@ export default function ArticleCard({ article, variant = 'compact' }: ArticleCar
             <div className="flex items-center gap-3 text-sm opacity-80">
               <span className="font-medium">{article.authorName ? `By ${article.authorName}` : 'Byline unavailable'}</span>
               <span className="text-white/50">•</span>
-              {publishedDate && <time dateTime={publishedDate.toISOString()}>{getRelativeTime(publishedAt)}</time>}
+              {publishedDate && <time dateTime={publishedDate.toISOString()}>{getDisplayDate(publishedAt)}</time>}
               {readingTime && <span className="text-white/50">•</span>}
               {readingTime && <span className="bg-white/20 backdrop-blur-sm px-2 py-0.5 rounded text-xs">{readingTime}</span>}
             </div>
@@ -169,7 +174,7 @@ export default function ArticleCard({ article, variant = 'compact' }: ArticleCar
               <div className="flex items-center justify-between text-xs text-sand">
                 <span className="font-medium">{article.authorName ? `By ${article.authorName}` : 'Byline unavailable'}</span>
                 <div className="flex items-center gap-2">
-                  {publishedDate && <time dateTime={publishedDate.toISOString()}>{getRelativeTime(publishedAt)}</time>}
+                  {publishedDate && <time dateTime={publishedDate.toISOString()}>{getDisplayDate(publishedAt)}</time>}
                   {readingTime && <span className="text-gray-300">•</span>}
                   {readingTime && <span className="text-accent">{readingTime}</span>}
                 </div>
@@ -204,7 +209,7 @@ export default function ArticleCard({ article, variant = 'compact' }: ArticleCar
               <div className="flex items-center gap-2 text-xs text-sand">
                 <span className="font-medium">{article.authorName || 'Byline unavailable'}</span>
                 <span className="text-gray-300">•</span>
-                {publishedDate && <time dateTime={publishedDate.toISOString()}>{getRelativeTime(publishedAt)}</time>}
+                {publishedDate && <time dateTime={publishedDate.toISOString()}>{getDisplayDate(publishedAt)}</time>}
                 {readingTime && <span className="text-gray-300">•</span>}
                 {readingTime && <span className="text-accent font-medium">{readingTime}</span>}
               </div>
@@ -249,7 +254,7 @@ export default function ArticleCard({ article, variant = 'compact' }: ArticleCar
               {article.title}
             </h3>
             <div className="flex items-center gap-1.5 text-[11px] text-sand mt-1">
-              {publishedDate && <time dateTime={publishedDate.toISOString()}>{getRelativeTime(publishedAt)}</time>}
+              {publishedDate && <time dateTime={publishedDate.toISOString()}>{getDisplayDate(publishedAt)}</time>}
               {readingTime && <span className="text-gray-300">•</span>}
               {readingTime && <span className="text-accent">{readingTime}</span>}
             </div>

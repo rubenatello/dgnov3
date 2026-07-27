@@ -1,7 +1,7 @@
 # DGNO News and Data Modernization Plan
 
-Status: production release complete; measurement and external-account follow-ups remain
-Last updated: 2026-07-26
+Status: production release complete; next public-quality slice implemented locally and awaiting release authorization
+Last updated: 2026-07-27
 Scope: DGNO public news, article, tracker, navigation, accessibility, performance, and search-discovery experience on mobile and desktop
 
 This file is the durable source of truth for DGNO site-quality work. Agents should read the ownership and guardrails below before changing public-site behavior, mark only verified work complete, and leave deployment or external-account actions unchecked until the user explicitly authorizes them.
@@ -158,6 +158,32 @@ Owner: Codex integrator; Beacon reviews search artifacts
 - [x] Run BCP only after the user says exactly `run BCP`. Completed 2026-07-26 on `v1.0.2`.
 - [x] Deploy only after separate explicit user authorization. Completed 2026-07-26 to Firebase project `dgno-675a8`.
 
+## Phase 9 — Public discovery, resilience, and freshness
+
+Owners: Codex integrator; Beacon reviews crawler delivery and search-discovery semantics
+
+- [x] Serve route-correct crawler HTML, canonicals, social metadata, schema, and crawlable links for public section, tracker-directory, investigation, report, tag, and newsroom-trust routes.
+- [x] Serve public contributor profiles with route-correct metadata and recent published-work links.
+- [x] Return a real noindex 404 for unsupported public-page routes handled by the server renderer.
+- [x] Add a bounded mixed-catalog public search API for articles, trackers, and durable DGNO resources without exposing article bodies.
+- [x] Add a filterable `/search` results page and upgrade the header search dialog to query the complete bounded public catalog.
+- [x] Keep internal search-result URLs out of the index while allowing crawlers to follow result links.
+- [x] Add public-route error containment with reload and home recovery paths.
+- [x] Keep loading UI in document flow and reserve tracker-directory result space to prevent severe layout shifts.
+- [x] Prevent duplicate article promotion across homepage modules and clearly label an older lead story as archival/current-most-recent coverage.
+- [x] Use absolute publication dates for stories older than seven days instead of misleading relative-time labels.
+- [x] Isolate browser tests to the Firebase demo project and Auth/Firestore emulators so production data is never read during local E2E validation.
+- [ ] Release Phase 9 only after a new explicit BCP request and separate Firebase deployment authorization.
+
+## Local verification record — 2026-07-27
+
+- `app`: the complete 18-test Playwright suite passed against local Hosting, Functions, Auth, and Firestore emulators. Coverage includes raw canonical HTML, real 404 responses, mixed search, mobile article/tracker CLS below `0.1`, unique homepage story links, themes, Stripe donation links, keyboard/focus behavior, and serious Axe checks.
+- `functions`: `npm test` passed all 10 renderer, routing, metadata, social-image, date, and Firebase rewrite assertions; Functions lint passed.
+- The focused accessibility regression found a borderline count-badge contrast issue, which was corrected before the full suite passed.
+- Test-mode Firebase configuration now uses `demo-dgno` and explicitly connects the browser SDK to local Auth and Firestore emulators. Normal production builds continue to use the configured production Firebase project.
+- The public search catalog is intentionally bounded to 500 article summaries and 100 active trackers with a five-minute server cache. It does not return article bodies or private records.
+- No commit, push, Firebase deployment, production write, IndexNow notification, or webmaster submission was performed for this phase.
+
 ## Local verification record — 2026-07-24
 
 - `app`: `npm run lint` passed with zero errors and zero warnings; `npm run build` passed without the stale browser-data or oversized-chunk warnings.
@@ -189,6 +215,8 @@ Owner: Codex integrator; Beacon reviews search artifacts
 - With separate production-write authorization, backfill branded social derivatives for already-published articles that are not otherwise updated after the generator is deployed.
 - Plan the Firebase Functions dependency/runtime upgrade and Java 21 emulator migration separately because the Functions upgrade warns of breaking changes.
 - After deployment authorization, validate real Hosting headers, status codes, raw HTML, sitemaps, feeds, schema, Core Web Vitals, consent behavior, and mobile/desktop output in production.
+- After Phase 9 deployment authorization, verify route-specific raw HTML and canonicals on `dgno.us`, confirm the search endpoint against the live catalog, and capture field Core Web Vitals as traffic accumulates.
+- Revisit the bounded search implementation when the published catalog approaches 500 articles; migrate to a dedicated index only when the scale and operating budget justify it.
 
 ## Release order
 
@@ -213,3 +241,5 @@ Owner: Codex integrator; Beacon reviews search artifacts
 - 2026-07-24: Light and dark themes apply only to the consumer site. The selected public preference persists locally and is removed from the document when a reader enters the staff login/admin surface.
 - 2026-07-24: Public donations use DGNO's verified Stripe Payment Links for one-time and monthly support and do not require a DGNO account.
 - 2026-07-26: BCP and Firebase deployment were explicitly authorized. Newsletter email remains off by default and requires the separate exact server-side opt-in `DGNO_NEWSLETTER_EMAIL_ENABLED=true`; a contact-form provider key alone cannot activate it.
+- 2026-07-27: Public search is a bounded, privacy-conscious discovery layer across article summaries, active trackers, and durable resources. Search-result pages are `noindex, follow`; destination pages remain canonical and indexable.
+- 2026-07-27: This quality slice is local only. The prior deployment authorization does not authorize a new commit, push, or Firebase deployment.
