@@ -117,7 +117,7 @@ export default function HomePage() {
               </div>
             </nav>
 
-            <main id="latest-reporting" className="mx-auto max-w-7xl scroll-mt-24 px-4 py-10 sm:px-6 sm:py-14 lg:px-8">
+            <section id="latest-reporting" className="mx-auto max-w-7xl scroll-mt-24 px-4 py-10 sm:px-6 sm:py-14 lg:px-8">
               {featured && (
                 <section className="mb-10 sm:mb-14" aria-labelledby="latest-heading">
                   <div className="mb-5 flex items-end justify-between gap-4 border-b-2 border-accent pb-3">
@@ -163,7 +163,7 @@ export default function HomePage() {
                   </div>
                 </aside>
               </div>
-            </main>
+            </section>
           </>
         )}
       </div>

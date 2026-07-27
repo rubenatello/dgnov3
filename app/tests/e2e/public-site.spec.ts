@@ -70,6 +70,9 @@ test('missing article and tracker routes return real noindex 404 responses', asy
     const response = await request.get(path);
     expect(response.status(), path).toBe(404);
     expect(response.headers()['x-robots-tag'], path).toContain('noindex');
+    expect(response.headers()['x-content-type-options'], path).toBe('nosniff');
+    expect(response.headers()['x-frame-options'], path).toBe('DENY');
+    expect(response.headers()['referrer-policy'], path).toBe('strict-origin-when-cross-origin');
     expect(await response.text(), path).toContain('not found');
   }
 });
@@ -213,6 +216,7 @@ test('homepage exposes reporting, public data, RSS, and no subscription pitch', 
   await expect(page.getByRole('link', { name: 'Explore public data' })).toBeVisible();
   await expect(page.locator('a[href="/rss.xml"]').first()).toBeVisible();
   await expect(page.getByText(/subscribe to newsletter/i)).toHaveCount(0);
+  await expect(page.locator('main')).toHaveCount(1);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 
   for (const theme of ['light', 'dark']) {

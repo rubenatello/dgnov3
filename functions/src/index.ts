@@ -981,6 +981,10 @@ export const publicAuthor = functions.https.onRequest(async (req, res) => {
 
 /** Serve canonical article HTML, legacy redirects, and real article 404s. */
 export const articlePage = functions.https.onRequest(async (req, res) => {
+  res.set("X-Content-Type-Options", "nosniff");
+  res.set("X-Frame-Options", "DENY");
+  res.set("Referrer-Policy", "strict-origin-when-cross-origin");
+
   if (req.method !== "GET" && req.method !== "HEAD") {
     res.set("Allow", "GET, HEAD");
     res.status(405).send("Method not allowed");
@@ -1073,6 +1077,10 @@ export const articlePage = functions.https.onRequest(async (req, res) => {
 
 /** Serve crawler-ready active tracker pages and real tracker 404s. */
 export const trackerPage = functions.https.onRequest(async (req, res) => {
+  res.set("X-Content-Type-Options", "nosniff");
+  res.set("X-Frame-Options", "DENY");
+  res.set("Referrer-Policy", "strict-origin-when-cross-origin");
+
   if (req.method !== "GET" && req.method !== "HEAD") {
     res.set("Allow", "GET, HEAD");
     res.status(405).send("Method not allowed");

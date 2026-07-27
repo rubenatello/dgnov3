@@ -1,6 +1,6 @@
 # DGNO News and Data Modernization Plan
 
-Status: local implementation and retained release suite complete; production-validation gates remain
+Status: production release complete; measurement and external-account follow-ups remain
 Last updated: 2026-07-26
 Scope: DGNO public news, article, tracker, navigation, accessibility, performance, and search-discovery experience on mobile and desktop
 
@@ -47,7 +47,7 @@ If a task crosses owners, the implementation agent owns the code and asks the na
 - [x] Record production mobile and desktop behavior.
 - [x] Audit navigation, article, tracker, crawler HTML, schema, sitemap, consent, accessibility, and bundle behavior.
 - [x] Confirm the current worktree before implementation.
-- [ ] Capture post-implementation mobile and desktop screenshots after deployment. Deployment-gated.
+- [x] Capture post-implementation mobile and desktop screenshots after deployment.
 - [ ] Record Search Console and Bing Webmaster baselines. External-account action; explicit authorization required.
 
 ## Phase 1 — Cohesive design foundation
@@ -154,9 +154,9 @@ Owner: Codex integrator; Beacon reviews search artifacts
 - [x] Add retained automated accessibility checks for the shared shell and dialogs.
 - [x] Recheck local production renders at 320, 375, 390, 768, 1024, and 1440 CSS pixels.
 - [x] Complete persistent automated keyboard, focus-return, viewport-overflow, landmark, and serious/critical Axe workflows.
-- [ ] Validate sitemap, news sitemap, RSS, and structured data against production output.
-- [x] Run BCP only after the user says exactly `run BCP`. Authorized 2026-07-26; verification and release are in progress.
-- [x] Deploy only after separate explicit user authorization. Authorized 2026-07-26; production validation remains required.
+- [x] Validate sitemap, news sitemap, RSS, and structured data against production output.
+- [x] Run BCP only after the user says exactly `run BCP`. Completed 2026-07-26 on `v1.0.2`.
+- [x] Deploy only after separate explicit user authorization. Completed 2026-07-26 to Firebase project `dgno-675a8`.
 
 ## Local verification record — 2026-07-24
 
@@ -171,6 +171,15 @@ Owner: Codex integrator; Beacon reviews search artifacts
 - The browser compatibility datasets were refreshed. A non-breaking audit remediation reduced npm advisories from 22 to two high-severity React Router advisories tied to server/RSC action handling, which this client-rendered Firebase SPA does not enable; no forced major downgrade or upgrade was applied.
 - The Functions production audit was reduced from 21 advisories (including three critical and six high) to eight moderate Firebase Admin transitive advisories. Clearing those requires the separately planned Firebase Admin major upgrade; no force upgrade was applied.
 - `git diff --check` passed. No commit, push, Firebase deployment, production write, migration, IndexNow notification, or webmaster submission was performed.
+
+## Production verification record — 2026-07-26
+
+- BCP pushed the verified modernization release to the `v1.0.2` branch. Firebase deployed Hosting, Functions, Firestore indexes/rules, and Storage rules to project `dgno-675a8` without deleting remote functions.
+- The `dgno.us` custom domain returned `200` for the homepage, trust pages, tracker directory, sitemap, news sitemap, RSS, Atom, and bounded public article API. A live article returned crawler-ready canonical HTML and `NewsArticle` schema.
+- Missing article and tracker URLs returned true `404` responses with `noindex`; dashboard and login returned `X-Robots-Tag: noindex, nofollow`. A production-only gap in security headers on rewritten `404` responses was corrected and retained in browser coverage.
+- Live browser checks covered the homepage and a published article at 390 and 1440 CSS pixels in light and dark themes. Samples had no horizontal overflow, exactly one `h1`, and no serious or critical Axe violations. A nested homepage main landmark found during the pass was corrected and retained in the release suite.
+- The public article API returned bounded summaries without article bodies. The sitemap used canonical DGNO URLs, and the RSS/news-sitemap endpoints returned their expected XML document types.
+- No newsletter email was sent. Newsletter delivery remains separately opt-in, and no contact-form test message was submitted to the monitored inbox.
 
 ## Known follow-up work
 
