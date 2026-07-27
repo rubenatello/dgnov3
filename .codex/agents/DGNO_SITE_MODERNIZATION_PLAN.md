@@ -1,6 +1,6 @@
 # DGNO News and Data Modernization Plan
 
-Status: production release complete; next public-quality slice implemented locally and awaiting release authorization
+Status: Phase 9 production release complete; field measurement and external-account follow-ups remain
 Last updated: 2026-07-27
 Scope: DGNO public news, article, tracker, navigation, accessibility, performance, and search-discovery experience on mobile and desktop
 
@@ -173,7 +173,7 @@ Owners: Codex integrator; Beacon reviews crawler delivery and search-discovery s
 - [x] Prevent duplicate article promotion across homepage modules and clearly label an older lead story as archival/current-most-recent coverage.
 - [x] Use absolute publication dates for stories older than seven days instead of misleading relative-time labels.
 - [x] Isolate browser tests to the Firebase demo project and Auth/Firestore emulators so production data is never read during local E2E validation.
-- [ ] Release Phase 9 only after a new explicit BCP request and separate Firebase deployment authorization.
+- [x] Release Phase 9 only after a new explicit BCP request and separate Firebase deployment authorization. Completed 2026-07-27 on `v1.0.2` and Firebase project `dgno-675a8`.
 
 ## Local verification record — 2026-07-27
 
@@ -182,7 +182,7 @@ Owners: Codex integrator; Beacon reviews crawler delivery and search-discovery s
 - The focused accessibility regression found a borderline count-badge contrast issue, which was corrected before the full suite passed.
 - Test-mode Firebase configuration now uses `demo-dgno` and explicitly connects the browser SDK to local Auth and Firestore emulators. Normal production builds continue to use the configured production Firebase project.
 - The public search catalog is intentionally bounded to 500 article summaries and 100 active trackers with a five-minute server cache. It does not return article bodies or private records.
-- No commit, push, Firebase deployment, production write, IndexNow notification, or webmaster submission was performed for this phase.
+- Local validation itself performed no production writes, IndexNow notifications, or webmaster submissions; the separately authorized release is recorded below.
 
 ## Local verification record — 2026-07-24
 
@@ -207,6 +207,14 @@ Owners: Codex integrator; Beacon reviews crawler delivery and search-discovery s
 - The public article API returned bounded summaries without article bodies. The sitemap used canonical DGNO URLs, and the RSS/news-sitemap endpoints returned their expected XML document types.
 - No newsletter email was sent. Newsletter delivery remains separately opt-in, and no contact-form test message was submitted to the monitored inbox.
 
+## Production verification record — 2026-07-27
+
+- BCP pushed commit `831d629` (`Improve public search, SEO, and resilience`) to `origin/v1.0.2`. Firebase deployed Hosting, Functions, Firestore indexes/rules, and Storage rules to project `dgno-675a8`; `publicSearch` and `publicPage` were created successfully.
+- Live `dgno.us` checks returned route-correct `200` HTML, self-canonicals, titles, and `index, follow` directives for the tracker directory, Politics section, and About page. Search returned `200` with `noindex, follow`; an arbitrary unknown route returned a true `404` with `noindex, nofollow`; login remained `200` with `noindex, nofollow`.
+- The live mixed-catalog search endpoint returned real resource and article results without article bodies. The 390-pixel browser pass rendered tracker, search, homepage, and article headings with no horizontal overflow or JavaScript errors; all 21 homepage article links were unique.
+- Tracker and article CLS measured `0` in the production browser sample. A multi-route homepage sample measured `0.119`, while a separate isolated eight-second homepage sample measured `0.001`; field Core Web Vitals remain the authoritative follow-up because synthetic timing can vary.
+- No production content record was changed, no newsletter or contact email was sent, and no IndexNow or webmaster submission was made.
+
 ## Known follow-up work
 
 - Verify and publish DGNO's exact legal operator/ownership identity; do not infer or invent that fact.
@@ -215,7 +223,7 @@ Owners: Codex integrator; Beacon reviews crawler delivery and search-discovery s
 - With separate production-write authorization, backfill branded social derivatives for already-published articles that are not otherwise updated after the generator is deployed.
 - Plan the Firebase Functions dependency/runtime upgrade and Java 21 emulator migration separately because the Functions upgrade warns of breaking changes.
 - After deployment authorization, validate real Hosting headers, status codes, raw HTML, sitemaps, feeds, schema, Core Web Vitals, consent behavior, and mobile/desktop output in production.
-- After Phase 9 deployment authorization, verify route-specific raw HTML and canonicals on `dgno.us`, confirm the search endpoint against the live catalog, and capture field Core Web Vitals as traffic accumulates.
+- Monitor route-specific indexing, live search behavior, and field Core Web Vitals as traffic accumulates.
 - Revisit the bounded search implementation when the published catalog approaches 500 articles; migrate to a dedicated index only when the scale and operating budget justify it.
 
 ## Release order
@@ -242,4 +250,4 @@ Owners: Codex integrator; Beacon reviews crawler delivery and search-discovery s
 - 2026-07-24: Public donations use DGNO's verified Stripe Payment Links for one-time and monthly support and do not require a DGNO account.
 - 2026-07-26: BCP and Firebase deployment were explicitly authorized. Newsletter email remains off by default and requires the separate exact server-side opt-in `DGNO_NEWSLETTER_EMAIL_ENABLED=true`; a contact-form provider key alone cannot activate it.
 - 2026-07-27: Public search is a bounded, privacy-conscious discovery layer across article summaries, active trackers, and durable resources. Search-result pages are `noindex, follow`; destination pages remain canonical and indexable.
-- 2026-07-27: This quality slice is local only. The prior deployment authorization does not authorize a new commit, push, or Firebase deployment.
+- 2026-07-27: The user explicitly authorized a new BCP and Firebase deployment. The verified Phase 9 release is live; external webmaster submissions remain unauthorized.
