@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type APIRequestContext } from '@playwright/test';
+import { getYear, toDate } from '../../src/utils/dateUtils';
 
 const PROJECT_ID = 'demo-dgno';
 const FIRESTORE_BASE = `http://127.0.0.1:8080/v1/projects/${PROJECT_ID}/databases/(default)/documents`;
@@ -46,6 +47,17 @@ test.beforeAll(async ({ request }) => {
     createdAt: { timestampValue: '2026-07-24T18:00:00.000Z' },
     updatedAt: { timestampValue: '2026-07-24T20:00:00.000Z' },
   });
+});
+
+test('date conversion accepts legacy timestamp maps and rejects invalid dates', () => {
+  expect(toDate({ seconds: 1770404844, nanoseconds: 821000000 })?.toISOString())
+    .toBe('2026-02-06T19:07:24.821Z');
+  expect(toDate({ seconds: '1762210223', nanoseconds: '90000000' })?.toISOString())
+    .toBe('2025-11-03T22:50:23.090Z');
+  expect(toDate('not-a-real-date')).toBeNull();
+  expect(toDate({ unexpected: 'object' })).toBeNull();
+  expect(toDate({ seconds: 1770404844, nanoseconds: 1_000_000_000 })).toBeNull();
+  expect(getYear({ seconds: '1762210223', nanoseconds: '90000000' })).toBe(2025);
 });
 
 test('article aliases redirect and crawler HTML owns canonical metadata', async ({ request }) => {

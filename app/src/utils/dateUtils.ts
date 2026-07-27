@@ -7,19 +7,7 @@ import type { Timestamp } from 'firebase/firestore';
  * @returns Formatted date string or default value
  */
 export function formatDate(dateValue: unknown, defaultValue: string = 'N/A'): string {
-  if (!dateValue) return defaultValue;
-  
-  try {
-    // If it's a Firestore Timestamp
-    if (typeof dateValue === 'object' && dateValue !== null && 'toDate' in dateValue) {
-      return (dateValue as Timestamp).toDate().toLocaleDateString();
-    }
-    
-    // If it's already a Date object or date string/number
-    return new Date(dateValue as string | number | Date).toLocaleDateString();
-  } catch {
-    return defaultValue;
-  }
+  return toDate(dateValue)?.toLocaleDateString() || defaultValue;
 }
 
 /**
@@ -28,16 +16,52 @@ export function formatDate(dateValue: unknown, defaultValue: string = 'N/A'): st
  * @returns Date object or null if conversion fails
  */
 export function toDate(dateValue: unknown): Date | null {
-  if (!dateValue) return null;
-  
+  if (dateValue === null || dateValue === undefined || dateValue === '') return null;
+
   try {
-    // If it's a Firestore Timestamp
-    if (typeof dateValue === 'object' && dateValue !== null && 'toDate' in dateValue) {
-      return (dateValue as Timestamp).toDate();
+    let date: Date | null = null;
+
+    if (dateValue instanceof Date) {
+      date = new Date(dateValue.getTime());
+    } else if (typeof dateValue === 'object') {
+      const timestamp = dateValue as Partial<Timestamp> & {
+        seconds?: unknown;
+        nanoseconds?: unknown;
+        _seconds?: unknown;
+        _nanoseconds?: unknown;
+      };
+
+      if (typeof timestamp.toDate === 'function') {
+        date = timestamp.toDate();
+      } else {
+        // Some legacy tracker imports stored Timestamp-shaped plain maps
+        // instead of Firestore Timestamp values. Support both public SDK and
+        // Admin SDK property names without treating arbitrary objects as dates.
+        const rawSeconds = timestamp.seconds ?? timestamp._seconds;
+        const rawNanoseconds = timestamp.nanoseconds ?? timestamp._nanoseconds ?? 0;
+        const seconds = typeof rawSeconds === 'number' || typeof rawSeconds === 'string'
+          ? Number(rawSeconds)
+          : Number.NaN;
+        const nanoseconds = typeof rawNanoseconds === 'number' || typeof rawNanoseconds === 'string'
+          ? Number(rawNanoseconds)
+          : Number.NaN;
+
+        if (
+          Number.isFinite(seconds) &&
+          Number.isInteger(seconds) &&
+          Number.isFinite(nanoseconds) &&
+          Number.isInteger(nanoseconds) &&
+          nanoseconds >= 0 &&
+          nanoseconds < 1_000_000_000
+        ) {
+          date = new Date((seconds * 1000) + (nanoseconds / 1_000_000));
+        }
+      }
+    } else if (typeof dateValue === 'string' || typeof dateValue === 'number') {
+      date = new Date(dateValue);
     }
-    
-    // If it's already a Date object or date string/number
-    return new Date(dateValue as string | number | Date);
+
+    return date && Number.isFinite(date.getTime()) ? date : null;
   } catch {
     return null;
   }
